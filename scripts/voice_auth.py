@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 import sounddevice as sd
-from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_EMBEDDING_PATH
+from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
 from resemblyzer import VoiceEncoder, preprocess_wav
 from scipy.io.wavfile import write
 from speech_recognition import (AudioFile, Recognizer, RequestError,
@@ -18,7 +18,7 @@ from speech_recognition import (AudioFile, Recognizer, RequestError,
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 # Create Directories
-os.makedirs(VOICE_EMBEDDING_PATH, exist_ok=True)
+os.makedirs(VOICE_DATA_PATH, exist_ok=True)
 os.makedirs(TEMP_AUDIO_PATH, exist_ok=True)
 
 # Initialize Database
@@ -93,7 +93,7 @@ def validate_liu_id(liu_id):
 # Save Voice Embedding
 def save_voice_embedding(LIU_id, voice_embedding, conn):
     cursor = conn.cursor()
-    voice_file = os.path.join(VOICE_EMBEDDING_PATH, f"{LIU_id}_voice.pkl")
+    voice_file = os.path.join(VOICE_DATA_PATH, f"{LIU_id}_voice.pkl")
 
     cursor.execute("""
         UPDATE user_profiles SET voice_embedding = ? WHERE LIU_id = ?
