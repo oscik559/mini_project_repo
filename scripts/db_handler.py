@@ -5,7 +5,12 @@ import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from config import DB_PATH
+import sys
+from pathlib import Path
+# Add the project root directory to sys.path
+sys.path.append(str(Path(__file__).parent.parent))
+
+from config.config import DB_PATH
 
 logging.basicConfig(level=logging.INFO)
 
