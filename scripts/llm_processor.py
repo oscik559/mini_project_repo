@@ -1,4 +1,3 @@
-
 import sys
 from pathlib import Path
 
@@ -61,33 +60,37 @@ class InstructionProcessor:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT id, content
                 FROM instructions
                 WHERE processed = 0
                 ORDER BY id DESC
                 LIMIT 1
-            """)
+            """
+            )
             result = cursor.fetchone()
             return dict(result) if result else None
-
 
     def validate_operation(self, operation: Dict) -> bool:
         """Validate operation structure"""
         available_sequences = self.get_available_sequences()
 
-        if operation['sequence_name'] not in available_sequences:
+        if operation["sequence_name"] not in available_sequences:
             print(f"Invalid sequence name: {operation['sequence_name']}")
             return False
 
         # Allow empty object names
-        if not operation['object_name']:
+        if not operation["object_name"]:
             return True
 
         # Validate object if specified
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM camera_vision WHERE object_name = ?", (operation['object_name'],))
+            cursor.execute(
+                "SELECT 1 FROM camera_vision WHERE object_name = ?",
+                (operation["object_name"],),
+            )
             return bool(cursor.fetchone())
 
     def process_instruction(self, instruction: Dict) -> bool:
@@ -100,30 +103,32 @@ class InstructionProcessor:
 
             response = ollama.chat(
                 model=self.llm_model,
-                messages=[{
-                    'role': 'system',
-                    'content': self.system_prompt.format(available_sequences=", ".join(sequence_library))
-                }, {
-                    'role': 'user',
-                    'content': instruction['content']
-                }]
+                messages=[
+                    {
+                        "role": "system",
+                        "content": self.system_prompt.format(
+                            available_sequences=", ".join(sequence_library)
+                        ),
+                    },
+                    {"role": "user", "content": instruction["content"]},
+                ],
             )
 
-            raw_response = response['message']['content']
+            raw_response = response["message"]["content"]
             print("Raw LLM Response:", raw_response)
 
             try:
                 # Extract all JSON arrays from the response
-                json_start = raw_response.find('[')
-                json_end = raw_response.rfind(']') + 1
+                json_start = raw_response.find("[")
+                json_end = raw_response.rfind("]") + 1
                 if json_start == -1 or json_end == 0:
                     raise ValueError("JSON array not found in the response.")
 
                 json_str = raw_response[json_start:json_end]
 
-                 # Try parsing as a single JSON array first
+                # Try parsing as a single JSON array first
                 try:
-                    operations = json.loads(json_str)    # Parse the JSON string
+                    operations = json.loads(json_str)  # Parse the JSON string
                 except json.JSONDecodeError:
                     # Handle multiple JSON arrays manually
                     json_str_fixed = "[" + json_str.replace("][", "],[") + "]"
@@ -132,46 +137,54 @@ class InstructionProcessor:
 
             except (ValueError, json.JSONDecodeError) as e:
                 print(f"JSON parsing failed: {str(e)}")
-                print("Raw LLM Response:", raw_response)    # Debugging purpose
+                print("Raw LLM Response:", raw_response)  # Debugging purpose
                 return False
 
             # Validate operation structure
             valid_operations = []
             for op in operations:
                 # try:
-                    if not all(key in op for key in ['sequence_name', 'object_name']):
-                        print(f"Invalid operation missing keys: {op}")  # Debugging
-                        continue
+                if not all(key in op for key in ["sequence_name", "object_name"]):
+                    print(f"Invalid operation missing keys: {op}")  # Debugging
+                    continue
 
-                    if self.validate_operation(op):
-                        valid_operations.append(op)
-                    else:
-                        print(f"Operation failed validation: {op}")  # Debugging
-                # except Exception as op_error:
-                #     print(f"Error validating operation {op}: {str(op_error)}")
-                #     continue
+                if self.validate_operation(op):
+                    valid_operations.append(op)
+                else:
+                    print(f"Operation failed validation: {op}")  # Debugging
+            # except Exception as op_error:
+            #     print(f"Error validating operation {op}: {str(op_error)}")
+            #     continue
 
             if valid_operations:
                 with sqlite3.connect(self.db_path) as conn:
                     cursor = conn.cursor()
                     for order, op in enumerate(valid_operations, start=1):
                         print(f"Inserting: {op}")  # Debugging
-                        cursor.execute("""
+                        cursor.execute(
+                            """
                             INSERT INTO instruction_operation_sequence
                             (instruction_id, sequence_id, sequence_name, object_name)
                             VALUES (?, ?, ?, ?)
-                        """, (
-                            instruction['id'],
-                            order,
-                            op['sequence_name'],
-                            op.get('object_name', '')  # Handle missing values safely
-                        ))
+                        """,
+                            (
+                                instruction["id"],
+                                order,
+                                op["sequence_name"],
+                                op.get(
+                                    "object_name", ""
+                                ),  # Handle missing values safely
+                            ),
+                        )
 
-                    cursor.execute("""
+                    cursor.execute(
+                        """
                         UPDATE instructions
                         SET processed = 1
                         WHERE id = ?
-                    """, (instruction['id'],))
+                    """,
+                        (instruction["id"],),
+                    )
                     conn.commit()
                 return True
             return False
@@ -197,6 +210,5 @@ class InstructionProcessor:
 if __name__ == "__main__":
     # # Initialize database schema
     # with sqlite3.connect("sequences.db") as conn:
-        processor = InstructionProcessor()
-        processor.run_processing_cycle()
-
+    processor = InstructionProcessor()
+    processor.run_processing_cycle()
