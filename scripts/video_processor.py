@@ -40,8 +40,6 @@ class VideoProcessor:
             return "hand_raised", "right hand above shoulder"
         return "neutral", ""
 
-
-the
     def process_video(self):
         cap = cv2.VideoCapture(0)
 

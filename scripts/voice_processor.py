@@ -4,8 +4,6 @@ from pathlib import Path
 
 # Ensure the parent directory is included in sys.path for imports
 sys.path.append(str(Path(__file__).parent.parent))
-from config.config import DB_PATH, TEMP_AUDIO_PATH
-
 import logging
 import os
 import sqlite3
@@ -14,7 +12,7 @@ import time
 import numpy as np
 import sounddevice as sd
 import webrtcvad
-
+from config.config import DB_PATH, TEMP_AUDIO_PATH
 from faster_whisper import WhisperModel
 from scipy.io.wavfile import write
 
@@ -22,19 +20,24 @@ from scipy.io.wavfile import write
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("voice_processor")
 
+
 # Define the VoiceProcessor class
 class VoiceProcessor:
     def __init__(self, update_status_callback=None):
         self.db_path = DB_PATH  # Use DB_PATH from config
-        self.audio_file_path = os.path.join(TEMP_AUDIO_PATH, "recording.wav")  # Ensure it's a file
-        self.model = WhisperModel("large-v3", device="cuda", compute_type="float16")  # Whisper model for transcription
+        self.audio_file_path = os.path.join(
+            TEMP_AUDIO_PATH, "recording.wav"
+        )  # Ensure it's a file
+        self.model = WhisperModel(
+            "large-v3", device="cuda", compute_type="float16"
+        )  # Whisper model for transcription
         self.vad = webrtcvad.Vad()
         self.vad.set_mode(1)  # VAD sensitivity
         self.update_status = update_status_callback  # Callback for GUI status updates
 
         logger.info(f"Using database path: {self.db_path}")  # Debugging: Verify DB path
         self.check_directories()  # Ensure required directories exist
-        self.check_database()   # Check if the database file exists
+        self.check_database()  # Check if the database file exists
 
     def check_directories(self):
         """Ensure required directories exist."""
@@ -84,7 +87,9 @@ class VoiceProcessor:
             write(self.audio_file_path, sampling_rate, audio)
             logger.info(f"Audio saved to {self.audio_file_path}")
         except PermissionError as e:
-            logger.error(f"PermissionError: Unable to write to {self.audio_file_path}. Check file permissions.")
+            logger.error(
+                f"PermissionError: Unable to write to {self.audio_file_path}. Check file permissions."
+            )
         except Exception as e:
             logger.error(f"Unexpected error writing audio file: {e}")
 

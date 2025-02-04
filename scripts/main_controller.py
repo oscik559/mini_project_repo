@@ -1,10 +1,10 @@
 # File: main_controller.py
 import tkinter as tk
 from GUI import InstructionCaptureGUI
-from database_handler import DatabaseManager
+from db_handler import DatabaseManager
 from voice_processor import VoiceProcessor
 from video_processor import VideoProcessor
-from LLM_processor import LLMProcessor
+from llm_processor import LLMProcessor
 
 class MainController:
     def __init__(self):

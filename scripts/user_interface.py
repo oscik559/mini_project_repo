@@ -1,7 +1,15 @@
 import tkinter as tk
 from tkinter import messagebox
-from database_handler_edit import DatabaseHandler
+from db_handler import DatabaseHandler
 
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
+
+from mini_project.scripts.voice_processor import VoiceProcessor
+from mini_project.scripts.video_processor import VideoProcessor
+from mini_project.scripts.llm_processor import InstructionProcessor
 
 class UserInterface:
     def __init__(self):
