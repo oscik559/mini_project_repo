@@ -1,13 +1,22 @@
-import sqlite3
-import ollama
-from typing import List, Dict
-import time
+
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
 import json
+import sqlite3
+import time
+from typing import Dict, List
+
+import ollama
+from config.config import DB_PATH
+
 
 class InstructionProcessor:
-    def __init__(self, db_path="sequences.db"):
-        self.db_path = db_path
+    def __init__(self):
+        self.db_path = DB_PATH
 
+        # Define the LLM model to use
         self.llm_model = "llama3.2:latest"
         # self.llm_model = "llama3.2:1b"
         # self.llm_model = "deepseek-r1:1.5b"
@@ -149,7 +158,7 @@ class InstructionProcessor:
                         print(f"Inserting: {op}")  # Debugging
                         cursor.execute("""
                             INSERT INTO instruction_operation_sequence
-                            (instruction_id, operation_id, sequence_name, object_name)
+                            (instruction_id, sequence_id, sequence_name, object_name)
                             VALUES (?, ?, ?, ?)
                         """, (
                             instruction['id'],
