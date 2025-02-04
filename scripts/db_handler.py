@@ -2,14 +2,12 @@ import atexit
 import logging
 import os
 import sqlite3
+import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import sys
-from pathlib import Path
-# Add the project root directory to sys.path
 sys.path.append(str(Path(__file__).parent.parent))
-
 from config.config import DB_PATH
 
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +16,6 @@ class DatabaseHandler:
     """
     A class to handle database operations, including table creation, schema updates, and data population.
     """
-
     def __init__(self, db_name: str = DB_PATH) -> None:
         """
         Initialize the DatabaseHandler.

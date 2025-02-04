@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 facial_auth.py (optimized with FAISS and database-centric design)
 
@@ -7,17 +6,22 @@ Modifications:
 - If user not recognized, offer only: 1. Register new user  2. Exit.
 - Registration face capture is forced to manual mode.
 """
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent))
 
 import pickle
 import re
 import sqlite3
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, List, Optional, Tuple
 
 import cv2
 import face_recognition
-import numpy as np
 import faiss  # For fast similarity search
-from config import *
+import numpy as np
+from config.config import *
+# from config.config import DB_PATH
 from db_handler import DatabaseHandler
 from face_utils import FaceUtils
 

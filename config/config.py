@@ -14,6 +14,12 @@ FACE_MATCH_THRESHOLD = 0.6
 MAX_ENCODINGS_PER_USER = 5
 AUTO_CAPTURE_FRAME_COUNT = 5  # Number of consecutive frames with detected face for auto-capture
 
+VOICE_EMBEDDING_PATH = BASE_DIR / "utils" / "voice_embedding"
+TEMP_AUDIO_PATH = BASE_DIR / "utils" / "temp_audio"
+
+#Voice recognition parameters
+
+
 # Email and ID validation patterns
 LIU_ID_PATTERN = r"^[a-z]{3,5}\d{3}$"  # Example: oscik559
 EMAIL_PATTERN = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
