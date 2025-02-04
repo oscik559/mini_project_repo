@@ -6,7 +6,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent.parent
 DB_PATH = BASE_DIR / "database" / "sequences.db"
 
-FACIAL_DATA_PATH = BASE_DIR / "utils" / "facial_data"
+FACIAL_DATA_PATH = BASE_DIR / "utils" / "face_encodings"
 FACE_CAPTURE_PATH = BASE_DIR / "utils" / "face_capture"
 
 # Face recognition parameters
@@ -14,7 +14,7 @@ FACE_MATCH_THRESHOLD = 0.6
 MAX_ENCODINGS_PER_USER = 5
 AUTO_CAPTURE_FRAME_COUNT = 5  # Number of consecutive frames with detected face for auto-capture
 
-VOICE_EMBEDDING_PATH = BASE_DIR / "utils" / "voice_embedding"
+VOICE_DATA_PATH = BASE_DIR / "utils" / "voice_embeddings"
 TEMP_AUDIO_PATH = BASE_DIR / "utils" / "temp_audio"
 
 #Voice recognition parameters
