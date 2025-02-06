@@ -14,10 +14,14 @@ FACE_MATCH_THRESHOLD = 0.6
 MAX_ENCODINGS_PER_USER = 5
 AUTO_CAPTURE_FRAME_COUNT = 5  # Number of consecutive frames with detected face for auto-capture
 
+#Voice recognition parameters
 VOICE_DATA_PATH = BASE_DIR / "utils" / "voice_embeddings"
 TEMP_AUDIO_PATH = BASE_DIR / "utils" / "temp_audio"
 
-#Voice recognition parameters
+# camera_vision utilities
+CAMERA_DATA_PATH = BASE_DIR / "utils" / "camera_data"
+
+
 
 
 # Email and ID validation patterns

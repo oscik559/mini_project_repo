@@ -12,20 +12,24 @@ class VideoProcessor:
         self.pose = mp.solutions.pose.Pose()
 
         # Ensure the instructions table exists
-        self.c.execute('''
+        self.c.execute(
+            """
             CREATE TABLE IF NOT EXISTS instructions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 timestamp DATETIME,
                 action_type TEXT,
                 content TEXT
             )
-        ''')
+        """
+        )
         self.conn.commit()
 
     def log_action(self, instruction_type, content=""):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.c.execute("INSERT INTO instructions (timestamp, instruction_type, content) VALUES (?, ?, ?)",
-                       (timestamp, instruction_type, content))
+        self.c.execute(
+            "INSERT INTO instructions (timestamp, instruction_type, content) VALUES (?, ?, ?)",
+            (timestamp, instruction_type, content),
+        )
         self.conn.commit()
         print(f"Logged action: {instruction_type}")
 
@@ -55,17 +59,28 @@ class VideoProcessor:
             content = ""
 
             if results.pose_landmarks:
-                current_action, content = self.interpret_pose(results.pose_landmarks.landmark)
-                mp.solutions.drawing_utils.draw_landmarks(frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS)
+                current_action, content = self.interpret_pose(
+                    results.pose_landmarks.landmark
+                )
+                mp.solutions.drawing_utils.draw_landmarks(
+                    frame, results.pose_landmarks, mp.solutions.pose.POSE_CONNECTIONS
+                )
 
-            cv2.putText(frame, f"Current Action: {current_action}",
-                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(
+                frame,
+                f"Current Action: {current_action}",
+                (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2,
+            )
 
             if current_action != "neutral":
                 self.log_action(current_action, content)
 
-            cv2.imshow('Action Recognition', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            cv2.imshow("Action Recognition", frame)
+            if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 
         cap.release()

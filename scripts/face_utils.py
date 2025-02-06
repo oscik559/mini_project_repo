@@ -16,14 +16,21 @@ class FaceUtils:
         return face_locations, face_encodings
 
     @staticmethod
-    def draw_bounding_boxes(frame: np.ndarray, face_locations: List[tuple]) -> np.ndarray:
+    def draw_bounding_boxes(
+        frame: np.ndarray, face_locations: List[tuple]
+    ) -> np.ndarray:
         """Draw bounding boxes around detected faces"""
         for top, right, bottom, left in face_locations:
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
         return frame
 
     @staticmethod
-    def select_best_face(face_encodings: List[np.ndarray], face_locations: List[tuple]) -> int:
+    def select_best_face(
+        face_encodings: List[np.ndarray], face_locations: List[tuple]
+    ) -> int:
         """Select the largest face when multiple faces are detected"""
-        face_sizes = [(bottom - top) * (right - left) for (top, right, bottom, left) in face_locations]
+        face_sizes = [
+            (bottom - top) * (right - left)
+            for (top, right, bottom, left) in face_locations
+        ]
         return np.argmax(face_sizes)

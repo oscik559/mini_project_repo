@@ -6,6 +6,7 @@ Modifications:
 - If user not recognized, offer only: 1. Register new user  2. Exit.
 - Registration face capture is forced to manual mode.
 """
+
 import sys
 from pathlib import Path
 
@@ -44,10 +45,10 @@ class FacialAuthSystem:
             for user in users:
                 if user[4]:  # face_encoding exists
                     encodings[user[3]] = {
-                        'user_id': user[0],
-                        'first_name': user[1],
-                        'last_name': user[2],
-                        'encodings': pickle.loads(user[4])
+                        "user_id": user[0],
+                        "first_name": user[1],
+                        "last_name": user[2],
+                        "encodings": pickle.loads(user[4]),
                     }
         except sqlite3.Error as e:
             print(f"Database error during encoding preload: {str(e)}")
@@ -62,7 +63,7 @@ class FacialAuthSystem:
         all_encodings = []
         self.user_ids = []  # Maps FAISS index to LIU IDs
         for liu_id, user in self.known_encodings.items():
-            for encoding in user['encodings']:
+            for encoding in user["encodings"]:
                 all_encodings.append(encoding)
                 self.user_ids.append(liu_id)
 
@@ -85,7 +86,9 @@ class FacialAuthSystem:
             return False
         return True
 
-    def _capture_face(self, capture_mode: str = 'auto') -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    def _capture_face(
+        self, capture_mode: str = "auto"
+    ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         """Capture face using specified mode (auto/manual)"""
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
@@ -96,8 +99,8 @@ class FacialAuthSystem:
         captured_frame = None
         captured_encoding = None
         instructions = {
-            'auto': "Face detected, capturing...",
-            'manual': "Press 's' to save, 'q' to quit"
+            "auto": "Face detected, capturing...",
+            "manual": "Press 's' to save, 'q' to quit",
         }
 
         try:
@@ -110,14 +113,28 @@ class FacialAuthSystem:
                 frame = self.face_utils.draw_bounding_boxes(frame, face_locations)
 
                 # Add instructional text on the frame
-                cv2.putText(frame, instructions[capture_mode],
-                           (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                cv2.putText(
+                    frame,
+                    instructions[capture_mode],
+                    (10, 30),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7,
+                    (0, 255, 0),
+                    2,
+                )
 
-                if capture_mode == 'auto':
+                if capture_mode == "auto":
                     if len(face_encodings) == 1:
                         consecutive_detections += 1
-                        cv2.putText(frame, f"Detected: {consecutive_detections}/{AUTO_CAPTURE_FRAME_COUNT}",
-                                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        cv2.putText(
+                            frame,
+                            f"Detected: {consecutive_detections}/{AUTO_CAPTURE_FRAME_COUNT}",
+                            (10, 60),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            (0, 255, 0),
+                            2,
+                        )
                         if consecutive_detections >= AUTO_CAPTURE_FRAME_COUNT:
                             captured_frame = frame
                             captured_encoding = face_encodings[0]
@@ -126,15 +143,22 @@ class FacialAuthSystem:
                         consecutive_detections = 0
                 else:  # manual mode
                     if len(face_encodings) >= 1:
-                        cv2.putText(frame, "Face detected!",
-                                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+                        cv2.putText(
+                            frame,
+                            "Face detected!",
+                            (10, 60),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.7,
+                            (0, 255, 0),
+                            2,
+                        )
 
                 cv2.imshow("Face Capture", frame)
                 key = cv2.waitKey(1) & 0xFF
 
-                if key == ord('q'):
+                if key == ord("q"):
                     break
-                if capture_mode == 'manual' and key == ord('s'):
+                if capture_mode == "manual" and key == ord("s"):
                     if len(face_encodings) == 1:
                         captured_frame = frame
                         captured_encoding = face_encodings[0]
@@ -168,7 +192,9 @@ class FacialAuthSystem:
                 matched_LIU_id = self.user_ids[indices[0][0]]
                 existing_user = self.known_encodings.get(matched_LIU_id)
                 if existing_user:
-                    print(f"\nUser already registered as {existing_user['first_name']} {existing_user['last_name']} (LIU ID: {matched_LIU_id}).")
+                    print(
+                        f"\nUser already registered as {existing_user['first_name']} {existing_user['last_name']} (LIU ID: {matched_LIU_id})."
+                    )
                     print("Registration aborted.")
                     return
 
@@ -185,20 +211,26 @@ class FacialAuthSystem:
             # Check for existing user by LIU ID or email
             existing = self.db_handler.cursor.execute(
                 "SELECT user_id, face_encoding FROM users WHERE liu_id = ? OR email = ?",
-                (liu_id, email)
+                (liu_id, email),
             ).fetchone()
 
             if existing:
                 print("User already exists. Updating face encoding...")
                 user_id, existing_encoding_blob = existing
-                existing_encodings = pickle.loads(existing_encoding_blob) if existing_encoding_blob else []
+                existing_encodings = (
+                    pickle.loads(existing_encoding_blob)
+                    if existing_encoding_blob
+                    else []
+                )
                 existing_encodings.append(encoding)
-                existing_encodings = existing_encodings[-MAX_ENCODINGS_PER_USER:]  # Keep last N encodings
+                existing_encodings = existing_encodings[
+                    -MAX_ENCODINGS_PER_USER:
+                ]  # Keep last N encodings
 
                 # Update database
                 self.db_handler.cursor.execute(
                     "UPDATE users SET face_encoding = ? WHERE user_id = ?",
-                    (pickle.dumps(existing_encodings), user_id)
+                    (pickle.dumps(existing_encodings), user_id),
                 )
                 self.db_handler.conn.commit()
                 print(f"Face encoding updated for {first_name} {last_name}")
@@ -206,8 +238,8 @@ class FacialAuthSystem:
 
             # Prepare extended fields
             profile_image_path = str(FACE_CAPTURE_PATH / f"{liu_id}.jpg")
-            preferences = '{}'  # Default empty preferences
-            interaction_memory = '[]'  # Default empty history
+            preferences = "{}"  # Default empty preferences
+            interaction_memory = "[]"  # Default empty history
 
             encoding_blob = pickle.dumps([encoding])
             self.db_handler.cursor.execute(
@@ -215,8 +247,16 @@ class FacialAuthSystem:
                 (first_name, last_name, liu_id, email, face_encoding,
                 preferences, profile_image_path, interaction_memory)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                (first_name, last_name, liu_id, email, encoding_blob,
-                preferences, profile_image_path, interaction_memory)
+                (
+                    first_name,
+                    last_name,
+                    liu_id,
+                    email,
+                    encoding_blob,
+                    preferences,
+                    profile_image_path,
+                    interaction_memory,
+                ),
             )
 
             cv2.imwrite(profile_image_path, frame)
@@ -260,11 +300,13 @@ class FacialAuthSystem:
             print("\n1. Identify User\n2. Register User\n3. Exit")
             choice = input("Choice: ").strip()
 
-            if choice == '1':
+            if choice == "1":
                 if not self.known_encodings:
                     print("No registered users found.")
-                    option = input("Would you like to register? (1: Register, 2: Exit): ").strip()
-                    if option == '1':
+                    option = input(
+                        "Would you like to register? (1: Register, 2: Exit): "
+                    ).strip()
+                    if option == "1":
                         self.register_user()
                     else:
                         self.db_handler.close()
@@ -277,21 +319,24 @@ class FacialAuthSystem:
                     print(f"\nWelcome back, {user['first_name']} {user['last_name']}!")
                 else:
                     print("\nUser not recognized.")
-                    option = input("Options:\n1. Register new user\n2. Exit\nChoice: ").strip()
-                    if option == '1':
+                    option = input(
+                        "Options:\n1. Register new user\n2. Exit\nChoice: "
+                    ).strip()
+                    if option == "1":
                         self.register_user()
                     else:
                         self.db_handler.close()
                         print("Exiting...")
                         break
 
-            elif choice == '2':
+            elif choice == "2":
                 self.register_user()
 
-            elif choice == '3':
+            elif choice == "3":
                 self.db_handler.close()
                 print("Exiting...")
                 break
+
 
 if __name__ == "__main__":
     FACIAL_DATA_PATH.mkdir(parents=True, exist_ok=True)

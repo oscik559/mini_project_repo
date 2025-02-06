@@ -1,7 +1,11 @@
 # tray_and_holder_detection.py
+
 import math
 import sys
 from pathlib import Path
+
+sys.path.append(str(Path(__file__).parent.parent.parent))
+
 
 # import pyrealsense2 as rs
 import time
@@ -11,7 +15,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from db_handler import DatabaseHandler
-from camera_db_utils import * # upsert_camera_vision_record, cleanup_camera_vision_records
+from config.config import *
+
+
+from mini_project.scripts.camera_db_utils import (
+    upsert_camera_vision_record,
+    cleanup_camera_vision_records,
+)
+
 
 def process_image(image_path, wait_key, db_handler):
     """
@@ -30,8 +41,8 @@ def process_image(image_path, wait_key, db_handler):
 
     old_matched_objects = []
 
-    relative_vector = []
-    relative_vector_holder = []
+    tray_relative_position = []
+    holder_relative_position = []
 
     angle_with_x = None
     angle_with_x_holder = None
@@ -45,16 +56,18 @@ def process_image(image_path, wait_key, db_handler):
                 return
 
             (
-                relative_vector,
-                relative_vector_holder,
+                tray_relative_position,
+                holder_relative_position,
                 matched_objects,
                 angle_with_x,
                 angle_with_x_holder,
             ) = color_image_process(color_image, wait_key)
 
-            # Convert np.float64 values in relative_vector to Python float
-            relative_vector = [float(value) for value in relative_vector]
-            relative_vector_holder = [float(value) for value in relative_vector_holder]
+            # Convert np.float64 values in tray_relative_position to Python float
+            tray_relative_position = [float(value) for value in tray_relative_position]
+            holder_relative_position = [
+                float(value) for value in holder_relative_position
+            ]
 
             if matched_objects != old_matched_objects:
                 old_matched_objects = matched_objects
@@ -66,100 +79,99 @@ def process_image(image_path, wait_key, db_handler):
             ]
 
             if (
-                vector_changed(relative_vector, old_vector)
+                vector_changed(tray_relative_position, old_vector)
                 or angle_with_x != old_angle_with_x
             ):
-                old_vector = relative_vector
+                old_vector = tray_relative_position
                 old_angle_with_x = angle_with_x
 
             if (
-                vector_changed(relative_vector_holder, old_vector_holder)
+                vector_changed(holder_relative_position, old_vector_holder)
                 or angle_with_x_holder != old_angle_with_x_holder
             ):
-                old_vector_holder = relative_vector_holder
+                old_vector_holder = holder_relative_position
                 old_angle_with_x_holder = angle_with_x_holder
 
-            merged_data = f"tray_and_slide_position: {relative_vector}; {angle_with_x}; {Slide_index};"
+            merged_data = f"tray_and_slide_position: {tray_relative_position}; {angle_with_x}; {Slide_index};"
             merged_data_2 = (
-                f"holder_position: {relative_vector_holder}; {angle_with_x_holder};"
+                f"holder_position: {holder_relative_position}; {angle_with_x_holder};"
             )
             print(merged_data)  # Print for debugging
             print(merged_data_2)  # Print for debugging
 
-            update_camera_vision_database(db_handler, relative_vector, angle_with_x,
-                                          relative_vector_holder, angle_with_x_holder, matched_objects)
+            update_camera_vision_database(
+                db_handler,
+                tray_relative_position,
+                angle_with_x,
+                holder_relative_position,
+                angle_with_x_holder,
+                matched_objects,
+            )
     finally:
         cv2.destroyAllWindows()
 
-def update_camera_vision_database(db_handler, tray_vector, tray_angle,
-                                  holder_vector, holder_angle, slide_detections):
+
+def update_camera_vision_database(
+    db_handler, tray_vector, tray_angle, holder_vector, holder_angle, slide_detections
+):
     """
     Update the camera_vision table with detection results.
-
-    Parameters:
-      - db_handler: An instance of DatabaseHandler.
-      - tray_vector: A list or tuple with the tray position [pos_x, pos_y, pos_z].
-      - tray_angle: The orientation (angle in degrees) of the tray.
-      - holder_vector: A list or tuple with the holder position [pos_x, pos_y, pos_z].
-      - holder_angle: The orientation (angle in degrees) of the holder.
-      - slide_detections: A list of dicts, each with at least a key 'object_color' (and optionally other info).
-                          (Assumes slides take the same angle as the tray.)
     """
-
     active_names = []  # to keep track of all object names that are active
 
-    # --- Update the Tray record (if no color is detected, default to 'Black') ---
+    # --- Update the Tray record ---
     tray_data = {
-        "object_name": "Tray",
-        "object_color": "Black",  # default to black unless the detection provides a color
+        "object_name": "tray",
+        "object_color": "black",  # default color name
+        "color_code": "[0.0, 0.0, 0.0]",  # black in normalized RGB
         "pos_x": tray_vector[0],
         "pos_y": tray_vector[1],
         "pos_z": tray_vector[2],
         "rot_x": 0.0,
         "rot_y": 0.0,
         "rot_z": tray_angle,
-        "usd_name": "Tray.usd"  # or any USD file name you prefer
+        "usd_name": "tray.usd",
     }
     upsert_camera_vision_record(db_handler, **tray_data)
     active_names.append(tray_data["object_name"])
 
     # --- Update the Holder record ---
     holder_data = {
-        "object_name": "Holder",
-        "object_color": "Black",  # default to black unless the detection provides a color
+        "object_name": "holder",
+        "object_color": "black",
+        "color_code": "[0.0, 0.0, 0.0]",  # default color for holder
         "pos_x": holder_vector[0],
         "pos_y": holder_vector[1],
         "pos_z": holder_vector[2],
         "rot_x": 0.0,
         "rot_y": 0.0,
         "rot_z": holder_angle,
-        "usd_name": "Holder.usd"  # to be updated by the objectstable in the future
+        "usd_name": "holder.usd",
     }
     upsert_camera_vision_record(db_handler, **holder_data)
     active_names.append(holder_data["object_name"])
 
     # --- Update the Slide records ---
-    # For each slide detected, assign a name (Slide 1, Slide 2, etc.)
-    # (Here we assume the slide position is calculated from the tray vector;
-    #  adjust the computation as needed for your application.)
     for index, detection in enumerate(slide_detections, start=1):
-        slide_name = f"Slide {index}"
+        slide_name = f"slide {index}"
         slide_color = detection.get("object_color", "Black")
-        # In this example, we assume the slide's position is offset from the tray.
-        # Replace the following with your own logic for slide positions.
-        slide_pos_x = tray_vector[0] + 10 * index  # example offset in mm or your units
+        # Calculate slide position relative to the tray (example offsets)
+        slide_pos_x = tray_vector[0] + 10 * index
         slide_pos_y = tray_vector[1] + 5 * index
         slide_pos_z = tray_vector[2]
+        # Use the color code computed during detection; if not available, default to black.
+        slide_color_code = detection.get("color_code", "[0.0, 0.0, 0.0]")
         slide_data = {
             "object_name": slide_name,
             "object_color": slide_color,
+            "color_code": slide_color_code,
             "pos_x": slide_pos_x,
             "pos_y": slide_pos_y,
             "pos_z": slide_pos_z,
             "rot_x": 0.0,
             "rot_y": 0.0,
-            "rot_z": tray_angle,  # slides follow the tray’s orientation
-            "usd_name": "slide.usd"
+            "rot_z": tray_angle,
+            "usd_name": "slide.usd",
         }
         upsert_camera_vision_record(db_handler, **slide_data)
         active_names.append(slide_name)
@@ -177,7 +189,7 @@ def color_image_process(image, wait_key):
         color_image (np.ndarray): Input color image.
 
     Returns:
-        tuple: (relative_vector, matched_objects, angle_with_x)
+        tuple: (tray_relative_position, matched_objects, angle_with_x)
     """
     # Example output (replace with actual detection results)
     gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
@@ -190,7 +202,7 @@ def color_image_process(image, wait_key):
         thresh_image, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
     )
 
-    relative_vector = []
+    tray_relative_position = []
     relative_vector_2 = []
     matched_objects = []
     angle_with_x_axis = None
@@ -419,7 +431,7 @@ def color_image_process(image, wait_key):
 
                     # Relative position of tray w.r.t screw on YuMi foot
                     if len(screw_center_orange) != 0:
-                        relative_vector = depth_image_process(
+                        tray_relative_position = depth_image_process(
                             point0, screw_center_orange, scaling_factor
                         )
                     display_hsv_image(image, (x, y, w, h))
@@ -498,7 +510,7 @@ def color_image_process(image, wait_key):
     # cv2.destroyAllWindows()
 
     return (
-        relative_vector,
+        tray_relative_position,
         relative_vector_2,
         matched_objects,
         angle_with_x_axis,
@@ -531,8 +543,7 @@ def detect_colored_objects_in_roi(image, roi):
         "pink": (
             np.array([150, 120, 120]),
             np.array([175, 195, 165]),
-        ),  # Grey range (adjust as needed)
-        # 'pink': (np.array([140, 110, 95]), np.array([180, 195, 140])),  # Grey range (adjust as needed)
+        ),
     }
     detected_objects = {}
 
@@ -563,12 +574,17 @@ def detect_colored_objects_in_roi(image, roi):
                 adjusted_center_y = y_contour + h_contour // 2 + y  # add y from ROI
                 center = (adjusted_center_x, adjusted_center_y)
 
+                color_code = get_normalized_color(
+                    roi_image, (x_contour, y_contour, w_contour, h_contour)
+                )
+
                 # Append detected object details
                 detected_objects[color].append(
                     {
                         "contour": contour,
                         "bounding_box": (x_contour, y_contour, w_contour, h_contour),
                         "center": center,
+                        "color_code": color_code,
                     }
                 )
                 cv2.rectangle(
@@ -581,9 +597,6 @@ def detect_colored_objects_in_roi(image, roi):
                 # cv2.circle(roi_image, center, 5, (0, 0, 255), -1)  # Red center
     return detected_objects
 
-# In camera_vision_utils.py
-
-import numpy as np
 
 def get_normalized_color(image, bounding_box):
     """
@@ -597,7 +610,7 @@ def get_normalized_color(image, bounding_box):
         str: A string representation of the normalized color, e.g. "[0.0, 0.0, 0.7]".
     """
     x, y, w, h = bounding_box
-    roi = image[y:y+h, x:x+w]
+    roi = image[y : y + h, x : x + w]
     # Compute the average color over the ROI. The result is in BGR order.
     avg_color_bgr = np.average(np.average(roi, axis=0), axis=0)
     # Convert BGR to RGB
@@ -605,6 +618,7 @@ def get_normalized_color(image, bounding_box):
     # Normalize each channel and round the result to 2 decimal places.
     normalized = [round(c / 255.0, 2) for c in avg_color_rgb]
     return str(normalized)
+
 
 def match_objects_to_midpoints(detected_objects, midpoints):
     """Match each detected object center to the closest midpoint."""
@@ -630,6 +644,7 @@ def match_objects_to_midpoints(detected_objects, midpoints):
             object_midpoint_map.append(
                 {
                     "object_color": color,
+                    "color_code": obj.get("color_code", "[0.0, 0.0, 0.0]"),
                     "closest_midpoint_index": closest_midpoint_idx,
                 }
             )
@@ -723,7 +738,7 @@ def calculate_relative_angle(screw_center_orange, screw_center_neon, dx1, dy1):
 
 
 def depth_image_process(point0, point_ref, scaling_factor):
-    relative_vector = []
+    tray_relative_position = []
     # depth_stream = profile.get_stream(rs.stream.depth).as_video_stream_profile()
     # intrinsics = depth_stream.get_intrinsics()
     # intrinsics = rs.intrinsics()
@@ -744,7 +759,7 @@ def depth_image_process(point0, point_ref, scaling_factor):
         point0[1] - point_ref[1],
     ]  # Y component
 
-    relative_vector = [
+    tray_relative_position = [
         relative__pixel_vector[0] * scaling_factor,
         relative__pixel_vector[1] * scaling_factor,
         0.0,
@@ -760,10 +775,10 @@ def depth_image_process(point0, point_ref, scaling_factor):
     #     print("Distance between points:", distance, "meters")
 
     #     # Compute the position vector relative to the reference object
-    #     relative_vector = [point_3d[0] - point_3d_ref[0],  # X component
+    #     tray_relative_position = [point_3d[0] - point_3d_ref[0],  # X component
     #                         point_3d[1] - point_3d_ref[1],  # Y component
     #                         point_3d[2] - point_3d_ref[2]]   # Z component
-    return relative_vector
+    return tray_relative_position
 
 
 def display_hsv_image(image, roi):
@@ -777,6 +792,7 @@ def display_hsv_image(image, roi):
     # Split the channels for visualization
     h, s, v = cv2.split(hsv_roi)
 
+
 def vector_changed(new_vector, old_vector, tolerance=5.0):
     # A function to check if the relative vector has changed significantly
 
@@ -786,7 +802,9 @@ def vector_changed(new_vector, old_vector, tolerance=5.0):
 def main():
     # Create a database handler instance
     db = DatabaseHandler()
-    image_path = r"mini_project\utils\camera_still_images\image_1.png"
+    # image_path = r"mini_project\utils\camera_still_images\image_1.png"
+    image_path = os.path.join(CAMERA_DATA_PATH, "image_1.png")
+
     wait_key = 2000  # Time to wait for a keypress in milliseconds
     process_image(image_path, wait_key, db_handler=db)
 

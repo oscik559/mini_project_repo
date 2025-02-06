@@ -471,7 +471,7 @@ class DatabaseHandler:
                 # Now populate child tables
                 self.populate_states()
                 self.populate_operation_sequence()
-                self.populate_camera_vision()
+                # self.populate_camera_vision()
                 self.populate_sort_order()
                 self.populate_task_preferences()
                 self.populate_interaction_memory()
