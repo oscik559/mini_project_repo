@@ -1,3 +1,38 @@
+# voice_auth.py
+"""
+This script provides functionalities for voice-driven user registration, including
+audio recording, transcription, voice embedding capture, and database management.
+Modules:
+    os
+    pickle
+    sqlite3
+    sys
+    warnings
+    pathlib
+    sounddevice
+    config
+    resemblyzer
+    scipy.io.wavfile
+    speech_recognition
+Functions:
+    initialize_database(DB_PATH):
+        Initializes the SQLite database and creates the 'users' table if it doesn't exist.
+    record_audio_to_file(filename, prompt, duration=5, sampling_rate=16000):
+        Records audio from the microphone and saves it to a specified file.
+    transcribe_audio_with_speechrecognition(filename):
+        Transcribes audio from a file using the Google Speech Recognition API.
+    capture_voice_embeddings(audio_path):
+        Captures voice embeddings from an audio file using the Resemblyzer library.
+    validate_liu_id(liu_id):
+        Validates the format of an LIU ID.
+    save_voice_embedding(LIU_id, voice_embedding, conn):
+        Saves the voice embedding to the database and a pickle file.
+    voice_registration():
+        Main function for voice-driven user registration, including input collection,
+        audio recording, transcription, voice embedding capture, and database storage.
+Usage:
+    Run the script directly to start the voice-driven registration process.
+ """
 import os
 import pickle
 import sqlite3

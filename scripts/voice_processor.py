@@ -1,4 +1,20 @@
-# Description: This script captures voice commands from the user and stores them in a SQLite database.
+ # voice_processor.py
+"""
+This script defines the VoiceProcessor class, which handles recording audio from the user,
+transcribing it using the Whisper model, and storing the transcribed instructions in an SQLite database.
+Classes:
+    VoiceProcessor: Handles voice recording, transcription, and storage of instructions.
+Functions:
+    __init__(self, update_status_callback=None): Initializes the VoiceProcessor with paths, models, and settings.
+    check_directories(self): Ensures required directories exist.
+    check_database(self): Ensures the database file exists.
+    record_audio(self, max_duration=60, sampling_rate=16000, silence_duration=2): Records audio from the user and saves it to a WAV file.
+    store_instruction(self, modality, detected_language, content): Stores transcribed voice instruction into the SQLite database.
+    capture_voice(self): Captures voice input, transcribes it using Whisper, and stores the instruction in the database.
+Usage:
+    Run the script directly to start the voice capture process.
+"""
+
 import sys
 from pathlib import Path
 
