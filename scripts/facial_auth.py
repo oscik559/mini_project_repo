@@ -1,12 +1,20 @@
+# facial_auth.py
 """
-facial_auth.py (optimized with FAISS and database-centric design)
-
-Modifications:
-- Automatic identify user process.
-- If user not recognized, offer only: 1. Register new user  2. Exit.
-- Registration face capture is forced to manual mode.
+facial_auth.py
+This module implements a facial authentication system using OpenCV, face_recognition, and FAISS for fast similarity search.
+It provides functionalities for user registration and identification based on facial recognition.
+Classes:
+    FacialAuthSystem: A class that encapsulates the facial authentication system.
+Functions:
+    __init__(self): Initializes the FacialAuthSystem instance.
+    _preload_encodings(self) -> Dict[str, dict]: Preloads all face encodings from the database.
+    _build_faiss_index(self): Builds a FAISS index for fast face encoding search.
+    _validate_user_input(self, liu_id: str, email: str) -> bool: Validates LIU ID and email formats.
+    _capture_face(self, capture_mode: str = "auto") -> Optional[Tuple[np.ndarray, np.ndarray]]: Captures face using the specified mode (auto/manual).
+    register_user(self): Handles new user registration flow (manual capture forced).
+    identify_user(self) -> Optional[dict]: Identifies user from face capture using FAISS for fast matching with automatic capture.
+    run(self): Main application flow.
 """
-
 import sys
 from pathlib import Path
 
