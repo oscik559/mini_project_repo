@@ -1,4 +1,4 @@
-# # camera_db_utils.py
+# camera_db_utils.py
 
 
 def upsert_camera_vision_record(

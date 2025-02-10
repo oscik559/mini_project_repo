@@ -1,41 +1,4 @@
-""" This module provides a DatabaseHandler class to manage SQLite database operations, including table creation, schema updates, and data population.
-Classes:
-    DatabaseHandler: A class to handle database operations.
-Functions:
-    __init__(self, db_name: str = DB_PATH) -> None:
-    initialize_database(self) -> None:
-    create_tables(self) -> None:
-    create_indexes(self) -> None:
-    check_table_schema(self, table_name):
-        Print the schema of a table.
-    update_table_schemas(self):
-        Ensure all tables have the expected schema.
-    validate_table_schema(self, table_name: str, expected_columns: List[Tuple[str, str]]) -> None:
-    clear_tables(self):
-        Clear tables in the correct order to prevent foreign key constraint failures.
-    populate_database(self):
-        Populate the database with initial data as a single transaction.
-    populate_sequence_library(self):
-    populate_states(self):
-    populate_operation_sequence(self):
-        Populate operation_sequence table with provided data.
-    populate_camera_vision(self):
-        Populate camera_vision table with provided data.
-    populate_sort_order(self):
-        Populate sort_order table with provided data.
-    populate_users(self):
-        Populate users table with provided data.
-    populate_task_preferences(self):
-        Populate task_preferences table with provided data.
-    populate_interaction_memory(self):
-        Populate interaction_memory table with provided data.
-    populate_skills(self):
-        Populate skills table with provided data.
-    populate_simulation_results(self):
-        Populate simulation_results table with provided data.
-    close(self):
-        Close the database connection.
-"""
+# This module provides a DatabaseHandler class to manage SQLite database operations, including table creation, schema updates, and data population.
 
 
 import atexit

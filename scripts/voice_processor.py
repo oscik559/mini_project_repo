@@ -1,25 +1,11 @@
- # voice_processor.py
-"""
-This script defines the VoiceProcessor class, which handles recording audio from the user,
-transcribing it using the Whisper model, and storing the transcribed instructions in an SQLite database.
-Classes:
-    VoiceProcessor: Handles voice recording, transcription, and storage of instructions.
-Functions:
-    __init__(self, update_status_callback=None): Initializes the VoiceProcessor with paths, models, and settings.
-    check_directories(self): Ensures required directories exist.
-    check_database(self): Ensures the database file exists.
-    record_audio(self, max_duration=60, sampling_rate=16000, silence_duration=2): Records audio from the user and saves it to a WAV file.
-    store_instruction(self, modality, detected_language, content): Stores transcribed voice instruction into the SQLite database.
-    capture_voice(self): Captures voice input, transcribes it using Whisper, and stores the instruction in the database.
-Usage:
-    Run the script directly to start the voice capture process.
-"""
+# scripts/voice_processor.py
 
 import sys
 from pathlib import Path
 
-# Ensure the parent directory is included in sys.path for imports
+# Add the project root directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
+
 import logging
 import os
 import sqlite3
@@ -28,37 +14,128 @@ import time
 import numpy as np
 import sounddevice as sd
 import webrtcvad
-from config.config import DB_PATH, TEMP_AUDIO_PATH
 from faster_whisper import WhisperModel
 from scipy.io.wavfile import write
+
+# Import configurations from config.py
+from config.config import VOICE_PROCESSING_CONFIG
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("voice_processor")
 
-
-# Define the VoiceProcessor class
-class VoiceProcessor:
-    def __init__(self, update_status_callback=None):
-        self.db_path = DB_PATH  # Use DB_PATH from config
-        self.audio_file_path = os.path.join(
-            TEMP_AUDIO_PATH, "recording.wav"
-        )  # Ensure it's a file
-        self.model = WhisperModel(
-            "large-v3", device="cuda", compute_type="float16"
-        )  # Whisper model for transcription
+# Decoupled AudioRecorder class
+class AudioRecorder:
+    def __init__(self):
+        self.config = VOICE_PROCESSING_CONFIG["recording"]
+        self.temp_audio_path = self.config["temp_audio_path"]
+        self.sampling_rate = self.config["sampling_rate"]
         self.vad = webrtcvad.Vad()
-        self.vad.set_mode(1)  # VAD sensitivity
-        self.update_status = update_status_callback  # Callback for GUI status updates
+        self.vad.set_mode(3)  # Aggressive mode to filter out background noise
 
-        logger.info(f"Using database path: {self.db_path}")  # Debugging: Verify DB path
-        self.check_directories()  # Ensure required directories exist
-        self.check_database()  # Check if the database file exists
+    def calibrate_noise(self):
+        """Calibrates ambient noise and calculates the noise floor."""
+        logger.info("Calibrating ambient noise...")
+        noise_rms_values = []
+        stream = sd.InputStream(samplerate=self.sampling_rate, channels=1, dtype="int16")
+        end_time = time.time() + self.config["calibration_duration"]
 
-    def check_directories(self):
-        """Ensure required directories exist."""
-        os.makedirs(TEMP_AUDIO_PATH, exist_ok=True)
-        logger.info(f"Verified audio storage path: {TEMP_AUDIO_PATH}")
+        with stream:
+            while time.time() < end_time:
+                frame, _ = stream.read(int(self.sampling_rate * self.config["frame_duration"]))
+                rms = np.sqrt(np.mean(frame.astype(np.float32) ** 2))
+                noise_rms_values.append(rms)
+
+        noise_floor = np.mean(noise_rms_values)
+        logger.info(f"Ambient noise calibration complete. Noise floor: {noise_floor:.2f}")
+        return noise_floor
+
+    def record_audio(self):
+        """
+        Records audio from the user and saves it to a WAV file.
+        Stops recording if:
+          - No speech is detected for `initial_silence_duration` seconds (before any speech), or
+          - After speech is detected, silence lasts for `post_speech_silence_duration` seconds.
+        """
+        # Step 1: Calibrate ambient noise
+        noise_floor = self.calibrate_noise()
+        amplitude_threshold = noise_floor + self.config["amplitude_margin"]
+        logger.info(
+            f"Amplitude threshold set to: {amplitude_threshold:.2f} "
+            f"(Noise floor: {noise_floor:.2f} + Margin: {self.config['amplitude_margin']})"
+        )
+
+        logger.info("Voice recording: Please speak now...")
+
+        audio = []
+        start_time = time.time()
+        silence_start = None
+        speech_detected = False
+
+        stream = sd.InputStream(samplerate=self.sampling_rate, channels=1, dtype="int16")
+        with stream:
+            while True:
+                frame, _ = stream.read(int(self.sampling_rate * self.config["frame_duration"]))
+                audio.append(frame)
+
+                # Use VAD and amplitude threshold to detect speech
+                is_speech_vad = self.vad.is_speech(frame.tobytes(), self.sampling_rate)
+                rms = np.sqrt(np.mean(frame.astype(np.float32) ** 2))
+                is_speech_amplitude = rms > amplitude_threshold
+
+                if is_speech_vad and is_speech_amplitude:
+                    speech_detected = True
+                    silence_start = None  # Reset silence timer
+                else:
+                    if silence_start is None:
+                        silence_start = time.time()
+                    else:
+                        threshold = (
+                            self.config["post_speech_silence_duration"] if speech_detected else self.config["initial_silence_duration"]
+                        )
+                        if time.time() - silence_start > threshold:
+                            break
+
+                if time.time() - start_time > self.config["max_duration"]:
+                    break
+
+        audio = np.concatenate(audio, axis=0)
+
+        # Save the recorded audio to a WAV file
+        try:
+            write(self.temp_audio_path, self.sampling_rate, audio)
+            logger.info(f"Audio saved to {self.temp_audio_path}")
+        except Exception as e:
+            logger.error(f"Error saving audio: {e}")
+            raise
+
+# Decoupled Transcriber class
+class Transcriber:
+    def __init__(self):
+        self.config = VOICE_PROCESSING_CONFIG["whisper"]
+        self.model = WhisperModel(
+            self.config["model"],
+            device=self.config["device"],
+            compute_type=self.config["compute_type"],
+        )
+
+    def transcribe_audio(self, audio_path):
+        """Transcribes audio using Whisper."""
+        try:
+            segments, info = self.model.transcribe(audio_path)
+            original_text = " ".join([segment.text for segment in segments])
+            detected_language = info.language
+            return original_text, detected_language
+        except Exception as e:
+            logger.error(f"Error during transcription: {e}")
+            raise
+
+# Decoupled Storage class
+class Storage:
+    def __init__(self):
+        self.config = VOICE_PROCESSING_CONFIG["database"]
+        self.db_path = self.config["db_path"]
+        self.check_database()
 
     def check_database(self):
         """Ensure database file exists."""
@@ -66,94 +143,40 @@ class VoiceProcessor:
             open(self.db_path, "w").close()
             logger.info(f"Created database file: {self.db_path}")
 
-    def record_audio(self, max_duration=60, sampling_rate=16000, silence_duration=2):
-        """
-        Records audio from the user and saves it to a WAV file.
-
-        Args:
-            max_duration (int, optional): Maximum recording duration in seconds. Defaults to 60.
-            sampling_rate (int, optional): Audio sample rate. Defaults to 16000.
-            silence_duration (int, optional): Duration of silence before stopping recording. Defaults to 2.
-        """
-        logger.info("Voice recording: Please speak now...")
-
-        audio = []
-        start_time = time.time()
-        silence_start = None
-        stream = sd.InputStream(samplerate=sampling_rate, channels=1, dtype="int16")
-        with stream:
-            while True:
-                frame, _ = stream.read(int(sampling_rate * 0.03))  # 30ms frames
-                audio.append(frame)
-                is_speech = self.vad.is_speech(frame.tobytes(), sampling_rate)
-                if is_speech:
-                    silence_start = None
-                else:
-                    if silence_start is None:
-                        silence_start = time.time()
-                    elif time.time() - silence_start > silence_duration:
-                        break
-                if time.time() - start_time > max_duration:
-                    break
-
-        audio = np.concatenate(audio, axis=0)
-
-        # **Ensure we are saving to a valid file path**
-        try:
-            write(self.audio_file_path, sampling_rate, audio)
-            logger.info(f"Audio saved to {self.audio_file_path}")
-        except PermissionError as e:
-            logger.error(
-                f"PermissionError: Unable to write to {self.audio_file_path}. Check file permissions."
-            )
-        except Exception as e:
-            logger.error(f"Unexpected error writing audio file: {e}")
-
     def store_instruction(self, modality, detected_language, content):
-        """
-        Stores transcribed voice instruction into the SQLite database.
-
-        Args:
-            modality (str): The modality of instruction (e.g., "voice").
-            detected_language (str): Language detected in audio.
-            content (str): Transcribed instruction text.
-        """
+        """Stores transcribed instruction in the database."""
         try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                INSERT INTO instructions (modality, language, instruction_type, content)
-                VALUES (?, ?, ?, ?)
-                """,
-                (modality, detected_language, "voice command", content),
-            )
-            conn.commit()
-            conn.close()
-            logger.info("Instruction stored successfully.")
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO instructions (modality, language, instruction_type, content)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (modality, detected_language, "voice command", content),
+                )
+                conn.commit()
+                logger.info("Instruction stored successfully.")
         except Exception as e:
-            logger.error(f"Error storing instruction in database: {e}")
+            logger.error(f"Error storing instruction: {e}")
+            raise
+
+# VoiceProcessor class to orchestrate the components
+class VoiceProcessor:
+    def __init__(self):
+        self.recorder = AudioRecorder()
+        self.transcriber = Transcriber()
+        self.storage = Storage()
 
     def capture_voice(self):
-        """
-        Captures voice input, transcribes it using Whisper, and stores the instruction in the database.
-        """
-        self.record_audio()
-
+        """Captures voice, transcribes it, and stores the result."""
         try:
-            segments, info = self.model.transcribe(self.audio_file_path)
-            original_text = " ".join([segment.text for segment in segments])
-            detected_language = info.language
-
-            if detected_language != "en":
-                # Optionally translate text here
-                pass
-
-            self.store_instruction("voice", detected_language, original_text)
-            logger.info("Voice instruction captured successfully!")
+            self.recorder.record_audio()
+            text, language = self.transcriber.transcribe_audio(self.recorder.config["temp_audio_path"])
+            self.storage.store_instruction("voice", language, text)
+            logger.info("Voice instruction captured and stored successfully!")
         except Exception as e:
-            logger.error(f"Error during transcription: {e}")
-
+            logger.error(f"Error in voice capture process: {e}")
 
 if __name__ == "__main__":
     processor = VoiceProcessor()

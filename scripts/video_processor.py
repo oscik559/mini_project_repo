@@ -1,7 +1,8 @@
-import cv2
-import mediapipe as mp
 import sqlite3
 from datetime import datetime
+
+import cv2
+import mediapipe as mp
 
 
 class VideoProcessor:
