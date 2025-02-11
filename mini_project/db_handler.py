@@ -1,16 +1,15 @@
 # scripts/db_handler.py
-# This module provides a DatabaseHandler class to manage SQLite database operations, including table creation, schema updates, and data population.
 
 import atexit
 import logging
 import os
 import sqlite3
-import sys
+# import sys
 from datetime import datetime
-from pathlib import Path
+# from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-sys.path.append(str(Path(__file__).parent.parent))
+# sys.path.append(str(Path(__file__).parent.parent))
 from config.config import DB_PATH
 
 logging.basicConfig(level=logging.INFO)
@@ -184,9 +183,9 @@ class DatabaseHandler:
                     modality TEXT CHECK(modality IN ('voice', 'gesture', 'text')),
                     language TEXT NOT NULL,
                     instruction_type TEXT NOT NULL,
+                    processed BOOLEAN DEFAULT FALSE,
                     content TEXT,
                     sync_id INTEGER UNIQUE,
-                    processed BOOLEAN DEFAULT FALSE,
                     confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
                 );
@@ -363,9 +362,9 @@ class DatabaseHandler:
                 ("modality", "TEXT CHECK(modality IN ('voice', 'gesture', 'text'))"),
                 ("language", "TEXT"),
                 ("instruction_type", "TEXT NOT NULL"),
+                ("processed", "BOOLEAN DEFAULT FALSE"),
                 ("content", "TEXT"),
                 ("sync_id", "INTEGER UNIQUE"),
-                ("processed", "BOOLEAN DEFAULT FALSE"),
                 ("confidence", "FLOAT CHECK(confidence BETWEEN 0 AND 1)"),
             ],
             "instruction_operation_sequence": [
