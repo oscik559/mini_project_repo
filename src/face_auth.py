@@ -18,13 +18,16 @@ import re
 import sqlite3
 import sys
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
+sys.path.append(str(Path(__file__).parent.parent))
 
 import cv2
 import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
-from db_handler import DatabaseHandler
+from mini_project.db_handler import DatabaseHandler
 
 # Import configuration variables from our package.
 from config.config import MAX_ENCODINGS_PER_USER  # (Set to 5, for example)
@@ -32,7 +35,6 @@ from config.config import (AUTO_CAPTURE_FRAME_COUNT, DB_PATH, EMAIL_PATTERN,
                            FACE_CAPTURE_PATH, FACE_MATCH_THRESHOLD,
                            FACIAL_DATA_PATH, LIU_ID_PATTERN)
 from config.logging_config import setup_logging
-
 setup_logging()  # You can pass a different level if needed
 
 # Define a context manager for cv2.VideoCapture that calls release() on exit.
@@ -457,7 +459,7 @@ import cv2
 import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
-from db_handler import DatabaseHandler
+from mini_project.db_handler import DatabaseHandler
 
 # Import configuration variables from our package.
 from config.config import MAX_ENCODINGS_PER_USER  # (Set to 5, for example)

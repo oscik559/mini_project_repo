@@ -19,18 +19,22 @@ import pickle
 import re
 import sqlite3
 import warnings
+
 from contextlib import contextmanager
+
 from typing import List
+import sys
+
 
 import sounddevice as sd
-from resemblyzer import VoiceEncoder, preprocess_wav
 from scipy.io.wavfile import write
-from speech_recognition import (AudioFile, Recognizer, RequestError,
-                                UnknownValueError)
+from speech_recognition import AudioFile, Recognizer, RequestError, UnknownValueError
+from resemblyzer import VoiceEncoder, preprocess_wav
 
 # Suppress warnings if desired
 warnings.filterwarnings("ignore", category=FutureWarning)
 
+# Configure logging: set level to INFO to avoid debug messages
 import logging
 from config.logging_config import setup_logging
 setup_logging()  # You can pass a different level if needed

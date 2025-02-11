@@ -1,5 +1,6 @@
 import logging
 
+
 def setup_logging(level: int = logging.INFO) -> None:
     """
     Configures logging for the project.
