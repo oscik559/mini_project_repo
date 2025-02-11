@@ -1,3 +1,4 @@
+# scripts/face_auth.py
 """
 Face Authentication Module
 
@@ -11,13 +12,12 @@ face_recognition, and FAISS for similarity search. It supports:
 The module uses a custom context manager to handle video capture resources
 and employs relative imports for proper package structure.
 """
-import sys
 
-from contextlib import contextmanager
-import logging
 import pickle
 import re
 import sqlite3
+import sys
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -27,23 +27,15 @@ import cv2
 import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
-
-# Import configuration variables from our package.
-from config.config import (
-    AUTO_CAPTURE_FRAME_COUNT,
-    DB_PATH,
-    EMAIL_PATTERN,
-    FACE_CAPTURE_PATH,
-    FACE_MATCH_THRESHOLD,
-    FACIAL_DATA_PATH,
-    LIU_ID_PATTERN,
-    MAX_ENCODINGS_PER_USER,  # (Set to 5, for example)
-)
 from db_handler import DatabaseHandler
 
-# Configure logging.
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
-
+# Import configuration variables from our package.
+from config.config import MAX_ENCODINGS_PER_USER  # (Set to 5, for example)
+from config.config import (AUTO_CAPTURE_FRAME_COUNT, DB_PATH, EMAIL_PATTERN,
+                           FACE_CAPTURE_PATH, FACE_MATCH_THRESHOLD,
+                           FACIAL_DATA_PATH, LIU_ID_PATTERN)
+from config.logging_config import setup_logging
+setup_logging()  # You can pass a different level if needed
 
 # Define a context manager for cv2.VideoCapture that calls release() on exit.
 @contextmanager
@@ -450,13 +442,13 @@ The module uses a custom context manager to handle video capture resources
 and currently uses sys.path.append for module resolution (until the project is converted into a proper package).
 """
 
-import sys
-from contextlib import contextmanager
 import logging
 import pickle
 import re
 import sqlite3
+import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -467,19 +459,13 @@ import cv2
 import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
+from db_handler import DatabaseHandler
 
 # Import configuration variables from our package.
-from config.config import (
-    AUTO_CAPTURE_FRAME_COUNT,
-    DB_PATH,
-    EMAIL_PATTERN,
-    FACE_CAPTURE_PATH,
-    FACE_MATCH_THRESHOLD,
-    FACIAL_DATA_PATH,
-    LIU_ID_PATTERN,
-    MAX_ENCODINGS_PER_USER,  # (Set to 5, for example)
-)
-from db_handler import DatabaseHandler
+from config.config import MAX_ENCODINGS_PER_USER  # (Set to 5, for example)
+from config.config import (AUTO_CAPTURE_FRAME_COUNT, DB_PATH, EMAIL_PATTERN,
+                           FACE_CAPTURE_PATH, FACE_MATCH_THRESHOLD,
+                           FACIAL_DATA_PATH, LIU_ID_PATTERN)
 
 # Configure logging.
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")

@@ -1,5 +1,5 @@
+# scripts/db_handler.py
 # This module provides a DatabaseHandler class to manage SQLite database operations, including table creation, schema updates, and data population.
-
 
 import atexit
 import logging

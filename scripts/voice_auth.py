@@ -1,132 +1,136 @@
+# scripts/voice_auth.py
 """
 Voice Authentication Module
 
-This module provides a voice authentication system that uses OpenCV,
-face_recognition, and FAISS for similarity search. It supports:
-  - Recording audio,
-  - Transcription via Google Speech Recognition,
-  - Capturing voice embeddings using resemblyzer,
-  - Storing voice embeddings in a database and on file.
+This module provides a voice authentication system that:
+- Records audio using sounddevice.
+- Transcribes audio via Google Speech Recognition.
+- Captures voice embeddings using resemblyzer.
+- Stores voice embeddings in a SQLite database (using upsert) and as a pickle file.
 
-NOTE: Currently the script uses sys.path.append for module resolution.
-Once you convert this project into a proper package (with a setup.py file),
-you should remove the sys.path.append line and update the imports to use absolute
-or relative imports appropriately.
+It demonstrates:
+- Using context managers for resource handling.
+- Consistent error messaging and granular error handling (merged in the script).
+- Logging configuration and type annotations.
 """
 
 import os
 import pickle
 import re
 import sqlite3
-import sys
 import warnings
 from pathlib import Path
+from contextlib import contextmanager
 
-# Temporarily add the parent folder to the module search path.
+from typing import List
+import sys
+from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
-
 import sounddevice as sd
-from resemblyzer import VoiceEncoder, preprocess_wav
 from scipy.io.wavfile import write
 from speech_recognition import AudioFile, Recognizer, RequestError, UnknownValueError
+from resemblyzer import VoiceEncoder, preprocess_wav
 
-from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
-from db_handler import DatabaseHandler
-
-# Suppress future warnings
+# Suppress warnings if desired
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-# Configure logging.
-import logging
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+# Configure logging: set level to INFO to avoid debug messages
+from config.logging_config import setup_logging
+setup_logging()  # You can pass a different level if needed
 
+
+# Context manager for handling an audio recording session.
+@contextmanager
+def audio_session():
+    try:
+        yield
+    finally:
+        sd.stop()
 
 class VoiceAuth:
-    def __init__(self, db_path, temp_audio_path, voice_data_path):
-        """
-        Initialize voice authentication system with configuration paths.
-
-        Args:
-            db_path: Path to SQLite database.
-            temp_audio_path: Temporary directory for audio recordings.
-            voice_data_path: Directory for storing voice embeddings.
-        """
-        self.DB_PATH = db_path
-        self.TEMP_AUDIO_PATH = temp_audio_path
-        self.VOICE_DATA_PATH = voice_data_path
+    """
+    A class for voice authentication which handles:
+    - Audio recording.
+    - Transcription.
+    - Voice embedding capture.
+    - Storing embeddings in a SQLite database and on disk.
+    """
+    def __init__(self, db_path: str, temp_audio_path: str, voice_data_path: str) -> None:
+        self.db_path = db_path
+        self.temp_audio_path = temp_audio_path
+        self.voice_data_path = voice_data_path
         self.encoder = VoiceEncoder()
-
         self._create_directories()
         self._initialize_database()
 
-    def _create_directories(self):
-        """Create required directories if they don't exist."""
-        os.makedirs(self.VOICE_DATA_PATH, exist_ok=True)
-        os.makedirs(self.TEMP_AUDIO_PATH, exist_ok=True)
-        logging.debug("Directories ensured: VOICE_DATA_PATH and TEMP_AUDIO_PATH.")
+    def _create_directories(self) -> None:
+        """Ensure that the directories for voice data and temporary audio exist."""
+        os.makedirs(self.voice_data_path, exist_ok=True)
+        os.makedirs(self.temp_audio_path, exist_ok=True)
+        logging.info("Directories ensured for voice data and temporary audio.")
 
-    def _initialize_database(self):
-        """Initialize database with required tables."""
+    def _initialize_database(self) -> None:
+        """Initialize the SQLite database with the required users table."""
         try:
-            conn = sqlite3.connect(self.DB_PATH)
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS users (
-                    user_id INTEGER PRIMARY KEY,
-                    first_name TEXT NOT NULL,
-                    last_name TEXT NOT NULL,
-                    liu_id TEXT UNIQUE,
-                    email TEXT UNIQUE,
-                    preferences TEXT,
-                    profile_image_path TEXT,
-                    interaction_memory TEXT,
-                    face_encoding BLOB,
-                    voice_embedding BLOB,
-                    created_at TIMESTAMP DEFAULT (datetime('now','localtime')),
-                    last_updated TIMESTAMP DEFAULT (datetime('now','localtime'))
-                );
-                """
-            )
-            conn.commit()
-            logging.info("Database initialized with required tables.")
-        except Exception as e:
-            logging.exception("Error initializing database:")
-        finally:
-            conn.close()
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        user_id INTEGER PRIMARY KEY,
+                        first_name TEXT NOT NULL,
+                        last_name TEXT NOT NULL,
+                        liu_id TEXT UNIQUE,
+                        email TEXT UNIQUE,
+                        preferences TEXT,
+                        profile_image_path TEXT,
+                        interaction_memory TEXT,
+                        face_encoding BLOB,
+                        voice_embedding BLOB,
+                        created_at TIMESTAMP DEFAULT (datetime('now','localtime')),
+                        last_updated TIMESTAMP DEFAULT (datetime('now','localtime'))
+                    );
+                """)
+                conn.commit()
+            logging.info("Database initialized successfully.")
+        except sqlite3.Error as e:
+            msg = f"Database initialization error: {e}"
+            logging.error(msg)
+            raise Exception(msg)
 
-    def _record_audio(self, filename, prompt, duration=5, sampling_rate=16000):
+    def _record_audio(self, filename: str, prompt: str, duration: int = 5, sampling_rate: int = 16000) -> None:
         """
-        Record audio and save to file.
+        Record audio from the microphone and save it to a WAV file.
 
         Args:
-            filename: Output filename.
-            prompt: Message to display to user.
-            duration: Recording duration in seconds.
-            sampling_rate: Audio sampling rate.
+            filename (str): The file path to save the recorded audio.
+            prompt (str): The message to display to the user before recording.
+            duration (int): Duration of the recording in seconds.
+            sampling_rate (int): Sampling rate for the audio recording.
         """
+        logging.info(prompt)
         try:
-            logging.info(prompt)
-            audio = sd.rec(int(duration * sampling_rate),
-                           samplerate=sampling_rate,
-                           channels=1,
-                           dtype="int16")
-            sd.wait()
+            with audio_session():
+                audio = sd.rec(int(duration * sampling_rate), samplerate=sampling_rate, channels=1, dtype="int16")
+                sd.wait()
             write(filename, sampling_rate, audio)
-            logging.info(f"Audio saved to {filename}")
+            logging.info(f"Audio recorded and saved to {filename}")
         except Exception as e:
-            logging.exception("Error during audio recording:")
-            raise
+            msg = f"Error during audio recording: {e}"
+            logging.error(msg)
+            raise Exception(msg)
 
-    def _transcribe_audio(self, filename):
+    def _transcribe_audio(self, filename: str) -> str:
         """
-        Transcribe audio using Google Speech Recognition.
+        Transcribe recorded audio to text using Google Speech Recognition.
 
         Args:
-            filename: Path to audio file.
+            filename (str): The file path of the audio file.
 
         Returns:
-            Transcribed text or None if failed.
+            str: The transcribed text.
+
+        Raises:
+            Exception: If transcription fails.
         """
         recognizer = Recognizer()
         try:
@@ -136,124 +140,136 @@ class VoiceAuth:
                 logging.info(f"Transcription: {text}")
                 return text
         except UnknownValueError:
-            logging.error("Speech recognition could not understand the audio.")
-            return None
+            msg = "Audio transcription failed: speech was unintelligible."
+            logging.error(msg)
+            raise Exception(msg)
         except RequestError as e:
-            logging.error(f"Error with the Speech Recognition API: {e}")
-            return None
+            msg = f"Audio transcription failed: API error: {e}"
+            logging.error(msg)
+            raise Exception(msg)
         except Exception as e:
-            logging.exception("Unexpected error during transcription:")
-            return None
+            msg = f"An unexpected error occurred during transcription: {e}"
+            logging.error(msg)
+            raise Exception(msg)
 
-    def _capture_voice_embedding(self, audio_path):
+    def _capture_voice_embedding(self, audio_path: str) -> List[float]:
         """
-        Create voice embedding from audio file.
+        Capture a voice embedding from the recorded audio.
 
         Args:
-            audio_path: Path to audio file.
+            audio_path (str): Path to the audio file.
 
         Returns:
-            Voice embedding as a list or None if failed.
+            List[float]: The voice embedding vector.
         """
         try:
             wav = preprocess_wav(audio_path)
             embedding = self.encoder.embed_utterance(wav)
-            logging.info(f"Voice embedding captured with shape: {embedding.shape}")
+            logging.info(f"Voice embedding captured, shape: {embedding.shape}")
             return embedding.tolist()
         except Exception as e:
-            logging.exception("Error capturing voice embedding:")
-            return None
+            msg = f"Error capturing voice embedding: {e}"
+            logging.error(msg)
+            raise Exception(msg)
 
     @staticmethod
-    def _validate_liu_id(liu_id):
+    def _validate_liu_id(liu_id: str) -> bool:
         """
-        Validate LIU ID format.
+        Validate the LIU ID format.
 
         Args:
-            liu_id: ID to validate.
+            liu_id (str): The LIU ID to validate.
 
         Returns:
-            True if the format is valid, False otherwise.
+            bool: True if the LIU ID is valid; False otherwise.
         """
         pattern = r"^[a-z]{5}[0-9]{3}$"
         return bool(re.match(pattern, liu_id))
 
-    def _save_voice_embedding(self, liu_id, voice_embedding):
+    def _save_voice_embedding(self, liu_id: str, voice_embedding: List[float],
+                              first_name: str, last_name: str) -> None:
         """
-        Save voice embedding to the database and to a file.
+        Save the voice embedding in the database (using upsert) and as a pickle file.
 
         Args:
-            liu_id: User's LIU ID.
-            voice_embedding: Voice embedding to save.
+            liu_id (str): The LIU ID of the user.
+            voice_embedding (List[float]): The voice embedding vector.
+            first_name (str): The user's first name.
+            last_name (str): The user's last name.
         """
-        conn = sqlite3.connect(self.DB_PATH)
-        cursor = conn.cursor()
-        voice_file = os.path.join(self.VOICE_DATA_PATH, f"{liu_id}_voice.pkl")
-
+        voice_file = os.path.join(self.voice_data_path, f"{liu_id}_voice.pkl")
         try:
-            # Update existing user or insert new user record.
-            cursor.execute(
-                "UPDATE users SET voice_embedding = ? WHERE liu_id = ?",
-                (pickle.dumps(voice_embedding), liu_id),
-            )
-            if cursor.rowcount == 0:
-                cursor.execute(
-                    "INSERT INTO users (liu_id, voice_embedding) VALUES (?, ?)",
-                    (liu_id, pickle.dumps(voice_embedding)),
-                )
-            conn.commit()
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO users (liu_id, voice_embedding, first_name, last_name)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(liu_id) DO UPDATE SET voice_embedding = excluded.voice_embedding
+                """, (liu_id, pickle.dumps(voice_embedding), first_name, last_name))
+                conn.commit()
             with open(voice_file, "wb") as file:
                 pickle.dump(voice_embedding, file)
             logging.info(f"Voice embedding saved for LIU ID: {liu_id}")
+        except sqlite3.Error as e:
+            msg = f"Error saving voice embedding to database: {e}"
+            logging.error(msg)
+            raise Exception(msg)
         except Exception as e:
-            logging.exception("Error saving voice embedding:")
-        finally:
-            conn.close()
+            msg = f"Error saving voice embedding to file: {e}"
+            logging.error(msg)
+            raise Exception(msg)
 
-    def register_user(self):
-        """Main workflow for voice-driven user registration."""
-        logging.info("Voice-driven registration started...")
+    def register_user(self) -> None:
+        """
+        Register a new user using voice authentication.
+
+        This method:
+        - Collects user details.
+        - Records a voice statement.
+        - Transcribes the statement.
+        - Captures the voice embedding.
+        - Saves the embedding in the database and as a file.
+        """
+        logging.info("Starting voice-driven user registration...")
         try:
-            first_name = input("Type your first name: ").strip()
+            first_name = input("Enter your first name: ").strip()
             if not first_name:
-                raise ValueError("First name cannot be empty.")
+                raise Exception("First name cannot be empty.")
 
-            last_name = input("Type your last name: ").strip()
+            last_name = input("Enter your last name: ").strip()
             if not last_name:
-                raise ValueError("Last name cannot be empty.")
+                raise Exception("Last name cannot be empty.")
 
-            liu_id = input("Type your LIU ID (e.g. abcxy123): ").strip()
+            liu_id = input("Enter your LIU ID (e.g. abcxy123): ").strip()
             if not self._validate_liu_id(liu_id):
-                raise ValueError("Invalid LIU ID format.")
+                raise Exception("Invalid LIU ID format.")
 
-            # Voice enrollment process
-            statement_audio = os.path.join(self.TEMP_AUDIO_PATH, f"{liu_id}_statement.wav")
+            # Record a voice statement.
+            statement_audio = os.path.join(self.temp_audio_path, f"{liu_id}_statement.wav")
             self._record_audio(
                 statement_audio,
-                "Please read the following sentence clearly: 'Artificial intelligence enables machines to recognize patterns, process language, and make decisions, simulating human intelligence in innovative ways.'",
-                duration=12,
+                "Please read the following sentence clearly: 'Artificial intelligence enables machines to recognize patterns, process language, and make decisions.'",
+                duration=12
             )
 
-            # Verify transcription and provide clear feedback.
+            # Transcribe the audio.
             transcription = self._transcribe_audio(statement_audio)
             if not transcription:
-                raise ValueError("Audio transcription failed. Please try again.")
+                raise Exception("Audio transcription failed. Please try again.")
 
-            # Capture voice embedding.
-            embeddings = self._capture_voice_embedding(statement_audio)
-            if not embeddings:
-                raise ValueError("Failed to capture voice embeddings.")
+            # Capture the voice embedding.
+            embedding = self._capture_voice_embedding(statement_audio)
+            if not embedding:
+                raise Exception("Failed to capture voice embedding.")
 
-            self._save_voice_embedding(liu_id, embeddings)
-            logging.info(f"Registration complete for {first_name} {last_name} with LIU ID: {liu_id}.")
+            # Save the voice embedding, passing first_name and last_name.
+            self._save_voice_embedding(liu_id, embedding, first_name, last_name)
+            logging.info(f"Registration complete for {first_name} {last_name} (LIU ID: {liu_id}).")
         except Exception as e:
-            logging.exception(f"Error during registration: {e}")
+            logging.exception("Registration failed.")
+            print(f"Registration failed: {e}")
 
 if __name__ == "__main__":
-    # # NOTE: When converting this project into a proper package with setup.py,
-    # # remove the sys.path.append line at the top and update the imports accordingly.
-
     from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
-
-    auth_system = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
-    auth_system.register_user()
+    auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
+    auth.register_user()

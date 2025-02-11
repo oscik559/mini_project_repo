@@ -31,6 +31,8 @@ AUTO_CAPTURE_FRAME_COUNT = 5  # Number of consecutive frames with detected face 
 
 # Voice recognition parameters
 VOICE_DATA_PATH = BASE_DIR / "utils" / "voice_embeddings"
+VOICE_CAPTURE_PATH = BASE_DIR / "utils" / "voice_capture"
+
 TEMP_AUDIO_PATH = BASE_DIR / "utils" / "temp_audio"
 
 # Camera vision utilities
