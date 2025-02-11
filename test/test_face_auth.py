@@ -6,7 +6,7 @@ import sys
 # Since your project is not yet a proper package, ensure the parent directory is in the path.
 sys.path.append(str(Path(__file__).parent.parent))
 
-from scripts.face_auth import FaceUtils, FaceAuthSystem
+from old_scripts.face_auth_CLI import FaceUtils, FaceAuthSystem
 
 class TestFaceUtils(unittest.TestCase):
     def test_detect_faces_empty(self):

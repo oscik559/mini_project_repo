@@ -18,7 +18,7 @@ from db_handler import DatabaseHandler
 from config.config import *
 
 
-from mini_project.scripts.camera_db_utils import (
+from scripts.camera_db_utils import (
     upsert_camera_vision_record,
     cleanup_camera_vision_records,
 )
@@ -802,7 +802,7 @@ def vector_changed(new_vector, old_vector, tolerance=5.0):
 def main():
     db = DatabaseHandler()
     # image_path = r"mini_project\utils\camera_still_images\image_1.png"
-    image_path = os.path.join(CAMERA_DATA_PATH, "image_2.png")
+    image_path = os.path.join(CAMERA_DATA_PATH, "image_1.png")
 
     wait_key = 2000  # Time to wait for a keypress in milliseconds
     process_image(image_path, wait_key, db_handler=db)
