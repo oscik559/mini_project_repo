@@ -9,7 +9,7 @@ import numpy as np
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Import the module(s) to test
-from scripts.voice_processor import AudioRecorder, Transcriber, Storage, VoiceProcessor
+from mini_project.voice_processor import AudioRecorder, Transcriber, Storage, VoiceProcessor
 
 class TestAudioRecorder(unittest.TestCase):
     @patch("scripts.voice_processor.sd.InputStream")

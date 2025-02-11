@@ -18,7 +18,7 @@ from db_handler import DatabaseHandler
 from config.config import *
 
 
-from scripts.camera_db_utils import (
+from mini_project.camera_db_utils import (
     upsert_camera_vision_record,
     cleanup_camera_vision_records,
 )

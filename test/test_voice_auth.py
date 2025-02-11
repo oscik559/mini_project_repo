@@ -1,7 +1,7 @@
 import os
 import sqlite3
 import pytest
-from scripts.voice_auth import VoiceAuth
+from mini_project.voice_auth import VoiceAuth
 
 def test_validate_liu_id():
     auth = VoiceAuth("test.db", "utils/temp_audio", "utils/voice_embeddings")
