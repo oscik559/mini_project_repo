@@ -8,7 +8,7 @@ from tkinter import messagebox, scrolledtext
 
 # Import system components
 from db_handler import DatabaseHandler
-from facial_auth import FacialAuthSystem
+from old_scripts.face_auth import FacialAuthSystem
 from llm_processor import InstructionProcessor
 from video_processor import VideoProcessor
 from old_scripts.voice_processor import VoiceProcessor
