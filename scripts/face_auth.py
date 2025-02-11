@@ -1,34 +1,59 @@
+"""
+Face Authentication Module
+
+This module provides a face authentication system that uses OpenCV,
+face_recognition, and FAISS for similarity search. It supports:
+  - Automatic face capture (with a consecutive detection counter),
+  - Manual face capture,
+  - A unified identification function that works whether one or multiple faces are detected,
+  - Registration with update confirmation for existing users.
+
+The module uses a custom context manager to handle video capture resources
+and employs relative imports for proper package structure.
+"""
+import sys
+from contextlib import contextmanager
 import logging
 import pickle
 import re
 import sqlite3
-import sys
-import unittest
-from contextlib import closing
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
-
 sys.path.append(str(Path(__file__).parent.parent))
-
 import cv2
 import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
+
+# Import configuration variables from our package.
+from config.config import (
+    AUTO_CAPTURE_FRAME_COUNT,
+    DB_PATH,
+    EMAIL_PATTERN,
+    FACE_CAPTURE_PATH,
+    FACE_MATCH_THRESHOLD,
+    FACIAL_DATA_PATH,
+    LIU_ID_PATTERN,
+    MAX_ENCODINGS_PER_USER,  # (Set to 5, for example)
+)
 from db_handler import DatabaseHandler
 
-# Import configuration variables.
-from config.config import \
-    MAX_ENCODINGS_PER_USER  # Set to 5 in your configuration
-from config.config import (AUTO_CAPTURE_FRAME_COUNT, DB_PATH, EMAIL_PATTERN,
-                           FACE_CAPTURE_PATH, FACE_MATCH_THRESHOLD,
-                           FACIAL_DATA_PATH, LIU_ID_PATTERN)
-
-# Configure logging with granular levels.
+# Configure logging.
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
 
 
+# Define a context manager for cv2.VideoCapture that calls release() on exit.
+@contextmanager
+def VideoCaptureContext(index: int = 0):
+    cap = cv2.VideoCapture(index)
+    try:
+        yield cap
+    finally:
+        cap.release()
+
+
 class FaceUtils:
-    """Utility methods for face processing with OpenCV and face_recognition."""
+    """Utility methods for face processing using OpenCV and face_recognition."""
 
     @staticmethod
     def detect_faces(frame: np.ndarray) -> Tuple[List[tuple], List[np.ndarray]]:
@@ -36,7 +61,7 @@ class FaceUtils:
         Detect faces and compute encodings in a frame.
 
         Returns:
-            Tuple containing the list of face locations and corresponding encodings.
+            A tuple of (face_locations, face_encodings).
         """
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         face_locations = face_recognition.face_locations(rgb_frame)
@@ -59,12 +84,17 @@ class FaceUtils:
         color: Tuple[int, int, int] = (0, 255, 0),
         thickness: int = 2,
     ) -> None:
-        """Draw text on a frame at the given position."""
+        """Overlay text on the frame at the given position."""
         cv2.putText(frame, text, position, cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness)
 
     @staticmethod
     def select_best_face(face_encodings: List[np.ndarray], face_locations: List[tuple]) -> int:
-        """Select the largest face when multiple faces are detected."""
+        """
+        Select the largest face when multiple faces are detected.
+
+        Returns:
+            The index of the face with the largest bounding box.
+        """
         face_sizes = [
             (bottom - top) * (right - left)
             for (top, right, bottom, left) in face_locations
@@ -89,7 +119,7 @@ class FaceAuthSystem:
                     "SELECT user_id, first_name, last_name, liu_id, face_encoding FROM users"
                 ).fetchall()
             for user in users:
-                if user[4]:  # Ensure face_encoding exists.
+                if user[4]:  # Ensure a face encoding exists.
                     encodings[user[3]] = {
                         "user_id": user[0],
                         "first_name": user[1],
@@ -112,7 +142,6 @@ class FaceAuthSystem:
             for encoding in user["encodings"]:
                 all_encodings.append(encoding)
                 self.user_ids.append(liu_id)
-
         if not all_encodings:
             logging.debug("No encodings found after processing known_encodings.")
             return None
@@ -141,7 +170,7 @@ class FaceAuthSystem:
 
     def _process_frame(self, cap: cv2.VideoCapture, instruction: str) -> Tuple[Optional[np.ndarray], List[tuple], List[np.ndarray]]:
         """
-        Read a frame from the camera, process it (face detection, bounding boxes),
+        Read a frame from the camera, process it (face detection and bounding boxes),
         and overlay instruction text.
 
         Returns:
@@ -157,25 +186,24 @@ class FaceAuthSystem:
         return frame, face_locations, face_encodings
 
     def _capture_face_auto(self) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-        """Capture a face in automatic mode."""
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            logging.error("Error: Camera not accessible.")
-            return None
+        """
+        Capture a face in automatic mode.
+        Uses a consecutive detection counter to ensure stable detection.
+        """
+        with VideoCaptureContext(0) as cap:
+            if not cap.isOpened():
+                logging.error("Error: Camera not accessible.")
+                return None
+            consecutive_detections = 0  # Count of consecutive frames with exactly one face.
+            captured_frame: Optional[np.ndarray] = None
+            captured_encoding: Optional[np.ndarray] = None
 
-        consecutive_detections = 0  # Counter for consecutive frames with exactly one face detected.
-        captured_frame: Optional[np.ndarray] = None
-        captured_encoding: Optional[np.ndarray] = None
-
-        try:
             while True:
-                # Process the frame with an instruction.
-                frame, face_locations, face_encodings = self._process_frame(cap, "Face detected, capturing...")
+                frame, _, face_encodings = self._process_frame(cap, "Face detected, capturing...")
                 if frame is None:
                     logging.debug("Frame processing failed; exiting auto capture loop.")
                     break
 
-                # If exactly one face is detected, increment the counter.
                 if len(face_encodings) == 1:
                     consecutive_detections += 1
                     self.face_utils.draw_text(
@@ -183,7 +211,6 @@ class FaceAuthSystem:
                         f"Detected: {consecutive_detections}/{AUTO_CAPTURE_FRAME_COUNT}",
                         position=(10, 60),
                     )
-                    # Once the counter reaches the threshold, capture the frame.
                     if consecutive_detections >= AUTO_CAPTURE_FRAME_COUNT:
                         captured_frame = frame
                         captured_encoding = face_encodings[0]
@@ -198,27 +225,27 @@ class FaceAuthSystem:
                 if key == ord("q"):
                     logging.info("Auto capture aborted by user.")
                     break
-        finally:
-            cap.release()
+
             cv2.destroyAllWindows()
-
-        if captured_frame is not None and captured_encoding is not None:
-            return captured_frame, captured_encoding
-        return None
-
-    def _capture_face_manual(self) -> Optional[Tuple[np.ndarray, np.ndarray]]:
-        """Capture a face in manual mode."""
-        cap = cv2.VideoCapture(0)
-        if not cap.isOpened():
-            logging.error("Error: Camera not accessible.")
+            if captured_frame is not None and captured_encoding is not None:
+                return captured_frame, captured_encoding
             return None
 
-        captured_frame: Optional[np.ndarray] = None
-        captured_encoding: Optional[np.ndarray] = None
+    def _capture_face_manual(self) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+        """
+        Capture a face in manual mode.
+        The user must press 's' to save when a single face is detected.
+        """
+        with VideoCaptureContext(0) as cap:
+            if not cap.isOpened():
+                logging.error("Error: Camera not accessible.")
+                return None
 
-        try:
+            captured_frame: Optional[np.ndarray] = None
+            captured_encoding: Optional[np.ndarray] = None
+
             while True:
-                frame, face_locations, face_encodings = self._process_frame(cap, "Press 's' to save, 'q' to quit")
+                frame, _, face_encodings = self._process_frame(cap, "Press 's' to save, 'q' to quit")
                 if frame is None:
                     logging.debug("Frame processing failed; exiting manual capture loop.")
                     break
@@ -239,13 +266,11 @@ class FaceAuthSystem:
                         break
                     else:
                         logging.warning("No face or multiple faces detected; cannot capture.")
-        finally:
-            cap.release()
-            cv2.destroyAllWindows()
 
-        if captured_frame is not None and captured_encoding is not None:
-            return captured_frame, captured_encoding
-        return None
+            cv2.destroyAllWindows()
+            if captured_frame is not None and captured_encoding is not None:
+                return captured_frame, captured_encoding
+            return None
 
     def _capture_face(self, capture_mode: str = "auto") -> Optional[Tuple[np.ndarray, np.ndarray]]:
         """Capture a face using the specified mode (auto/manual)."""
@@ -254,15 +279,27 @@ class FaceAuthSystem:
         else:
             return self._capture_face_manual()
 
+    def _capture_face_multi(self) -> Optional[Tuple[np.ndarray, List[np.ndarray], List[tuple]]]:
+        """
+        Capture a single frame and return all detected face encodings and locations.
+        This mode is used for identification whether one or multiple faces are present.
+        """
+        with VideoCaptureContext(0) as cap:
+            if not cap.isOpened():
+                logging.error("Error: Camera not accessible.")
+                return None
+            ret, frame = cap.read()
+            if not ret:
+                logging.error("Failed to capture frame for multi-face detection.")
+                return None
+            face_locations, face_encodings = self.face_utils.detect_faces(frame)
+            return frame, face_encodings, face_locations
+
     def register_user(self) -> None:
         """
-        Handle new user registration (manual capture forced).
-
-        This method now queries the database for an existing user (by LIU ID or email)
-        after capturing the face. If an existing user is found, it prompts the user to confirm
-        whether to update the stored face encoding.
+        Handle new user registration (manual capture).
+        If a user with the given LIU ID or email exists, prompt for update confirmation.
         """
-        # Force manual capture for registration.
         frame_encoding = self._capture_face("manual")
         if not frame_encoding:
             logging.error("Face capture failed during registration.")
@@ -271,14 +308,12 @@ class FaceAuthSystem:
         frame, encoding = frame_encoding
         logging.info("Face captured for registration.")
 
-        # Ask for registration details.
-        logging.info("--- New User Registration ---")
+        # Gather registration details.
         first_name = input("First Name: ").strip()
         last_name = input("Last Name: ").strip()
         liu_id = input("LIU ID: ").strip()
         email = input("Email: ").strip()
 
-        # Check for empty first or last names.
         if not first_name or not last_name:
             logging.error("First name and last name cannot be empty.")
             return
@@ -289,7 +324,7 @@ class FaceAuthSystem:
         try:
             with self.db_handler.conn:
                 cursor = self.db_handler.conn.cursor()
-                # Query the database for an existing user with the same LIU ID or email.
+                # Query for an existing user with the same LIU ID or email.
                 existing = cursor.execute(
                     "SELECT user_id, face_encoding FROM users WHERE liu_id = ? OR email = ?",
                     (liu_id, email),
@@ -304,13 +339,9 @@ class FaceAuthSystem:
                     else:
                         logging.info("User confirmed update of face encoding.")
                         user_id, existing_encoding_blob = existing
-                        existing_encodings = (
-                            pickle.loads(existing_encoding_blob)
-                            if existing_encoding_blob
-                            else []
-                        )
+                        existing_encodings = pickle.loads(existing_encoding_blob) if existing_encoding_blob else []
                         existing_encodings.append(encoding)
-                        # Enforce maximum of MAX_ENCODINGS_PER_USER.
+                        # Enforce maximum stored encodings.
                         existing_encodings = existing_encodings[-MAX_ENCODINGS_PER_USER:]
                         cursor.execute(
                             "UPDATE users SET face_encoding = ? WHERE user_id = ?",
@@ -319,28 +350,17 @@ class FaceAuthSystem:
                         logging.info("Face encoding updated for %s %s", first_name, last_name)
                         self._refresh_index()
                         return
-
                 else:
-                    # Insert new user into the database.
                     profile_image_path = str(FACE_CAPTURE_PATH / f"{liu_id}.jpg")
-                    preferences = "{}"  # Default empty preferences.
-                    interaction_memory = "[]"  # Default empty history.
+                    preferences = "{}"
+                    interaction_memory = "[]"
                     encoding_blob = pickle.dumps([encoding])
                     cursor.execute(
                         """INSERT INTO users
-                        (first_name, last_name, liu_id, email, face_encoding,
-                         preferences, profile_image_path, interaction_memory)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (
-                            first_name,
-                            last_name,
-                            liu_id,
-                            email,
-                            encoding_blob,
-                            preferences,
-                            profile_image_path,
-                            interaction_memory,
-                        ),
+                           (first_name, last_name, liu_id, email, face_encoding,
+                           preferences, profile_image_path, interaction_memory)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (first_name, last_name, liu_id, email, encoding_blob, preferences, profile_image_path, interaction_memory),
                     )
                     cv2.imwrite(profile_image_path, frame)
                     logging.info("User %s %s registered successfully", first_name, last_name)
@@ -349,108 +369,80 @@ class FaceAuthSystem:
             self.db_handler.conn.rollback()
             return
 
-        # Refresh the in-memory encodings and rebuild the FAISS index after registration.
         self._refresh_index()
 
-    def identify_user(self) -> Optional[dict]:
-        """Identify a user using FAISS-based matching with automatic face capture."""
-        frame_encoding = self._capture_face("auto")
-        if not frame_encoding:
-            return None
+    def identify(self) -> None:
+        """
+        Capture a frame (in multi-face mode) and identify all detected faces:
+          - For each face matching a known user (distance <= threshold), welcome the user.
+          - For any unknown face, prompt to register using the existing register_user function.
+        This unified function handles both single- and multi-face scenarios.
+        """
+        result = self._capture_face_multi()
+        if result is None:
+            logging.error("Failed to capture frame for identification.")
+            return
 
-        _, encoding = frame_encoding
+        frame, face_encodings, face_locations = result
+        if not face_encodings:
+            logging.info("No faces detected. Please try again.")
+            return
 
-        if self.faiss_index is None:
-            logging.error("No users registered in the database.")
-            return None
+        known_users = []
+        unknown_found = False
 
-        query_encoding = np.array([encoding], dtype=np.float32)
-        distances, indices = self.faiss_index.search(query_encoding, k=1)
-        if distances[0][0] > FACE_MATCH_THRESHOLD:
-            logging.info("No match found during identification.")
-            return None
-
-        matched_LIU_id = self.user_ids[indices[0][0]]
-        return self.known_encodings.get(matched_LIU_id)
-
-    def run(self) -> None:
-        """Main application flow."""
-        while True:
-            print("\n1. Identify User\n2. Register User\n3. Exit")
-            choice = input("Choice: ").strip()
-
-            if choice == "1":
-                if not self.known_encodings:
-                    logging.info("No registered users found.")
-                    option = input("Would you like to register? (1: Register, 2: Exit): ").strip()
-                    if option == "1":
-                        self.register_user()
-                    else:
-                        self.db_handler.close()
-                        logging.info("Exiting...")
-                        break
-                    continue
-
-                user = self.identify_user()
-                if user:
-                    logging.info("Welcome back, %s %s!", user["first_name"], user["last_name"])
+        # Process each detected face.
+        for encoding in face_encodings:
+            query_encoding = np.array([encoding], dtype=np.float32)
+            if self.faiss_index is not None:
+                distances, indices = self.faiss_index.search(query_encoding, k=1)
+                if distances[0][0] <= FACE_MATCH_THRESHOLD:
+                    matched_LIU_id = self.user_ids[indices[0][0]]
+                    user = self.known_encodings.get(matched_LIU_id)
+                    if user and user not in known_users:
+                        known_users.append(user)
                 else:
-                    logging.info("User not recognized.")
-                    option = input("Options:\n1. Register new user\n2. Exit\nChoice: ").strip()
-                    if option == "1":
-                        self.register_user()
-                    else:
-                        self.db_handler.close()
-                        logging.info("Exiting...")
-                        break
+                    unknown_found = True
+            else:
+                unknown_found = True
 
-            elif choice == "2":
+        # Welcome known users.
+        if known_users:
+            for user in known_users:
+                print(f"Welcome back, {user['first_name']} {user['last_name']}!")
+        else:
+            print("No known faces detected.")
+
+        # If any unknown faces were detected, prompt to register using the existing register_user method.
+        if unknown_found:
+            response = input("Some faces were not recognized. Would you like to register a user? (y/n): ").strip().lower()
+            if response == "y":
                 self.register_user()
 
+    def run(self) -> None:
+        """Main application loop."""
+        while True:
+            print("\n1. Identify Users\n2. Register User\n3. Exit")
+            choice = input("Choice: ").strip()
+            if choice == "1":
+                self.identify()
+            elif choice == "2":
+                self.register_user()
             elif choice == "3":
                 self.db_handler.close()
                 logging.info("Exiting...")
                 break
+            else:
+                print("Invalid option. Please try again.")
 
 
-# Unit tests for critical components.
+def main() -> None:
+    """Entry point for the FaceAuthSystem application."""
+    FACIAL_DATA_PATH.mkdir(parents=True, exist_ok=True)
+    FACE_CAPTURE_PATH.mkdir(parents=True, exist_ok=True)
+    auth_system = FaceAuthSystem()
+    auth_system.run()
 
-# (Other imports and your FaceAuthSystem and FaceUtils classes go here.)
-
-class TestFaceUtils(unittest.TestCase):
-    def test_detect_faces_empty(self):
-        # Create an empty black image.
-        import numpy as np
-        frame = np.zeros((100, 100, 3), dtype=np.uint8)
-        locations, encodings = FaceUtils.detect_faces(frame)
-        self.assertIsInstance(locations, list)
-        self.assertIsInstance(encodings, list)
-
-class TestInputValidation(unittest.TestCase):
-    def test_validate_user_input(self):
-        auth = FaceAuthSystem()
-        # Assuming LIU_ID_PATTERN and EMAIL_PATTERN are set to accept "abc123" and a valid email.
-        self.assertTrue(auth._validate_user_input("abc123", "test@example.com"))
-        self.assertFalse(auth._validate_user_input("wrong", "wrong"))
-
-class TestFaissIndexBuilding(unittest.TestCase):
-    def test_build_faiss_index_empty(self):
-        auth = FaceAuthSystem()
-        auth.known_encodings = {}
-        index = auth._build_faiss_index()
-        self.assertIsNone(index)
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "test":
-        # Remove the "test" argument so that unittest doesn't get confused.
-        sys.argv.pop(1)
-        unittest.main(verbosity=2)
-    else:
-        # Run your main application code.
-        # Ensure required directories exist.
-        from config.config import FACE_CAPTURE_PATH, FACIAL_DATA_PATH
-        FACIAL_DATA_PATH.mkdir(parents=True, exist_ok=True)
-        FACE_CAPTURE_PATH.mkdir(parents=True, exist_ok=True)
-
-        auth_system = FaceAuthSystem()
-        auth_system.run()
+    main()

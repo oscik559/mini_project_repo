@@ -6,10 +6,10 @@ Configuration module for the mini_project application.
 This module defines various configuration settings required for the application,
 including paths, thresholds, and validation patterns.
 """
-
 import logging
 import os
 from pathlib import Path
+
 
 # === Logging Setup ===
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

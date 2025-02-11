@@ -174,7 +174,6 @@ class DatabaseHandler:
                     task_name TEXT,
                     preference_data TEXT,
                     FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
-                    FOREIGN KEY (task_id) REFERENCES tasks(task_id)
                 );
             """,
             "instructions": """
