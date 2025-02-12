@@ -13,6 +13,7 @@ It leverages:
 - The shared database handler from db_handler.py
 """
 import logging
+
 from config.config import *
 from config.logging_config import setup_logging
 

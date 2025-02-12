@@ -34,7 +34,9 @@ DB_PATH = BASE_DIR / "database" / "sequences.db"
 # Face recognition utilities
 FACIAL_DATA_PATH = BASE_DIR / "utils" / "face_encodings"
 FACE_CAPTURE_PATH = BASE_DIR / "utils" / "face_capture"
-IDENTIFICATION_FRAMES = 2   # Constant to control how many frames are used for identification averaging.
+IDENTIFICATION_FRAMES = (
+    2  # Constant to control how many frames are used for identification averaging.
+)
 TIMEDELAY = 1
 
 # Face recognition parameters

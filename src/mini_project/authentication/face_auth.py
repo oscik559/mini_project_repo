@@ -32,13 +32,14 @@ from config.config import (
     FACE_CAPTURE_PATH,
     FACE_MATCH_THRESHOLD,
     FACIAL_DATA_PATH,
+    IDENTIFICATION_FRAMES,
     LIU_ID_PATTERN,
     MAX_ENCODINGS_PER_USER,
-    IDENTIFICATION_FRAMES,
     TIMEDELAY,
 )
 from config.logging_config import setup_logging
 from mini_project.core.db_handler import DatabaseHandler
+
 
 # Define a context manager for cv2.VideoCapture that calls release() on exit.
 @contextmanager
