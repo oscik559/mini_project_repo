@@ -810,8 +810,7 @@ def vector_changed(new_vector, old_vector, tolerance=5.0):
 
 def main():
     db = DatabaseHandler()
-    # image_path = r"mini_project\utils\camera_still_images\image_1.png"
-    image_path = os.path.join(CAMERA_DATA_PATH, "image_1.png")
+    image_path = CAMERA_DATA_PATH / "image_1.png"
 
     wait_key = 2000  # Time to wait for a keypress in milliseconds
     process_image(image_path, wait_key, db_handler=db)

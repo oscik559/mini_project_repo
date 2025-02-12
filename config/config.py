@@ -7,7 +7,6 @@ This module defines various configuration settings required for the application,
 including paths, thresholds, and validation patterns.
 """
 import logging
-import os
 from pathlib import Path
 
 # === Logging Setup ===
@@ -40,6 +39,7 @@ TEMP_AUDIO_PATH = BASE_DIR / "utils" / "temp_audio"
 
 # Camera vision utilities
 CAMERA_DATA_PATH = BASE_DIR / "utils" / "camera_data"
+
 
 # Email and ID validation patterns
 LIU_ID_PATTERN = r"^[a-z]{3,5}\d{3}$"  # Example: oscik559

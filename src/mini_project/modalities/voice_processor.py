@@ -2,9 +2,7 @@
 import logging
 import os
 import sqlite3
-import sys
 import time
-from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
@@ -12,9 +10,6 @@ import sounddevice as sd
 import webrtcvad
 from faster_whisper import WhisperModel
 from scipy.io.wavfile import write
-
-# Add the project root directory to the Python path
-sys.path.append(str(Path(__file__).parent.parent))
 
 # Import configurations from config.py
 from config.config import VOICE_PROCESSING_CONFIG
