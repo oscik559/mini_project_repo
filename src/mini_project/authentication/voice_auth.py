@@ -14,6 +14,7 @@ It demonstrates:
 - Logging configuration and type annotations.
 """
 
+import logging
 import os
 import pickle
 import re
@@ -26,15 +27,11 @@ import sounddevice as sd
 from resemblyzer import VoiceEncoder, preprocess_wav
 from scipy.io.wavfile import write
 from speech_recognition import AudioFile, Recognizer, RequestError, UnknownValueError
+from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
+from config.logging_config import setup_logging
 
 # Suppress warnings if desired
 warnings.filterwarnings("ignore", category=FutureWarning)
-
-import logging
-
-from config.logging_config import setup_logging
-
-setup_logging()  # You can pass a different level if needed
 
 
 # Context manager for handling an audio recording session.
@@ -290,7 +287,5 @@ class VoiceAuth:
 
 
 if __name__ == "__main__":
-    from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
-
     auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
     auth.register_user()

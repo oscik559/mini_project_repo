@@ -6,23 +6,36 @@ Configuration module for the mini_project application.
 This module defines various configuration settings required for the application,
 including paths, thresholds, and validation patterns.
 """
+
+# mini_project/
+#   ├── config/
+#   │   └── config.py
+
+
+# === Logging Setup ===
 import logging
 from pathlib import Path
 
-# === Logging Setup ===
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+from config.logging_config import setup_logging
+
 logger = logging.getLogger(__name__)
+
+
+# === Directory Setup ===
 
 # Define the base directory
 BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project/ directory path
+
+# Use network share or local database file: be aware of potential issues with file locking on a network share.
 # DB_PATH = Path(r"\\ad.liu.se\coop\i\industrialrobotsetup\sequences.db")
 DB_PATH = BASE_DIR / "database" / "sequences.db"
+
 
 # Face recognition utilities
 FACIAL_DATA_PATH = BASE_DIR / "utils" / "face_encodings"
 FACE_CAPTURE_PATH = BASE_DIR / "utils" / "face_capture"
+IDENTIFICATION_FRAMES = 2   # Constant to control how many frames are used for identification averaging.
+TIMEDELAY = 1
 
 # Face recognition parameters
 FACE_MATCH_THRESHOLD = 0.6  # Threshold for face matching
@@ -90,7 +103,6 @@ def validate_paths() -> None:
             try:
                 path.mkdir(parents=True, exist_ok=True)
                 logger.info(f"Created missing directory: {path}")
-                print(f"Created missing directory: {path}")
             except OSError as e:
                 logger.error(f"Failed to create directory {path}: {e}", exc_info=True)
                 raise RuntimeError(f"Failed to create directory {path}: {e}")

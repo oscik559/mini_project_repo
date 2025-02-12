@@ -25,7 +25,7 @@ class DatabaseHandler:
         """
         self.db_name = db_name
         self.conn = sqlite3.connect(self.db_name)
-        self.conn = sqlite3.connect(self.db_name, timeout=30)
+        self.conn = sqlite3.connect(self.db_name, timeout=60)
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.execute("PRAGMA journal_mode=WAL;")  # WAL mode for concurrency
         self.cursor = self.conn.cursor()

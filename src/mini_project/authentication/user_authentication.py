@@ -12,21 +12,15 @@ It leverages:
 - The voice_auth system (from scripts/voice_auth.py)
 - The shared database handler from db_handler.py
 """
-
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).parent.parent))
-
 import logging
-
+from config.config import *
 from config.logging_config import setup_logging
 
 setup_logging()  # You can pass a different level if needed
 
 # Import the authentication modules.
-from mini_project.face_auth import FaceAuthSystem
-from mini_project.voice_auth import VoiceAuth
+from mini_project.authentication.face_auth import FaceAuthSystem
+from mini_project.authentication.voice_auth import VoiceAuth
 
 
 def main() -> None:
@@ -40,12 +34,14 @@ def main() -> None:
 
     if choice == "1":
         print("Launching Face Authentication...")
+
+        FACIAL_DATA_PATH.mkdir(parents=True, exist_ok=True)
+        FACE_CAPTURE_PATH.mkdir(parents=True, exist_ok=True)
         face_auth = FaceAuthSystem()
-        # For example, you might call face_auth.register_user() or face_auth.identify()
-        face_auth.register_user()  # or face_auth.identify() depending on your use case
+        face_auth.run()
+
     elif choice == "2":
         print("Launching Voice Authentication...")
-        from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
 
         voice_auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
         voice_auth.register_user()
