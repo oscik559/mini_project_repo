@@ -6,13 +6,13 @@ import time
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
-from llm_processor import InstructionProcessor
-from video_processor import VideoProcessor
+from mini_project.modalities.llm_processor import InstructionProcessor
+from mini_project.modalities.video_processor import GestureProcessor
 
 # Import system components
 from mini_project.core.db_handler import DatabaseHandler
-from old_scripts.face_auth import FacialAuthSystem
-from old_scripts.voice_processor import VoiceProcessor
+from mini_project.authentication.face_auth import FaceAuthSystem
+from mini_project.modalities.voice_processor import VoiceProcessor
 
 
 class TaskManager:
@@ -28,9 +28,9 @@ class TaskManager:
 
         # Initialize components
         self.db_handler = DatabaseHandler()
-        self.facial_auth = FacialAuthSystem()
+        self.facial_auth = FaceAuthSystem()
         self.voice_processor = VoiceProcessor()
-        self.video_processor = VideoProcessor()
+        self.video_processor = GestureProcessor()
         self.llm_processor = InstructionProcessor()
 
         # UI Elements
