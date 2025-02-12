@@ -1,4 +1,4 @@
- # voice_processor.py
+# voice_processor.py
 """
 This script defines the VoiceProcessor class, which handles recording audio from the user,
 transcribing it using the Whisper model, and storing the transcribed instructions in an SQLite database.
@@ -28,9 +28,10 @@ import time
 import numpy as np
 import sounddevice as sd
 import webrtcvad
-from config.config import DB_PATH, TEMP_AUDIO_PATH
 from faster_whisper import WhisperModel
 from scipy.io.wavfile import write
+
+from config.config import DB_PATH, TEMP_AUDIO_PATH
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

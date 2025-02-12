@@ -11,7 +11,9 @@ import os
 from pathlib import Path
 
 # === Logging Setup ===
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Define the base directory
@@ -26,7 +28,9 @@ FACE_CAPTURE_PATH = BASE_DIR / "utils" / "face_capture"
 # Face recognition parameters
 FACE_MATCH_THRESHOLD = 0.6  # Threshold for face matching
 MAX_ENCODINGS_PER_USER = 5  # Maximum number of encodings per user
-AUTO_CAPTURE_FRAME_COUNT = 5  # Number of consecutive frames with detected face for auto-capture
+AUTO_CAPTURE_FRAME_COUNT = (
+    5  # Number of consecutive frames with detected face for auto-capture
+)
 
 # Voice recognition parameters
 VOICE_DATA_PATH = BASE_DIR / "utils" / "voice_embeddings"
@@ -44,7 +48,9 @@ EMAIL_PATTERN = r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$"
 # === Voice Processing Configurations ===
 VOICE_PROCESSING_CONFIG = {
     "recording": {
-        "temp_audio_path": str(TEMP_AUDIO_PATH / "voice_recording.wav"),  # Path to save recorded audio
+        "temp_audio_path": str(
+            TEMP_AUDIO_PATH / "voice_recording.wav"
+        ),  # Path to save recorded audio
         "sampling_rate": 16000,  # Audio sample rate (Hz)
         "max_duration": 60,  # Maximum recording duration (seconds)
         "initial_silence_duration": 15,  # Silence allowed before speech starts (seconds)
@@ -62,6 +68,7 @@ VOICE_PROCESSING_CONFIG = {
         "db_path": str(DB_PATH),  # Path to the SQLite database
     },
 }
+
 
 # Function to validate paths at runtime
 def validate_paths() -> None:
@@ -87,6 +94,7 @@ def validate_paths() -> None:
             except OSError as e:
                 logger.error(f"Failed to create directory {path}: {e}", exc_info=True)
                 raise RuntimeError(f"Failed to create directory {path}: {e}")
+
 
 # Automatically validate paths when this module is imported
 validate_paths()

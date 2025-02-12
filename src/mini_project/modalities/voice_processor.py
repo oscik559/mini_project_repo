@@ -249,7 +249,9 @@ class VoiceProcessor:
                 logger.info("No speech detected. Skipping transcription and storage.")
                 try:
                     os.remove(self.recorder.temp_audio_path)
-                    logger.info(f"Deleted temporary audio file: {self.recorder.temp_audio_path}")
+                    logger.info(
+                        f"Deleted temporary audio file: {self.recorder.temp_audio_path}"
+                    )
                 except Exception as e:
                     logger.error(f"Error deleting temporary audio file: {e}")
                 return

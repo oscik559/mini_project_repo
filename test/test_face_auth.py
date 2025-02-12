@@ -1,12 +1,14 @@
-import unittest
-import numpy as np
-from pathlib import Path
 import sys
+import unittest
+from pathlib import Path
+
+import numpy as np
 
 # Since your project is not yet a proper package, ensure the parent directory is in the path.
 sys.path.append(str(Path(__file__).parent.parent))
 
-from old_scripts.face_auth_CLI import FaceUtils, FaceAuthSystem
+from old_scripts.face_auth_CLI import FaceAuthSystem, FaceUtils
+
 
 class TestFaceUtils(unittest.TestCase):
     def test_detect_faces_empty(self):
@@ -16,6 +18,7 @@ class TestFaceUtils(unittest.TestCase):
         self.assertIsInstance(locations, list)
         self.assertIsInstance(encodings, list)
 
+
 class TestInputValidation(unittest.TestCase):
     def test_validate_user_input(self):
         auth = FaceAuthSystem()
@@ -23,12 +26,14 @@ class TestInputValidation(unittest.TestCase):
         self.assertTrue(auth._validate_user_input("abc123", "test@example.com"))
         self.assertFalse(auth._validate_user_input("wrong", "wrong"))
 
+
 class TestFaissIndexBuilding(unittest.TestCase):
     def test_build_faiss_index_empty(self):
         auth = FaceAuthSystem()
         auth.known_encodings = {}  # Force no known encodings.
         index = auth._build_faiss_index()
         self.assertIsNone(index)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mini_project"
 version = "0.1.0"
-description = "A project for multimodal user authentication (face and voice)."
+description = "Thesis: Integrating Computer Vision, LLMs, and Robotic Control for Personalized Task Execution in Virtual Environments."
 readme = "README.md"
 authors = [
   { name = "Oscar Ikechukwu", email = "oscik559@student.liu.se" }
@@ -26,6 +26,36 @@ classifiers = [
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent"
 ]
+keywords = [
+  "authentication", "LLM", "face", "gesture", "voice", "multimodal", "SQLite", "database"
+]
 
 [tool.setuptools.packages.find]
-where = ["mini_project"]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py38"]
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+skip-string-normalization = false
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["mini_project"]  # Adjust this if your package name changes.
+multi_line_output = 3
+include_trailing_comma = true

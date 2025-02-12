@@ -6,11 +6,12 @@ import time
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
-# Import system components
-from db_handler import DatabaseHandler
-from old_scripts.face_auth import FacialAuthSystem
 from llm_processor import InstructionProcessor
 from video_processor import VideoProcessor
+
+# Import system components
+from mini_project.core.db_handler import DatabaseHandler
+from old_scripts.face_auth import FacialAuthSystem
 from old_scripts.voice_processor import VoiceProcessor
 
 
@@ -69,7 +70,6 @@ class TaskManager:
         self.log_text.insert(tk.END, f"{message}\n")
         self.log_text.yview(tk.END)
 
-
     def authenticate_user(self):
         """Authenticate user using face or voice with error handling"""
         if self.authenticated_user:  # Skip re-authentication if already authenticated
@@ -79,25 +79,27 @@ class TaskManager:
         user = self.facial_auth.identify_user()
         if user:
             self.authenticated_user = user
-            self.log_event(f"User authenticated: {user['first_name']} {user['last_name']}")
+            self.log_event(
+                f"User authenticated: {user['first_name']} {user['last_name']}"
+            )
             return user
         else:
             self.log_event("Face not recognized, switching to voice authentication...")
             return None
 
-
     def capture_user_input(self):
         """Capture voice and video input asynchronously"""
         self.log_event("Capturing user input...", level=logging.INFO)
 
-        voice_thread = threading.Thread(target=self.voice_processor.capture_voice, daemon=True)
+        voice_thread = threading.Thread(
+            target=self.voice_processor.capture_voice, daemon=True
+        )
         # video_thread = threading.Thread(target=self.video_processor.process_video, daemon=True)
 
         voice_thread.start()
         # video_thread.start()
 
         self.log_event("Input capture started in background.")
-
 
     def process_instruction(self):
         """Process the latest instruction with error handling"""
@@ -112,21 +114,22 @@ class TaskManager:
         except Exception as e:
             self.log_event(f"Instruction Processing Error: {str(e)}")
 
-
     def execute_pipeline(self):
-            """Main execution loop"""
-            if not self.authenticated_user:  # Authenticate only if no user is stored
-                self.authenticated_user = self.authenticate_user()
+        """Main execution loop"""
+        if not self.authenticated_user:  # Authenticate only if no user is stored
+            self.authenticated_user = self.authenticate_user()
 
-            if self.authenticated_user:
-                self.log_event(f"User {self.authenticated_user['first_name']} authenticated. Starting pipeline...")
-                while self.running:
-                    self.capture_user_input()
-                    self.process_instruction()
-                    time.sleep(5)  # Adjust for performance
-            else:
-                self.log_event("Authentication failed. Stopping execution.")
-                self.running = False
+        if self.authenticated_user:
+            self.log_event(
+                f"User {self.authenticated_user['first_name']} authenticated. Starting pipeline..."
+            )
+            while self.running:
+                self.capture_user_input()
+                self.process_instruction()
+                time.sleep(5)  # Adjust for performance
+        else:
+            self.log_event("Authentication failed. Stopping execution.")
+            self.running = False
 
     def start_execution(self):
         """Start execution loop in a separate thread"""
@@ -147,7 +150,6 @@ class TaskManager:
                 self.execution_thread.join()
 
             self.log_event("Execution stopped.")
-
 
     def clear_instructions(self):
         """Clear instructions from the database"""

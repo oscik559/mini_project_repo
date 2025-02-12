@@ -11,21 +11,25 @@ face_recognition, and FAISS for similarity search. It supports:
 The module uses a custom context manager to handle video capture resources
 and employs relative imports for proper package structure.
 """
-import sys
-from contextlib import contextmanager
+
 import logging
 import pickle
 import re
 import sqlite3
+import sys
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+
 sys.path.append(str(Path(__file__).parent.parent))
 import cv2
 import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
+from db_handler import DatabaseHandler
 
 # Import configuration variables from our package.
+from config.config import MAX_ENCODINGS_PER_USER  # (Set to 5, for example)
 from config.config import (
     AUTO_CAPTURE_FRAME_COUNT,
     DB_PATH,
@@ -34,12 +38,12 @@ from config.config import (
     FACE_MATCH_THRESHOLD,
     FACIAL_DATA_PATH,
     LIU_ID_PATTERN,
-    MAX_ENCODINGS_PER_USER,  # (Set to 5, for example)
 )
-from db_handler import DatabaseHandler
 
 # Configure logging.
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
 
 # Define a context manager for cv2.VideoCapture that calls release() on exit.
@@ -69,9 +73,11 @@ class FaceUtils:
         return face_locations, face_encodings
 
     @staticmethod
-    def draw_bounding_boxes(frame: np.ndarray, face_locations: List[tuple]) -> np.ndarray:
+    def draw_bounding_boxes(
+        frame: np.ndarray, face_locations: List[tuple]
+    ) -> np.ndarray:
         """Draw bounding boxes around detected faces."""
-        for (top, right, bottom, left) in face_locations:
+        for top, right, bottom, left in face_locations:
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
         return frame
 
@@ -85,10 +91,20 @@ class FaceUtils:
         thickness: int = 2,
     ) -> None:
         """Overlay text on the frame at the given position."""
-        cv2.putText(frame, text, position, cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness)
+        cv2.putText(
+            frame,
+            text,
+            position,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            font_scale,
+            color,
+            thickness,
+        )
 
     @staticmethod
-    def select_best_face(face_encodings: List[np.ndarray], face_locations: List[tuple]) -> int:
+    def select_best_face(
+        face_encodings: List[np.ndarray], face_locations: List[tuple]
+    ) -> int:
         """
         Select the largest face when multiple faces are detected.
 
@@ -168,7 +184,9 @@ class FaceAuthSystem:
             return False
         return True
 
-    def _process_frame(self, cap: cv2.VideoCapture, instruction: str) -> Tuple[Optional[np.ndarray], List[tuple], List[np.ndarray]]:
+    def _process_frame(
+        self, cap: cv2.VideoCapture, instruction: str
+    ) -> Tuple[Optional[np.ndarray], List[tuple], List[np.ndarray]]:
         """
         Read a frame from the camera, process it (face detection and bounding boxes),
         and overlay instruction text.
@@ -194,12 +212,16 @@ class FaceAuthSystem:
             if not cap.isOpened():
                 logging.error("Error: Camera not accessible.")
                 return None
-            consecutive_detections = 0  # Count of consecutive frames with exactly one face.
+            consecutive_detections = (
+                0  # Count of consecutive frames with exactly one face.
+            )
             captured_frame: Optional[np.ndarray] = None
             captured_encoding: Optional[np.ndarray] = None
 
             while True:
-                frame, _, face_encodings = self._process_frame(cap, "Face detected, capturing...")
+                frame, _, face_encodings = self._process_frame(
+                    cap, "Face detected, capturing..."
+                )
                 if frame is None:
                     logging.debug("Frame processing failed; exiting auto capture loop.")
                     break
@@ -245,13 +267,19 @@ class FaceAuthSystem:
             captured_encoding: Optional[np.ndarray] = None
 
             while True:
-                frame, _, face_encodings = self._process_frame(cap, "Press 's' to save, 'q' to quit")
+                frame, _, face_encodings = self._process_frame(
+                    cap, "Press 's' to save, 'q' to quit"
+                )
                 if frame is None:
-                    logging.debug("Frame processing failed; exiting manual capture loop.")
+                    logging.debug(
+                        "Frame processing failed; exiting manual capture loop."
+                    )
                     break
 
                 if len(face_encodings) >= 1:
-                    self.face_utils.draw_text(frame, "Face detected!", position=(10, 60))
+                    self.face_utils.draw_text(
+                        frame, "Face detected!", position=(10, 60)
+                    )
 
                 cv2.imshow("Face Capture - Manual", frame)
                 key = cv2.waitKey(1) & 0xFF
@@ -265,21 +293,27 @@ class FaceAuthSystem:
                         logging.debug("Face captured in manual mode.")
                         break
                     else:
-                        logging.warning("No face or multiple faces detected; cannot capture.")
+                        logging.warning(
+                            "No face or multiple faces detected; cannot capture."
+                        )
 
             cv2.destroyAllWindows()
             if captured_frame is not None and captured_encoding is not None:
                 return captured_frame, captured_encoding
             return None
 
-    def _capture_face(self, capture_mode: str = "auto") -> Optional[Tuple[np.ndarray, np.ndarray]]:
+    def _capture_face(
+        self, capture_mode: str = "auto"
+    ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
         """Capture a face using the specified mode (auto/manual)."""
         if capture_mode == "auto":
             return self._capture_face_auto()
         else:
             return self._capture_face_manual()
 
-    def _capture_face_multi(self) -> Optional[Tuple[np.ndarray, List[np.ndarray], List[tuple]]]:
+    def _capture_face_multi(
+        self,
+    ) -> Optional[Tuple[np.ndarray, List[np.ndarray], List[tuple]]]:
         """
         Capture a single frame and return all detected face encodings and locations.
         This mode is used for identification whether one or multiple faces are present.
@@ -331,7 +365,9 @@ class FaceAuthSystem:
                 ).fetchone()
 
                 if existing:
-                    logging.info("User already exists. Prompting for update confirmation...")
+                    logging.info(
+                        "User already exists. Prompting for update confirmation..."
+                    )
                     confirm = input("Update face encoding? (y/n): ").strip().lower()
                     if confirm != "y":
                         logging.info("Registration aborted by user.")
@@ -339,15 +375,23 @@ class FaceAuthSystem:
                     else:
                         logging.info("User confirmed update of face encoding.")
                         user_id, existing_encoding_blob = existing
-                        existing_encodings = pickle.loads(existing_encoding_blob) if existing_encoding_blob else []
+                        existing_encodings = (
+                            pickle.loads(existing_encoding_blob)
+                            if existing_encoding_blob
+                            else []
+                        )
                         existing_encodings.append(encoding)
                         # Enforce maximum stored encodings.
-                        existing_encodings = existing_encodings[-MAX_ENCODINGS_PER_USER:]
+                        existing_encodings = existing_encodings[
+                            -MAX_ENCODINGS_PER_USER:
+                        ]
                         cursor.execute(
                             "UPDATE users SET face_encoding = ? WHERE user_id = ?",
                             (pickle.dumps(existing_encodings), user_id),
                         )
-                        logging.info("Face encoding updated for %s %s", first_name, last_name)
+                        logging.info(
+                            "Face encoding updated for %s %s", first_name, last_name
+                        )
                         self._refresh_index()
                         return
                 else:
@@ -360,10 +404,21 @@ class FaceAuthSystem:
                            (first_name, last_name, liu_id, email, face_encoding,
                            preferences, profile_image_path, interaction_memory)
                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-                        (first_name, last_name, liu_id, email, encoding_blob, preferences, profile_image_path, interaction_memory),
+                        (
+                            first_name,
+                            last_name,
+                            liu_id,
+                            email,
+                            encoding_blob,
+                            preferences,
+                            profile_image_path,
+                            interaction_memory,
+                        ),
                     )
                     cv2.imwrite(profile_image_path, frame)
-                    logging.info("User %s %s registered successfully", first_name, last_name)
+                    logging.info(
+                        "User %s %s registered successfully", first_name, last_name
+                    )
         except sqlite3.Error as e:
             logging.error("Database error: %s", e)
             self.db_handler.conn.rollback()
@@ -415,7 +470,13 @@ class FaceAuthSystem:
 
         # If any unknown faces were detected, prompt to register using the existing register_user method.
         if unknown_found:
-            response = input("Some faces were not recognized. Would you like to register a user? (y/n): ").strip().lower()
+            response = (
+                input(
+                    "Some faces were not recognized. Would you like to register a user? (y/n): "
+                )
+                .strip()
+                .lower()
+            )
             if response == "y":
                 self.register_user()
 

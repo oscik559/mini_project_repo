@@ -25,14 +25,15 @@ from typing import List
 import sounddevice as sd
 from resemblyzer import VoiceEncoder, preprocess_wav
 from scipy.io.wavfile import write
-from speech_recognition import (AudioFile, Recognizer, RequestError,
-                                UnknownValueError)
+from speech_recognition import AudioFile, Recognizer, RequestError, UnknownValueError
 
 # Suppress warnings if desired
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 import logging
+
 from config.logging_config import setup_logging
+
 setup_logging()  # You can pass a different level if needed
 
 
@@ -44,6 +45,7 @@ def audio_session():
     finally:
         sd.stop()
 
+
 class VoiceAuth:
     """
     A class for voice authentication which handles:
@@ -52,7 +54,10 @@ class VoiceAuth:
     - Voice embedding capture.
     - Storing embeddings in a SQLite database and on disk.
     """
-    def __init__(self, db_path: str, temp_audio_path: str, voice_data_path: str) -> None:
+
+    def __init__(
+        self, db_path: str, temp_audio_path: str, voice_data_path: str
+    ) -> None:
         self.db_path = db_path
         self.temp_audio_path = temp_audio_path
         self.voice_data_path = voice_data_path
@@ -71,7 +76,8 @@ class VoiceAuth:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS users (
                         user_id INTEGER PRIMARY KEY,
                         first_name TEXT NOT NULL,
@@ -86,7 +92,8 @@ class VoiceAuth:
                         created_at TIMESTAMP DEFAULT (datetime('now','localtime')),
                         last_updated TIMESTAMP DEFAULT (datetime('now','localtime'))
                     );
-                """)
+                """
+                )
                 conn.commit()
             logging.info("Database initialized successfully.")
         except sqlite3.Error as e:
@@ -94,7 +101,9 @@ class VoiceAuth:
             logging.error(msg)
             raise Exception(msg)
 
-    def _record_audio(self, filename: str, prompt: str, duration: int = 5, sampling_rate: int = 16000) -> None:
+    def _record_audio(
+        self, filename: str, prompt: str, duration: int = 5, sampling_rate: int = 16000
+    ) -> None:
         """
         Record audio from the microphone and save it to a WAV file.
 
@@ -107,7 +116,12 @@ class VoiceAuth:
         logging.info(prompt)
         try:
             with audio_session():
-                audio = sd.rec(int(duration * sampling_rate), samplerate=sampling_rate, channels=1, dtype="int16")
+                audio = sd.rec(
+                    int(duration * sampling_rate),
+                    samplerate=sampling_rate,
+                    channels=1,
+                    dtype="int16",
+                )
                 sd.wait()
             write(filename, sampling_rate, audio)
             logging.info(f"Audio recorded and saved to {filename}")
@@ -183,8 +197,9 @@ class VoiceAuth:
         pattern = r"^[a-z]{5}[0-9]{3}$"
         return bool(re.match(pattern, liu_id))
 
-    def _save_voice_embedding(self, liu_id: str, voice_embedding: List[float],
-                              first_name: str, last_name: str) -> None:
+    def _save_voice_embedding(
+        self, liu_id: str, voice_embedding: List[float], first_name: str, last_name: str
+    ) -> None:
         """
         Save the voice embedding in the database (using upsert) and as a pickle file.
 
@@ -198,11 +213,14 @@ class VoiceAuth:
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.cursor()
-                cursor.execute("""
+                cursor.execute(
+                    """
                     INSERT INTO users (liu_id, voice_embedding, first_name, last_name)
                     VALUES (?, ?, ?, ?)
                     ON CONFLICT(liu_id) DO UPDATE SET voice_embedding = excluded.voice_embedding
-                """, (liu_id, pickle.dumps(voice_embedding), first_name, last_name))
+                """,
+                    (liu_id, pickle.dumps(voice_embedding), first_name, last_name),
+                )
                 conn.commit()
             with open(voice_file, "wb") as file:
                 pickle.dump(voice_embedding, file)
@@ -242,11 +260,13 @@ class VoiceAuth:
                 raise Exception("Invalid LIU ID format.")
 
             # Record a voice statement.
-            statement_audio = os.path.join(self.temp_audio_path, f"{liu_id}_statement.wav")
+            statement_audio = os.path.join(
+                self.temp_audio_path, f"{liu_id}_statement.wav"
+            )
             self._record_audio(
                 statement_audio,
                 "Please read the following sentence clearly: 'Artificial intelligence enables machines to recognize patterns, process language, and make decisions.'",
-                duration=12
+                duration=12,
             )
 
             # Transcribe the audio.
@@ -261,12 +281,16 @@ class VoiceAuth:
 
             # Save the voice embedding, passing first_name and last_name.
             self._save_voice_embedding(liu_id, embedding, first_name, last_name)
-            logging.info(f"Registration complete for {first_name} {last_name} (LIU ID: {liu_id}).")
+            logging.info(
+                f"Registration complete for {first_name} {last_name} (LIU ID: {liu_id})."
+            )
         except Exception as e:
             logging.exception("Registration failed.")
             print(f"Registration failed: {e}")
 
+
 if __name__ == "__main__":
     from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
+
     auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
     auth.register_user()

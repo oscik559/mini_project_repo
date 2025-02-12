@@ -1,11 +1,6 @@
 # tray_and_holder_detection.py
 
 import math
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).parent.parent.parent))
-
 
 # import pyrealsense2 as rs
 import time
@@ -14,13 +9,11 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-from db_handler import DatabaseHandler
 from config.config import *
-
-
-from mini_project.camera_db_utils import (
-    upsert_camera_vision_record,
+from mini_project.core.db_handler import DatabaseHandler
+from mini_project.modalities.camera_db_utils import (
     cleanup_camera_vision_records,
+    upsert_camera_vision_record,
 )
 
 
@@ -516,6 +509,22 @@ def color_image_process(image, wait_key):
         angle_with_x_axis,
         angle_with_x_axis_2,
     )
+
+    # # def calculate_midpoints_and_draw(image, coordinates, color=(0, 255, 0)):
+    midpoints = []
+    # Iterate through the coordinates list to calculate midpoints
+    for i in range(len(coordinates) - 1):
+        # Get the current coordinate and the next coordinate
+        point1, point2 = coordinates[i], coordinates[i + 1]
+
+        # Calculate the midpoint
+        midpoint = ((point1[0] + point2[0]) // 2, (point1[1] + point2[1]) // 2)
+        midpoints.append(midpoint)
+
+        # Draw a circle at the midpoint
+        cv2.circle(image, midpoint, 5, color, -1)
+
+    return midpoints
 
 
 def calculate_midpoints_and_draw(image, coordinates, color=(0, 255, 0)):

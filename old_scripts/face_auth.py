@@ -13,9 +13,11 @@ import cv2
 import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
-from config.config import *
+
 # from config.config import DB_PATH
 from db_handler import DatabaseHandler
+
+from config.config import *
 from old_scripts.face_utils import FaceUtils
 
 

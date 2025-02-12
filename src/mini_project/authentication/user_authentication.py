@@ -1,4 +1,3 @@
-
 # scripts/user_authentication.py
 #!/usr/bin/env python
 """
@@ -16,15 +15,19 @@ It leverages:
 
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent))
 
 import logging
+
 from config.logging_config import setup_logging
+
 setup_logging()  # You can pass a different level if needed
 
 # Import the authentication modules.
 from mini_project.face_auth import FaceAuthSystem
 from mini_project.voice_auth import VoiceAuth
+
 
 def main() -> None:
     print("User Authentication System")
@@ -43,10 +46,12 @@ def main() -> None:
     elif choice == "2":
         print("Launching Voice Authentication...")
         from config.config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
+
         voice_auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
         voice_auth.register_user()
     else:
         print("Invalid choice. Exiting.")
+
 
 if __name__ == "__main__":
     main()

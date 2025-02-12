@@ -1,12 +1,24 @@
-import sys
-from PyQt6.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QLineEdit,
-    QDialog, QFormLayout, QMessageBox, QWidget, QTableWidget, QTableWidgetItem
-)
-from PyQt6.QtGui import QFont, QIcon
-from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
 import os
+import sys
+
+from PyQt6.QtCore import QSize, Qt
+from PyQt6.QtGui import QFont, QIcon
+from PyQt6.QtSql import QSqlDatabase, QSqlQuery, QSqlTableModel
+from PyQt6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 class MainWindow(QMainWindow):
@@ -33,7 +45,9 @@ class MainWindow(QMainWindow):
         db = QSqlDatabase.addDatabase("QSQLITE")
         db.setDatabaseName("sequences.db")
         if not db.open():
-            QMessageBox.critical(self, "Database Error", "Unable to connect to the database.")
+            QMessageBox.critical(
+                self, "Database Error", "Unable to connect to the database."
+            )
             sys.exit(1)
         return db
 
@@ -47,65 +61,66 @@ class MainWindow(QMainWindow):
         title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title_label)
 
-
-
-
-
-
-
-
-
-
-
-
-
         # Button layout
         button_layout = QHBoxLayout()
 
         # Buttons
         register_button = QPushButton("Register")
-        register_button.setStyleSheet("background-color: #3498db; color: white; padding: 20px;")
+        register_button.setStyleSheet(
+            "background-color: #3498db; color: white; padding: 20px;"
+        )
         register_button.clicked.connect(self.open_register_dialog)
         button_layout.addWidget(register_button)
 
         login_button = QPushButton("Login")
-        login_button.setStyleSheet("background-color: #2ecc71; color: white; padding: 20px;")
+        login_button.setStyleSheet(
+            "background-color: #2ecc71; color: white; padding: 20px;"
+        )
         login_button.clicked.connect(self.open_login_dialog)
         button_layout.addWidget(login_button)
 
         exit_button = QPushButton("Exit")
-        exit_button.setStyleSheet("background-color: #e74c3c; color: white; padding: 20px;")
+        exit_button.setStyleSheet(
+            "background-color: #e74c3c; color: white; padding: 20px;"
+        )
         exit_button.clicked.connect(self.close)
         button_layout.addWidget(exit_button)
         layout.addLayout(button_layout)
-        
-        
+
         button_layout = QHBoxLayout()
 
         create_db_button = QPushButton("Create Database")
-        create_db_button.setStyleSheet("background-color: #e67e22; color: white; padding: 20px;")
+        create_db_button.setStyleSheet(
+            "background-color: #e67e22; color: white; padding: 20px;"
+        )
         create_db_button.clicked.connect(self.create_database)
         button_layout.addWidget(create_db_button)
 
         load_robot_button = QPushButton("Load Robot")
-        load_robot_button.setStyleSheet("background-color: #9b59b6; color: white; padding: 20px;")
+        load_robot_button.setStyleSheet(
+            "background-color: #9b59b6; color: white; padding: 20px;"
+        )
         load_robot_button.clicked.connect(self.load_robot)
         button_layout.addWidget(load_robot_button)
 
         run_camera_button = QPushButton("Run Camera Vision")
-        run_camera_button.setStyleSheet("background-color: #f39c12; color: white; padding: 20px;")
+        run_camera_button.setStyleSheet(
+            "background-color: #f39c12; color: white; padding: 20px;"
+        )
         run_camera_button.clicked.connect(self.run_camera_vision)
         button_layout.addWidget(run_camera_button)
-        
+
         layout.addLayout(button_layout)
-        
+
         button_layout = QHBoxLayout()
-        
+
         show_tables_button = QPushButton("Show Database Tables")
-        show_tables_button.setStyleSheet("background-color: #16a085; color: white; padding: 20px;")
+        show_tables_button.setStyleSheet(
+            "background-color: #16a085; color: white; padding: 20px;"
+        )
         show_tables_button.clicked.connect(self.show_tables_dialog)
         button_layout.addWidget(show_tables_button)
-        
+
         layout.addLayout(button_layout)
 
         # Footer
@@ -180,7 +195,9 @@ class ShowTablesDialog(QDialog):
     def load_tables(self):
         """Load the tables from the database and display their names."""
         if not self.db.isOpen():
-            QMessageBox.critical(self, "Database Error", "Database connection is not open.")
+            QMessageBox.critical(
+                self, "Database Error", "Database connection is not open."
+            )
             return
 
         query = QSqlQuery(self.db)
@@ -220,7 +237,9 @@ class ShowTablesDialog(QDialog):
 
         for row_idx, row_data in enumerate(data):
             for col_idx, value in enumerate(row_data):
-                self.table_content.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
+                self.table_content.setItem(
+                    row_idx, col_idx, QTableWidgetItem(str(value))
+                )
 
 
 class RegisterDialog(QDialog):
@@ -247,7 +266,9 @@ class RegisterDialog(QDialog):
         layout.addRow("Password:", self.password_input)
 
         submit_button = QPushButton("Submit")
-        submit_button.setStyleSheet("background-color: #2ecc71; color: white; padding: 10px;")
+        submit_button.setStyleSheet(
+            "background-color: #2ecc71; color: white; padding: 10px;"
+        )
         submit_button.clicked.connect(self.register_user)
         layout.addWidget(submit_button)
 
@@ -262,20 +283,26 @@ class RegisterDialog(QDialog):
 
         if first_name and last_name and liu_id and email and password:
             query = QSqlQuery(self.db)
-            query.prepare("""
+            query.prepare(
+                """
                 INSERT INTO users (first_name, last_name, liu_id, email, password)
                 VALUES (?, ?, ?, ?, ?)
-            """)
+            """
+            )
             query.addBindValue(first_name)
             query.addBindValue(last_name)
             query.addBindValue(liu_id)
             query.addBindValue(email)
             query.addBindValue(password)
             if query.exec():
-                QMessageBox.information(self, "Register", "User registered successfully!")
+                QMessageBox.information(
+                    self, "Register", "User registered successfully!"
+                )
                 self.close()
             else:
-                QMessageBox.warning(self, "Error", f"Registration failed: {query.lastError().text()}")
+                QMessageBox.warning(
+                    self, "Error", f"Registration failed: {query.lastError().text()}"
+                )
         else:
             QMessageBox.warning(self, "Error", "Please fill in all fields.")
 
@@ -298,7 +325,9 @@ class LoginDialog(QDialog):
         layout.addRow("Password:", self.password_input)
 
         login_button = QPushButton("Login")
-        login_button.setStyleSheet("background-color: #3498db; color: white; padding: 5px;")
+        login_button.setStyleSheet(
+            "background-color: #3498db; color: white; padding: 5px;"
+        )
         login_button.clicked.connect(self.login_user)
         layout.addWidget(login_button)
 
@@ -309,12 +338,16 @@ class LoginDialog(QDialog):
         password = self.password_input.text()
 
         query = QSqlQuery(self.db)
-        query.prepare("SELECT first_name, last_name FROM users WHERE liu_id = ? AND password = ?")
+        query.prepare(
+            "SELECT first_name, last_name FROM users WHERE liu_id = ? AND password = ?"
+        )
         query.addBindValue(liu_id)
         query.addBindValue(password)
         if query.exec() and query.next():
             first_name, last_name = query.value(0), query.value(1)
-            QMessageBox.information(self, "Login", f"Welcome, {first_name} {last_name}!")
+            QMessageBox.information(
+                self, "Login", f"Welcome, {first_name} {last_name}!"
+            )
             self.close()
         else:
             QMessageBox.warning(self, "Error", "Invalid LIU_ID or password.")

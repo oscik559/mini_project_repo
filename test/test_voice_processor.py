@@ -1,15 +1,22 @@
-import sys
 import os
-from pathlib import Path
+import sys
 import unittest
-from unittest.mock import patch, MagicMock
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 
 # Add the project root directory to the Python path
 sys.path.append(str(Path(__file__).parent.parent))
 
 # Import the module(s) to test
-from mini_project.voice_processor import AudioRecorder, Transcriber, Storage, VoiceProcessor
+from mini_project.voice_processor import (
+    AudioRecorder,
+    Storage,
+    Transcriber,
+    VoiceProcessor,
+)
+
 
 class TestAudioRecorder(unittest.TestCase):
     @patch("scripts.voice_processor.sd.InputStream")
@@ -25,19 +32,22 @@ class TestAudioRecorder(unittest.TestCase):
 
         recorder = AudioRecorder()
         # Override configuration parameters for testing purposes.
-        recorder.config["max_duration"] = 1              # Terminate quickly.
+        recorder.config["max_duration"] = 1  # Terminate quickly.
         recorder.config["frame_duration"] = 0.03
         recorder.config["initial_silence_duration"] = 0.1
         recorder.config["post_speech_silence_duration"] = 0.1
-        recorder.config["amplitude_margin"] = 0          # So threshold equals the noise floor.
+        recorder.config["amplitude_margin"] = 0  # So threshold equals the noise floor.
 
         # Patch calibrate_noise to immediately return 0 (simulate a noise floor of 0).
-        with patch.object(recorder, 'calibrate_noise', return_value=0) as mock_calibrate:
+        with patch.object(
+            recorder, "calibrate_noise", return_value=0
+        ) as mock_calibrate:
             recorder.record_audio()
             # Verify that the fake stream's read method was called.
             self.assertTrue(fake_stream.read.called)
             # Verify that calibrate_noise was called exactly once.
             mock_calibrate.assert_called_once()
+
 
 class TestTranscriber(unittest.TestCase):
     def test_transcribe_audio_real_file(self):
@@ -58,6 +68,7 @@ class TestTranscriber(unittest.TestCase):
         # If you expect a specific transcription, update the following assertion:
         # self.assertEqual(text.strip(), "expected transcription text")
 
+
 class TestStorage(unittest.TestCase):
     @patch("scripts.voice_processor.sqlite3.connect")
     def test_store_instruction(self, mock_sqlite_connect):
@@ -73,11 +84,14 @@ class TestStorage(unittest.TestCase):
         # Verify that the SQL execute method was called.
         self.assertTrue(mock_cursor.execute.called)
 
+
 class TestVoiceProcessor(unittest.TestCase):
     @patch("scripts.voice_processor.Storage")
     @patch("scripts.voice_processor.Transcriber")
     @patch("scripts.voice_processor.AudioRecorder")
-    def test_capture_voice(self, mock_audio_recorder_class, mock_transcriber_class, mock_storage_class):
+    def test_capture_voice(
+        self, mock_audio_recorder_class, mock_transcriber_class, mock_storage_class
+    ):
         # Create instance mocks for each component.
         mock_audio_recorder = MagicMock()
         mock_transcriber = MagicMock()
@@ -103,6 +117,7 @@ class TestVoiceProcessor(unittest.TestCase):
             mock_audio_recorder.config["temp_audio_path"]
         )
         mock_storage.store_instruction.assert_called_once_with("voice", "en", "test")
+
 
 if __name__ == "__main__":
     unittest.main()
