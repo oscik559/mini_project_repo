@@ -1,7 +1,8 @@
 # main.py
 from gesture_processor import GestureDetector
-from speech_processor import SpeechTranscriber
 from llm_processor import CommandUnifier
+from speech_processor import SpeechTranscriber
+
 from database import CommandDatabase
 
 # Initialize modules

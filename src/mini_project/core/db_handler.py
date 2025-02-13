@@ -1,4 +1,4 @@
-# scripts/db_handler.py
+# core/db_handler.py
 
 import atexit
 import logging

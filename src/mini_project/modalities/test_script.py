@@ -1,189 +1,212 @@
-import cv2
-import mediapipe as mp
+import json
+import logging
 import sqlite3
+import subprocess
 import time
+from datetime import datetime, timedelta
+from typing import Dict, List
 import uuid
-from datetime import datetime
-from typing import Optional, Dict, List
 
-class EnhancedGestureProcessor:
-    def __init__(self, db_path: str = 'commands.db'):
-        # MediaPipe components
-        self.mp_hands = mp.solutions.hands
-        self.mp_drawing = mp.solutions.drawing_utils
-        self.mp_drawing_styles = mp.solutions.drawing_styles
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 
-        # Initialize hands model
-        self.hands = self.mp_hands.Hands(
-            static_image_mode=False,
-            max_num_hands=2,
-            min_detection_confidence=0.6,
-            min_tracking_confidence=0.5
-        )
+# Time window (in seconds) to consider voice and gesture commands as part of the same interaction
+MERGE_WINDOW = 5
 
-        # Database setup
-        self.conn = sqlite3.connect(db_path)
-        self._init_db()
 
-        # Gesture tracking state
-        self.last_gesture: Optional[Dict] = None
-        self.last_log_time: float = 0
-        self.session_id: str = str(uuid.uuid4())
-
-        # Configuration
-        self.gesture_cooldown: float = 0.5  # Seconds between logs for same gesture
-        self.frame_skip: int = 2  # Process every nth frame for performance
-
-    def _init_db(self):
-        """Initialize database with extended schema"""
-        self.conn.execute('''CREATE TABLE IF NOT EXISTS commands
-                            (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                             session_id TEXT,
-                             timestamp DATETIME,
-                             voice_command TEXT,
-                             gesture_command TEXT,
-                             unified_command TEXT,
-                             structured_output TEXT,
-                             confidence REAL,
-                             hand_label TEXT)''')
-        self.conn.commit()
-
-    def _log_gesture(self, gesture_data: Dict):
-        """Smart logging with cooldown and deduplication"""
-        current_time = time.time()
-
-        # Skip if same gesture within cooldown window
-        if (self.last_gesture and
-            gesture_data['gesture'] == self.last_gesture['gesture'] and
-            (current_time - self.last_log_time) < self.gesture_cooldown):
-            return
-
-        timestamp = datetime.now().isoformat()
-        self.conn.execute('''INSERT INTO commands
-                            (session_id, timestamp, gesture_command,
-                             confidence, hand_label)
-                            VALUES (?, ?, ?, ?, ?)''',
-                         (self.session_id, timestamp,
-                          gesture_data['gesture'],
-                          gesture_data['confidence'],
-                          gesture_data['handedness']))
-        self.conn.commit()
-        self.last_log_time = current_time
-        self.last_gesture = gesture_data
-
-    def _process_landmarks(self, hand_landmarks, handedness) -> Optional[Dict]:
-        """Custom gesture recognition using hand landmarks"""
-        # Analyze hand state
-        thumb_state = self._analyze_thumb(hand_landmarks)
-        fingers_open = self._count_open_fingers(hand_landmarks)
-
-        # Define gestures based on hand state
-        if fingers_open == 5:
-            gesture = "open_hand"
-        elif fingers_open == 0:
-            gesture = "closed_fist"
-        elif thumb_state == "up" and fingers_open == 1:
-            gesture = "thumbs_up"
-        elif fingers_open == 2 and self._is_victory(hand_landmarks):
-            gesture = "victory"
-        else:
-            gesture = "unknown"
-
-        return {
-            'gesture': gesture,
-            'confidence': 0.9,  # Placeholder confidence
-            'handedness': handedness.classification[0].label,
-            'thumb_state': thumb_state,
-            'fingers_open': fingers_open
-        }
-
-    def _analyze_thumb(self, landmarks) -> str:
-        """Rule-based thumb position analysis"""
-        thumb_tip = landmarks.landmark[self.mp_hands.HandLandmark.THUMB_TIP]
-        thumb_ip = landmarks.landmark[self.mp_hands.HandLandmark.THUMB_IP]
-        return "up" if thumb_tip.y < thumb_ip.y else "down"
-
-    def _count_open_fingers(self, landmarks) -> int:
-        """Count number of open fingers using landmark positions"""
-        open_count = 0
-        finger_tips = [
-            self.mp_hands.HandLandmark.INDEX_FINGER_TIP,
-            self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP,
-            self.mp_hands.HandLandmark.RING_FINGER_TIP,
-            self.mp_hands.HandLandmark.PINKY_TIP
-        ]
-
-        for tip in finger_tips:
-            tip_y = landmarks.landmark[tip].y
-            mcp_y = landmarks.landmark[tip - 2].y  # Corresponding MCP joint
-            if tip_y < mcp_y:  # Finger is open if tip is above MCP
-                open_count += 1
-        return open_count
-
-    def _is_victory(self, landmarks) -> bool:
-        """Check for victory gesture (index and middle fingers up)"""
-        index_tip = landmarks.landmark[self.mp_hands.HandLandmark.INDEX_FINGER_TIP]
-        middle_tip = landmarks.landmark[self.mp_hands.HandLandmark.MIDDLE_FINGER_TIP]
-        ring_tip = landmarks.landmark[self.mp_hands.HandLandmark.RING_FINGER_TIP]
-        return (index_tip.y < ring_tip.y and
-                middle_tip.y < ring_tip.y)
-
-    def process_stream(self):
-        """Main processing loop with performance optimizations"""
-        cap = cv2.VideoCapture(0)
-        frame_counter = 0
-
+def get_voice_commands(db_path: str = "sequences.db") -> List[Dict]:
+    """Retrieve all voice commands from the 'instructions' table in sequences.db."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, content, timestamp
+        FROM instructions
+        WHERE modality = 'voice'
+    """
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    voice_cmds = []
+    for row in rows:
         try:
-            while cap.isOpened():
-                success, frame = cap.read()
-                if not success:
-                    continue
+            ts = datetime.fromisoformat(row[2])
+        except Exception as e:
+            logging.error(f"Error parsing timestamp {row[2]}: {e}")
+            continue
+        voice_cmds.append({"id": row[0], "content": row[1], "timestamp": ts})
+    return voice_cmds
 
-                frame_counter += 1
-                if frame_counter % self.frame_skip != 0:
-                    continue
 
-                # Mirror and resize frame
-                frame = cv2.flip(frame, 1)
-                frame = cv2.resize(frame, (640, 480))
+def get_gesture_commands(db_path: str = "commands.db") -> List[Dict]:
+    """Retrieve all gesture commands from the 'commands' table in commands.db."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, gesture_type, natural_description, timestamp
+        FROM commands
+    """
+    )
+    rows = cursor.fetchall()
+    conn.close()
+    gesture_cmds = []
+    for row in rows:
+        try:
+            ts = datetime.fromisoformat(row[3])
+        except Exception as e:
+            logging.error(f"Error parsing timestamp {row[3]}: {e}")
+            continue
+        gesture_cmds.append(
+            {
+                "id": row[0],
+                "gesture_type": row[1],
+                "description": row[2],
+                "timestamp": ts,
+            }
+        )
+    return gesture_cmds
 
-                # Process frame
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                hand_results = self.hands.process(rgb_frame)
 
-                if hand_results.multi_hand_landmarks:
-                    for idx, (hand_landmarks, handedness) in enumerate(
-                        zip(hand_results.multi_hand_landmarks,
-                            hand_results.multi_handedness)):
+def create_unified_table(db_path: str = "commands.db") -> None:
+    """Create the unified_commands table in commands.db if it doesn't exist."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS unified_commands (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT,
+            timestamp DATETIME,
+            voice_command TEXT,
+            gesture_command TEXT,
+            unified_command TEXT
+        )
+    """
+    )
+    conn.commit()
+    conn.close()
+    logging.info("Unified commands table created or already exists.")
 
-                        # Process and log gesture
-                        gesture_data = self._process_landmarks(hand_landmarks, handedness)
-                        if gesture_data:
-                            self._log_gesture(gesture_data)
 
-                        # Visual feedback
-                        self.mp_drawing.draw_landmarks(
-                            frame,
-                            hand_landmarks,
-                            self.mp_hands.HAND_CONNECTIONS,
-                            self.mp_drawing_styles.get_default_hand_landmarks_style(),
-                            self.mp_drawing_styles.get_default_hand_connections_style()
-                        )
+def store_unified_command(
+    session_id: str,
+    timestamp: datetime,
+    voice_command: str,
+    gesture_command: str,
+    unified_command: str,
+    db_path: str = "commands.db",
+) -> None:
+    """Store a unified command into the unified_commands table."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO unified_commands (session_id, timestamp, voice_command, gesture_command, unified_command)
+        VALUES (?, ?, ?, ?, ?)
+    """,
+        (
+            session_id,
+            timestamp.isoformat(),
+            voice_command,
+            gesture_command,
+            unified_command,
+        ),
+    )
+    conn.commit()
+    conn.close()
+    logging.info(f"Stored unified command: {unified_command}")
 
-                        # Display gesture info
-                        text = f"{gesture_data['handedness']}: {gesture_data['gesture']}"
-                        cv2.putText(frame, text, (10, 30 + idx*30),
-                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-                cv2.imshow('Gesture Detection', frame)
-                if cv2.waitKey(5) & 0xFF == 27:
-                    break
+def llm_unify(voice_text: str, gesture_text: str) -> str:
+    """
+    Use Ollama to call the model 'deepseek-r1:1.5b-qwen-distill-q4_K_M' and unify the voice and gesture texts.
+    Replace the prompt and parameters as needed.
+    """
+    prompt = f"Please combine the following inputs into a coherent, context-aware unified command:\nVoice: {voice_text}\nGesture: {gesture_text}\nUnified Command:"
+    try:
+        result = subprocess.run(
+            ["ollama", "run", "deepseek-r1:1.5b-qwen-distill-q4_K_M", prompt],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        if not result.stdout.strip():
+            logging.error("Ollama API call returned empty output.")
+            return f"Voice: {voice_text} | Gesture: {gesture_text}"
+        output = json.loads(result.stdout)
+        unified_command = output.get("generated_text", "").strip()
+        return (
+            unified_command
+            if unified_command
+            else f"Voice: {voice_text} | Gesture: {gesture_text}"
+        )
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Ollama API call failed: {e}")
+        return f"Voice: {voice_text} | Gesture: {gesture_text}"
+    except json.JSONDecodeError as e:
+        logging.error(f"JSON decoding failed: {e}")
+        return f"Voice: {voice_text} | Gesture: {gesture_text}"
 
-        finally:
-            cap.release()
-            cv2.destroyAllWindows()
-            self.conn.close()
+
+def merge_commands(voice_cmd: Dict, gesture_cmd: Dict) -> str:
+    """
+    Merge a voice command and a gesture command using the LLM unification function.
+    """
+    return llm_unify(voice_cmd["content"], gesture_cmd["description"])
+
+
+def synchronize_and_merge(
+    voice_db: str = "sequences.db", gesture_db: str = "commands.db"
+) -> None:
+    """
+    Synchronize voice and gesture commands by matching entries with timestamps within a MERGE_WINDOW.
+    For each voice command, find any gesture commands that occurred within ±MERGE_WINDOW seconds,
+    then merge them using the LLM unification function, and store the unified command.
+    """
+    voice_cmds = get_voice_commands(voice_db)
+    gesture_cmds = get_gesture_commands(gesture_db)
+    create_unified_table(gesture_db)
+
+    # Sort commands by timestamp
+    voice_cmds.sort(key=lambda x: x["timestamp"])
+    gesture_cmds.sort(key=lambda x: x["timestamp"])
+
+    session_id = str(uuid.uuid4())
+    for vc in voice_cmds:
+        # Find gesture commands within ±MERGE_WINDOW seconds of the voice command timestamp
+        matched_gestures = [
+            gc
+            for gc in gesture_cmds
+            if abs((gc["timestamp"] - vc["timestamp"]).total_seconds()) <= MERGE_WINDOW
+        ]
+        if matched_gestures:
+            # Choose the gesture command closest in time
+            best_match = min(
+                matched_gestures,
+                key=lambda gc: abs((gc["timestamp"] - vc["timestamp"]).total_seconds()),
+            )
+            unified = merge_commands(vc, best_match)
+            unified_timestamp = max(vc["timestamp"], best_match["timestamp"])
+            store_unified_command(
+                session_id,
+                unified_timestamp,
+                vc["content"],
+                best_match["description"],
+                unified,
+                gesture_db,
+            )
+        else:
+            # If no gesture command is close enough, store just the voice command
+            unified = f"Voice: {vc['content']}"
+            store_unified_command(
+                session_id, vc["timestamp"], vc["content"], "", unified, gesture_db
+            )
+
+    logging.info("Synchronization and merging complete.")
+
 
 if __name__ == "__main__":
-    processor = EnhancedGestureProcessor()
-    processor.process_stream()
+    synchronize_and_merge()

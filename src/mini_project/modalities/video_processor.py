@@ -97,16 +97,21 @@
 
 import sqlite3
 from datetime import datetime
+
 import cv2
 import mediapipe as mp
+
 from config.config import DB_PATH
+
 
 class GestureProcessor:
     def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
         self.conn = sqlite3.connect(self.db_path)
         self.c = self.conn.cursor()
-        self.hands = mp.solutions.hands.Hands(max_num_hands=2, min_detection_confidence=0.7)
+        self.hands = mp.solutions.hands.Hands(
+            max_num_hands=2, min_detection_confidence=0.7
+        )
         self.mp_drawing = mp.solutions.drawing_utils
 
         # Ensure the instructions table exists
@@ -134,14 +139,24 @@ class GestureProcessor:
     def interpret_gesture(self, hand_landmarks):
         # Example: Detect if the hand is open or closed
         thumb_tip = hand_landmarks.landmark[mp.solutions.hands.HandLandmark.THUMB_TIP]
-        index_tip = hand_landmarks.landmark[mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP]
-        middle_tip = hand_landmarks.landmark[mp.solutions.hands.HandLandmark.MIDDLE_FINGER_TIP]
-        ring_tip = hand_landmarks.landmark[mp.solutions.hands.HandLandmark.RING_FINGER_TIP]
+        index_tip = hand_landmarks.landmark[
+            mp.solutions.hands.HandLandmark.INDEX_FINGER_TIP
+        ]
+        middle_tip = hand_landmarks.landmark[
+            mp.solutions.hands.HandLandmark.MIDDLE_FINGER_TIP
+        ]
+        ring_tip = hand_landmarks.landmark[
+            mp.solutions.hands.HandLandmark.RING_FINGER_TIP
+        ]
         pinky_tip = hand_landmarks.landmark[mp.solutions.hands.HandLandmark.PINKY_TIP]
 
         # Simple logic to detect open hand
-        if (index_tip.y < thumb_tip.y and middle_tip.y < thumb_tip.y and
-            ring_tip.y < thumb_tip.y and pinky_tip.y < thumb_tip.y):
+        if (
+            index_tip.y < thumb_tip.y
+            and middle_tip.y < thumb_tip.y
+            and ring_tip.y < thumb_tip.y
+            and pinky_tip.y < thumb_tip.y
+        ):
             return "hand_open", "Hand is open"
         else:
             return "hand_closed", "Hand is closed"
@@ -164,7 +179,8 @@ class GestureProcessor:
                 for hand_landmarks in results.multi_hand_landmarks:
                     current_gesture, content = self.interpret_gesture(hand_landmarks)
                     self.mp_drawing.draw_landmarks(
-                        frame, hand_landmarks, mp.solutions.hands.HAND_CONNECTIONS)
+                        frame, hand_landmarks, mp.solutions.hands.HAND_CONNECTIONS
+                    )
 
             cv2.putText(
                 frame,
@@ -186,6 +202,7 @@ class GestureProcessor:
         cap.release()
         cv2.destroyAllWindows()
         self.conn.close()
+
 
 if __name__ == "__main__":
     processor = GestureProcessor()

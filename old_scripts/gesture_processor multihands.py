@@ -1,10 +1,13 @@
+import json
 import logging
+import os
 import sqlite3
+import subprocess
 import threading
 import time
 import uuid
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import mediapipe as mp
@@ -24,7 +27,7 @@ class GestureDetector:
         max_num_hands: int = 2,
         frame_skip: int = 2,
     ):
-        # MediaPipe setup with configurable parameters
+        # MediaPipe Hands setup
         self.mp_hands = mp.solutions.hands
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
@@ -44,7 +47,7 @@ class GestureDetector:
         self.frame_skip = frame_skip
         self.frame_counter = 0
 
-        # Gesture mapping dictionary (allows swappable classification functions)
+        # Gesture mapping dictionary (single-hand gestures)
         self.gesture_map = {
             "thumbs_up": {"func": self._is_thumbs_up, "text": "Approval"},
             "open_hand": {"func": self._is_open_hand, "text": "Stop"},
@@ -53,13 +56,20 @@ class GestureDetector:
             "victory": {"func": self._is_victory, "text": "Confirm"},
         }
 
+        # Multi-hand gesture mapping
+        self.multi_hand_gesture_map = {
+            "clap": {"func": self._is_clapping, "text": "Clapping"},
+            "pinch": {"func": self._is_pinching, "text": "Pinching"},
+            "crossed_arms": {"func": self._is_crossed_arms, "text": "Crossed Arms"},
+        }
+
         # For debouncing repeated gestures
         self.last_gesture: Optional[str] = None
         self.last_log_time: float = 0
         self.min_log_interval: float = 2.0  # seconds
 
-        # Store last detection result for consistent display
-        self.last_detection: Optional[List[Tuple[str, str, float, str, str]]] = None
+        # Store last detection result for consistent display (if detected in the current frame)
+        self.last_detection: Optional[List[Dict[str, Any]]] = None
 
     def _init_db(self):
         """Initialize database table for gestures with extended schema."""
@@ -116,7 +126,7 @@ class GestureDetector:
         landmark = landmarks.landmark[landmark_id]
         return (landmark.x, landmark.y, landmark.z)
 
-    # Basic rule-based gesture functions
+    # Single-hand gesture recognition functions
     def _is_thumbs_up(self, landmarks) -> bool:
         thumb_tip = self._get_landmark_coords(
             landmarks, self.mp_hands.HandLandmark.THUMB_TIP
@@ -187,7 +197,7 @@ class GestureDetector:
             and ring_tip[1] > wrist_y
         )
 
-    # Additional feature extraction functions
+    # Additional feature extraction functions for single-hand gestures
     def _analyze_thumb(self, landmarks) -> str:
         """Analyze thumb position."""
         thumb_tip = self._get_landmark_coords(
@@ -225,8 +235,8 @@ class GestureDetector:
 
     def convert_features_to_description(self, gesture_type: str, hand_landmarks) -> str:
         """
-        Convert gesture features into a rich natural language description.
-        Uses additional features such as thumb state and count of open fingers.
+        Convert gesture features into a rich natural language description using a rule-based approach.
+        This will be leveraged later during the unification of voice and gesture commands.
         """
         thumb_state = self._analyze_thumb(hand_landmarks)
         open_fingers = self._count_open_fingers(hand_landmarks)
@@ -244,84 +254,152 @@ class GestureDetector:
             base_desc = "A neutral gesture with no distinct features."
         return f"{base_desc} Additionally, the thumb is {thumb_state} and {open_fingers} fingers are open."
 
-    def detect_gesture(self, frame) -> Optional[List[Tuple[str, str, float, str, str]]]:
+    def detect_gesture(self, frame) -> Optional[List[Dict[str, Any]]]:
         """
-        Process a frame and detect gestures.
-        Returns a list of tuples:
-        (gesture_type, gesture_text, confidence, hand_label, natural_description)
+        Process a frame and detect single-hand gestures.
+        Returns a list of dicts with keys:
+        'gesture', 'gesture_text', 'confidence', 'hand_label', 'description', and 'landmarks'
         """
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.hands.process(rgb_frame)
-
         if not results.multi_hand_landmarks or not results.multi_handedness:
             return None
 
-        detected_gestures = []
-        # Zip together landmarks and handedness info for each detected hand
+        detections = []
         for hand_landmarks, handedness_info in zip(
             results.multi_hand_landmarks, results.multi_handedness
         ):
-            hand_label = handedness_info.classification[0].label  # "Left" or "Right"
+            hand_label = handedness_info.classification[0].label
             hand_confidence = handedness_info.classification[0].score
             for gesture, config in self.gesture_map.items():
                 if config["func"](hand_landmarks):
-                    total_conf = (
-                        hand_confidence  # Expand with additional scores if needed
-                    )
                     description = self.convert_features_to_description(
                         gesture, hand_landmarks
                     )
-                    detected_gestures.append(
-                        (gesture, config["text"], total_conf, hand_label, description)
+                    detections.append(
+                        {
+                            "gesture": gesture,
+                            "gesture_text": config["text"],
+                            "confidence": hand_confidence,
+                            "hand_label": hand_label,
+                            "description": description,
+                            "landmarks": hand_landmarks,
+                        }
                     )
-                    break  # Only recognize one gesture per hand
-        return detected_gestures
+                    break
+        return detections
+
+    # Multi-hand gesture recognition methods
+    def _is_clapping(self, left_landmarks, right_landmarks) -> bool:
+        """Detect if two hands are clapping."""
+        left_palm = self._get_landmark_coords(
+            left_landmarks, self.mp_hands.HandLandmark.MIDDLE_FINGER_MCP
+        )
+        right_palm = self._get_landmark_coords(
+            right_landmarks, self.mp_hands.HandLandmark.MIDDLE_FINGER_MCP
+        )
+        distance = (
+            (left_palm[0] - right_palm[0]) ** 2 + (left_palm[1] - right_palm[1]) ** 2
+        ) ** 0.5
+        return distance < 0.1
+
+    def _is_pinching(self, left_landmarks, right_landmarks) -> bool:
+        """Detect if two hands are pinching."""
+        left_index_tip = self._get_landmark_coords(
+            left_landmarks, self.mp_hands.HandLandmark.INDEX_FINGER_TIP
+        )
+        right_thumb_tip = self._get_landmark_coords(
+            right_landmarks, self.mp_hands.HandLandmark.THUMB_TIP
+        )
+        distance = (
+            (left_index_tip[0] - right_thumb_tip[0]) ** 2
+            + (left_index_tip[1] - right_thumb_tip[1]) ** 2
+        ) ** 0.5
+        return distance < 0.05
+
+    def _is_crossed_arms(self, left_landmarks, right_landmarks) -> bool:
+        """Detect if arms are crossed by checking relative positions of wrists."""
+        left_wrist = self._get_landmark_coords(
+            left_landmarks, self.mp_hands.HandLandmark.WRIST
+        )
+        right_wrist = self._get_landmark_coords(
+            right_landmarks, self.mp_hands.HandLandmark.WRIST
+        )
+        return left_wrist[0] > right_wrist[0]  # Example condition; adjust as needed
+
+    def detect_multi_hand_gestures(
+        self, detections: List[Dict[str, Any]]
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Detect interactions between two hands using multi-hand gesture mapping.
+        Expects a list of detections from single-hand gesture detection.
+        """
+        if len(detections) != 2:
+            return None
+        left_hand = next((d for d in detections if d["hand_label"] == "Left"), None)
+        right_hand = next((d for d in detections if d["hand_label"] == "Right"), None)
+        if not left_hand or not right_hand:
+            return None
+        multi_gestures = []
+        for gesture, config in self.multi_hand_gesture_map.items():
+            if config["func"](left_hand["landmarks"], right_hand["landmarks"]):
+                multi_gestures.append(
+                    {
+                        "gesture": gesture,
+                        "gesture_text": config["text"],
+                        "confidence": min(
+                            left_hand["confidence"], right_hand["confidence"]
+                        ),
+                        "hand_label": "Both Hands",
+                        "description": f"Interaction detected: {config['text']}",
+                        "landmarks": [left_hand["landmarks"], right_hand["landmarks"]],
+                    }
+                )
+        return multi_gestures
 
     def _process_frame(self, frame):
-        """Process a single frame: flip, resize, and overlay gesture info consistently."""
-        # Always flip and resize the frame for consistent display
+        """Process a single frame: flip, resize, update detection and overlay gesture info."""
         frame = cv2.flip(frame, 1)
         frame = cv2.resize(frame, (640, 480))
         self.frame_counter += 1
 
-        # On frames where we update detection, compute and store the result
+        # Update detection on every frame_skip-th frame
         if self.frame_counter % self.frame_skip == 0:
-            detection = self.detect_gesture(frame)
-            if detection:
-                self.last_detection = detection
+            single_hand_detection = self.detect_gesture(frame)
+            multi_hand_detection = None
+            if single_hand_detection and len(single_hand_detection) >= 2:
+                multi_hand_detection = self.detect_multi_hand_gestures(
+                    single_hand_detection
+                )
+            # Prioritize multi-hand gestures if detected
+            if multi_hand_detection:
+                self.last_detection = multi_hand_detection
+            else:
+                self.last_detection = single_hand_detection
 
-            # Process logging on updated frames
             current_time = time.time()
             if self.last_detection:
-                for idx, (
-                    gesture_type,
-                    gesture_text,
-                    confidence,
-                    hand_label,
-                    description,
-                ) in enumerate(self.last_detection):
-                    if gesture_type == self.last_gesture and (
+                for idx, d in enumerate(self.last_detection):
+                    if d["gesture"] == self.last_gesture and (
                         current_time - self.last_log_time < self.min_log_interval
                     ):
                         continue
                     self._log_gesture(
-                        gesture_type, gesture_text, description, confidence, hand_label
+                        d["gesture"],
+                        d["gesture_text"],
+                        d["description"],
+                        d["confidence"],
+                        d["hand_label"],
                     )
-                    self.last_gesture = gesture_type
+                    self.last_gesture = d["gesture"]
                     self.last_log_time = current_time
 
-        # If we have a stored detection result, overlay it
+        # Overlay the detection if available
         if self.last_detection:
-            for idx, (
-                gesture_type,
-                gesture_text,
-                confidence,
-                hand_label,
-                description,
-            ) in enumerate(self.last_detection):
+            for idx, d in enumerate(self.last_detection):
                 cv2.putText(
                     frame,
-                    f"{gesture_text} [{hand_label}]",
+                    f"{d['gesture_text']} [{d['hand_label']}]",
                     (10, 30 + idx * 60),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     1,
@@ -330,29 +408,57 @@ class GestureDetector:
                 )
                 cv2.putText(
                     frame,
-                    description,
+                    d["description"],
                     (10, 70 + idx * 60),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.6,
                     (255, 255, 0),
                     2,
                 )
+                if d["gesture"] == "thumbs_up":
+                    cv2.putText(
+                        frame,
+                        "Thumb Highlight",
+                        (10, 110 + idx * 60),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (0, 0, 255),
+                        2,
+                    )
 
-        # Draw hand landmarks using drawing styles on the frame
-        # We do not reprocess the frame here; reuse the landmarks from the last detection if possible
-        # Alternatively, process detection once and draw all landmarks together.
-        # For simplicity, we call the drawing function on the current frame.
-        rgb_for_drawing = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.hands.process(rgb_for_drawing)
-        if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                self.mp_drawing.draw_landmarks(
-                    frame,
-                    hand_landmarks,
-                    self.mp_hands.HAND_CONNECTIONS,
-                    self.mp_drawing_styles.get_default_hand_landmarks_style(),
-                    self.mp_drawing_styles.get_default_hand_connections_style(),
-                )
+        # Draw landmarks on frame using current detection if available; otherwise, process normally
+        if self.last_detection:
+            for d in self.last_detection:
+                # For multi-hand gestures, d['landmarks'] may be a list
+                if isinstance(d["landmarks"], list):
+                    for lm in d["landmarks"]:
+                        self.mp_drawing.draw_landmarks(
+                            frame,
+                            lm,
+                            self.mp_hands.HAND_CONNECTIONS,
+                            self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                            self.mp_drawing_styles.get_default_hand_connections_style(),
+                        )
+                else:
+                    self.mp_drawing.draw_landmarks(
+                        frame,
+                        d["landmarks"],
+                        self.mp_hands.HAND_CONNECTIONS,
+                        self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                        self.mp_drawing_styles.get_default_hand_connections_style(),
+                    )
+        else:
+            rgb_for_drawing = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = self.hands.process(rgb_for_drawing)
+            if results.multi_hand_landmarks:
+                for hand_landmarks in results.multi_hand_landmarks:
+                    self.mp_drawing.draw_landmarks(
+                        frame,
+                        hand_landmarks,
+                        self.mp_hands.HAND_CONNECTIONS,
+                        self.mp_drawing_styles.get_default_hand_landmarks_style(),
+                        self.mp_drawing_styles.get_default_hand_connections_style(),
+                    )
         return frame
 
     def process_video_stream(self):
