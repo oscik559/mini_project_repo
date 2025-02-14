@@ -1,3 +1,5 @@
+# modalities/gesture_processor.py
+
 import logging
 import sqlite3
 import threading
@@ -60,7 +62,7 @@ class GestureDetector:
     def _init_db(self):
         self.conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS commands (
+            CREATE TABLE IF NOT EXISTS instructions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT,
                 timestamp DATETIME,
@@ -78,7 +80,6 @@ class GestureDetector:
 
     def _log_gesture(
         self,
-        modality: str,
         gesture_type: str,
         gesture_text: str,
         natural_description: str,
@@ -90,7 +91,7 @@ class GestureDetector:
             with self.conn:
                 self.conn.execute(
                     """
-                    INSERT INTO commands (session_id, timestamp, modality, gesture_type, gesture_text, natural_description, confidence, hand_label)
+                    INSERT INTO instructions (session_id, timestamp, modality, gesture_type, gesture_text, natural_description, confidence, hand_label)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
@@ -288,7 +289,6 @@ class GestureDetector:
                     ):
                         continue
                     self._log_gesture(
-                        d["modality"],
                         d["gesture"],
                         d["gesture_text"],
                         d["description"],

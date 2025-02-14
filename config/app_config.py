@@ -17,8 +17,9 @@ import logging
 from pathlib import Path
 
 from config.logging_config import setup_logging
-
 logger = logging.getLogger(__name__)
+
+
 
 
 # === Directory Setup ===
@@ -30,6 +31,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project/ directory pat
 # DB_PATH = Path(r"\\ad.liu.se\coop\i\industrialrobotsetup\sequences.db")
 # DB_PATH = BASE_DIR / "database" / "sequences.db"
 DB_PATH = BASE_DIR / "sequences.db"
+DB_URL = "dbname=sequences_db user=oscar password=oscik559 host=localhost"
+# DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
+
 
 # Face recognition utilities
 FACIAL_DATA_PATH = BASE_DIR / "utils" / "face_encodings"

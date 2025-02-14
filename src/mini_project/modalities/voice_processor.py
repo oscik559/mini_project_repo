@@ -157,7 +157,7 @@ class Storage:
                     modality TEXT NOT NULL,
                     language TEXT NOT NULL,
                     instruction_type TEXT NOT NULL,
-                    content TEXT NOT NULL,
+                    transcribed_text TEXT NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """
@@ -168,9 +168,8 @@ class Storage:
     def store_instruction(
         self,
         session_id: str,
-        modality: str,
         detected_language: str,
-        content: str,
+        transcribed_text: str,
         retries: int = 3,
         delay: float = 1.0,
     ) -> None:
@@ -180,19 +179,15 @@ class Storage:
                     cursor = conn.cursor()
                     cursor.execute(
                         """
-                        INSERT INTO instructions (session_id, modality, language, instruction_type, content)
+                        INSERT INTO instructions (session_id, modality, language, instruction_type, transcribed_text)
                         VALUES (?, ?, ?, ?, ?)
                     """,
                         (
                             session_id,
-                            modality,
+                            "voice",
                             detected_language,
-                            (
-                                "voice command"
-                                if modality == "voice"
-                                else "gesture command"
-                            ),
-                            content,
+                            "voice command",
+                            transcribed_text,
                         ),
                     )
                     conn.commit()
@@ -237,7 +232,7 @@ class VoiceProcessor:
             )
             logger.info(f"Transcription completed. Detected language: {language}")
             logger.info("Storing voice instruction in the database...")
-            self.storage.store_instruction(self.session_id, "voice", language, text)
+            self.storage.store_instruction(self.session_id, language, text)
             logger.info("Voice instruction captured and stored successfully!")
         except KeyboardInterrupt:
             logger.info("Voice capture process interrupted by user.")

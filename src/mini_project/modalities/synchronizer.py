@@ -21,16 +21,17 @@ def get_instructions_by_session(db_path: str = DB_PATH) -> Dict[str, List[Dict]]
     cursor = conn.cursor()
     cursor.execute(
         """
-        SELECT id, session_id, modality, content, timestamp
+        SELECT
+            id,
+            session_id,
+            modality,
+            CASE
+                WHEN modality = 'voice' THEN transcribed_text
+                WHEN modality = 'gesture' THEN gesture_text
+            END AS transcribed_text,
+            timestamp
         FROM instructions
-        WHERE modality = 'voice'
-
-        UNION ALL
-
-        SELECT id, session_id, 'gesture' AS modality,
-               natural_description AS content, timestamp
-        FROM commands
-        WHERE gesture_type IN ('open_hand', 'pointing', 'thumb_up')
+        WHERE modality IN ('voice', 'gesture')
     """
     )
     rows = cursor.fetchall()
@@ -46,7 +47,7 @@ def get_instructions_by_session(db_path: str = DB_PATH) -> Dict[str, List[Dict]]
             "id": row[0],
             "session_id": row[1],
             "modality": row[2],
-            "content": row[3],
+            "transcribed_text": row[3],
             "timestamp": ts,
         }
         sessions.setdefault(record["session_id"], []).append(record)
@@ -106,27 +107,34 @@ def store_unified_instruction(
 def llm_unify(voice_text: str, gesture_text: str) -> str:
     prompt = (
         "You are a command unifier. Given the voice instruction and the gesture instruction below, "
-        "generate a single, clear, and concise command that combines both inputs in a context-aware manner. "
-        "The output should be a plain text string with no extra commentary or formatting.\n\n"
+        "generate a single, clear, and concise command that COMBINES both inputs (voice Instruction and Gesture Instruction) in a context-aware manner. "
+        "making sure that the intention is clear and that the output command combines the voice and gesture cue in a meaningful way.\n\n"
+        "The output should be a plain text string with no prior explanation of how the final output was got and no extra commentary or formatting.\n\n"
         f"Voice Instruction: {voice_text}\n"
         f"Gesture Instruction: {gesture_text}\n\n"
-        "Unified Command:"
+        "Unified Command:(Voice Instruction + Gesture Instruction)"
     )
     try:
         result = subprocess.run(
-            ["ollama", "run", "deepseek-r1:1.5b-qwen-distill-q4_K_M", prompt],
+            ["ollama", "run", "qwen2:0.5b", prompt],
             capture_output=True,
             text=True,
             check=True,
             encoding="utf-8",
         )
-        if not result.stdout.strip():
+        output_str = result.stdout.strip()
+        if not output_str:
             logger.error("Ollama API call returned empty output.")
             return f"Voice: {voice_text} | Gesture: {gesture_text}"
         try:
-            output = json.loads(result.stdout)
-            unified_command = output.get("generated_text", "").strip()
-            return unified_command or f"Voice: {voice_text} | Gesture: {gesture_text}"
+            # If the output appears to be JSON, try to parse it
+            if output_str.startswith("{"):
+                output = json.loads(output_str)
+                unified_command = output.get("generated_text", "").strip()
+                return unified_command or f"Voice: {voice_text} | Gesture: {gesture_text}"
+            else:
+                # Otherwise, assume it's the unified text directly
+                return output_str
         except json.JSONDecodeError as e:
             logger.error(f"JSON decoding failed: {e}")
             return f"Voice: {voice_text} | Gesture: {gesture_text}"
@@ -135,13 +143,14 @@ def llm_unify(voice_text: str, gesture_text: str) -> str:
         return f"Voice: {voice_text} | Gesture: {gesture_text}"
 
 
+
 def merge_session_commands(session_commands: List[Dict]) -> Dict[str, str]:
     session_commands.sort(key=lambda x: x["timestamp"])
     voice_texts = [
-        cmd["content"] for cmd in session_commands if cmd["modality"] == "voice"
+        cmd["transcribed_text"] for cmd in session_commands if cmd["modality"] == "voice"
     ]
     gesture_texts = [
-        cmd["content"] for cmd in session_commands if cmd["modality"] == "gesture"
+        cmd["transcribed_text"] for cmd in session_commands if cmd["modality"] == "gesture"
     ]
     merged_voice = DELIMITER.join(voice_texts).strip()
     merged_gesture = DELIMITER.join(gesture_texts).strip()
