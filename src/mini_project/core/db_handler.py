@@ -7,8 +7,11 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 from config.app_config import DB_PATH
+from config.logging_config import setup_logging
 
-logging.basicConfig(level=logging.INFO)
+# Initialize logging with desired level (optional)
+setup_logging(level=logging.INFO)
+logger = logging.getLogger("dbHandler")
 
 
 class DatabaseHandler:
@@ -219,11 +222,11 @@ class DatabaseHandler:
         # for table_name, create_statement in tables.items():
         #     self.cursor.execute(create_statement)
         try:
-            for table_name, create_statement in tables.items():
+            for create_statement in tables.values():
                 self.cursor.execute(create_statement)
             self.conn.commit()
         except sqlite3.Error as e:
-            logging.error(f"Error creating tables: {e}")
+            logger.error(f"Error creating tables: {e}")
             raise
 
     def create_indexes(self) -> None:
@@ -247,7 +250,7 @@ class DatabaseHandler:
                 self.cursor.execute(index)
             self.conn.commit()
         except sqlite3.Error as e:
-            logging.error(f"Error creating indexes: {e}")
+            logger.error(f"Error creating indexes: {e}")
             raise
 
     def check_table_schema(self, table_name):
@@ -414,9 +417,9 @@ class DatabaseHandler:
                     self.cursor.execute(
                         f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}"
                     )
-                    logging.info(f"Added column '{column_name}' to '{table_name}'")
+                    logger.info(f"Added column '{column_name}' to '{table_name}'")
                 except sqlite3.OperationalError as e:
-                    logging.info(
+                    logger.info(
                         f"Schema update failed for {table_name}.{column_name}: {str(e)}"
                     )
 
@@ -426,43 +429,41 @@ class DatabaseHandler:
         """Clear tables in the correct order to prevent foreign key constraint failures."""
         try:
             with self.conn:
-                self.cursor.execute(
-                    "PRAGMA foreign_keys = OFF;"
-                )  # Temporarily disable foreign key constraints
-
-                # Delete dependent tables first
-                dependent_tables = [
-                    "interaction_memory",
-                    "task_preferences",
-                    "instructions",
-                    "instruction_operation_sequence",
-                    "simulation_results",
-                ]
-                for table in dependent_tables:
-                    self.cursor.execute(f"DELETE FROM {table}")
-
-                # Now delete parent tables
-                parent_tables = [
-                    "users",
-                    "sequence_library",
-                    "states",
-                    "operation_sequence",
-                    "screw_op_parameters",
-                    "camera_vision",
-                    "sort_order",
-                    "skills",
-                ]
-                for table in parent_tables:
-                    self.cursor.execute(f"DELETE FROM {table}")
-
-                self.cursor.execute(
-                    "PRAGMA foreign_keys = ON;"
-                )  # Re-enable foreign key constraints
+                self._extracted_from_clear_tables_5()
         except sqlite3.Error as e:
-            logging.error(f"Error clearing tables: {e}")
+            logger.error(f"Error clearing tables: {e}")
             raise
 
-    def populate_database(self):
+    # TODO Rename this here and in `clear_tables`
+    def _extracted_from_clear_tables_5(self):
+        self.cursor.execute("PRAGMA foreign_keys = OFF;")
+
+        dependent_tables = [
+            "interaction_memory",
+            "task_preferences",
+            "instructions",
+            "instruction_operation_sequence",
+            "simulation_results",
+        ]
+        for table in dependent_tables:
+            self.cursor.execute(f"DELETE FROM {table}")
+
+        parent_tables = [
+            "users",
+            "sequence_library",
+            "states",
+            "operation_sequence",
+            "screw_op_parameters",
+            "camera_vision",
+            "sort_order",
+            "skills",
+        ]
+        for table in parent_tables:
+            self.cursor.execute(f"DELETE FROM {table}")
+
+        self.cursor.execute("PRAGMA foreign_keys = ON;")
+
+    def populate_database(self):  # sourcery skip: extract-method
         """Populate the database with initial data as a single transaction."""
         try:
             with self.conn:
@@ -487,9 +488,9 @@ class DatabaseHandler:
                 # self.populate_screw_op_parameters()
                 # self.populate_instruction_operation_sequence()
 
-            logging.info("Database populated successfully.")
+            logger.info("Database populated successfully.")
         except sqlite3.Error as e:
-            logging.error(f"Database population failed: {str(e)}")
+            logger.error(f"Database population failed: {str(e)}")
 
     def populate_sequence_library(self):
         """

@@ -40,7 +40,7 @@ class GestureDetector:
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self._init_db()
 
-        self.session_id = session_id if session_id else str(uuid.uuid4())
+        self.session_id = session_id or str(uuid.uuid4())
         self.frame_skip = frame_skip
         self.frame_counter = 0
 
@@ -64,6 +64,7 @@ class GestureDetector:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 session_id TEXT,
                 timestamp DATETIME,
+                modality TEXT NOT NULL,
                 gesture_type TEXT,
                 gesture_text TEXT,
                 natural_description TEXT,
@@ -77,6 +78,7 @@ class GestureDetector:
 
     def _log_gesture(
         self,
+        modality: str,
         gesture_type: str,
         gesture_text: str,
         natural_description: str,
@@ -88,12 +90,13 @@ class GestureDetector:
             with self.conn:
                 self.conn.execute(
                     """
-                    INSERT INTO commands (session_id, timestamp, gesture_type, gesture_text, natural_description, confidence, hand_label)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO commands (session_id, timestamp, modality, gesture_type, gesture_text, natural_description, confidence, hand_label)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         self.session_id,
                         timestamp,
+                        "gesture",
                         gesture_type,
                         gesture_text,
                         natural_description,
@@ -252,6 +255,7 @@ class GestureDetector:
                     )
                     detections.append(
                         {
+                            "modality": "gesture",
                             "gesture": gesture,
                             "gesture_text": config["text"],
                             "confidence": hand_confidence,
@@ -275,10 +279,7 @@ class GestureDetector:
         # Update detection on every frame_skip-th frame.
         if self.frame_counter % self.frame_skip == 0:
             detection = self.detect_gesture(frame)
-            if detection is not None:
-                self.last_detection = detection
-            else:
-                self.last_detection = None
+            self.last_detection = detection if detection is not None else None
             current_time = time.time()
             if self.last_detection:
                 for idx, d in enumerate(self.last_detection):
@@ -287,6 +288,7 @@ class GestureDetector:
                     ):
                         continue
                     self._log_gesture(
+                        d["modality"],
                         d["gesture"],
                         d["gesture_text"],
                         d["description"],
@@ -359,9 +361,7 @@ class GestureDetector:
             return
 
         def video_loop():
-            while cap.isOpened():
-                if termination_event and termination_event.is_set():
-                    break
+            while cap.isOpened() and not (termination_event and termination_event.is_set()):
                 ret, frame = cap.read()
                 if not ret:
                     logger.error("Failed to capture frame from camera.")

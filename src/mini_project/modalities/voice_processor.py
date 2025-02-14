@@ -79,20 +79,22 @@ class AudioRecorder:
                 is_speech_vad = self.vad.is_speech(frame.tobytes(), self.sampling_rate)
                 rms = np.sqrt(np.mean(frame.astype(np.float32) ** 2))
                 is_speech_amplitude = rms > amplitude_threshold
+                logger.debug(
+                    f"VAD: {is_speech_vad}, RMS: {rms:.2f}, Amplitude: {is_speech_amplitude}"
+                )
                 if is_speech_vad and is_speech_amplitude:
                     self.speech_detected = True
                     silence_start = None
+                elif silence_start is None:
+                    silence_start = time.time()
                 else:
-                    if silence_start is None:
-                        silence_start = time.time()
-                    else:
-                        threshold = (
-                            self.config["post_speech_silence_duration"]
-                            if self.speech_detected
-                            else self.config["initial_silence_duration"]
-                        )
-                        if time.time() - silence_start > threshold:
-                            break
+                    threshold = (
+                        self.config["post_speech_silence_duration"]
+                        if self.speech_detected
+                        else self.config["initial_silence_duration"]
+                    )
+                    if time.time() - silence_start > threshold:
+                        break
                 if time.time() - start_time > self.config["max_duration"]:
                     break
         audio = np.concatenate(audio, axis=0)
@@ -213,7 +215,7 @@ class VoiceProcessor:
         self.recorder = AudioRecorder()
         self.transcriber = Transcriber()
         self.storage = Storage()
-        self.session_id = session_id if session_id else str(uuid.uuid4())
+        self.session_id = session_id or str(uuid.uuid4())
 
     def capture_voice(self) -> None:
         try:

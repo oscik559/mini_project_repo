@@ -1,3 +1,5 @@
+# modalities/synchronizer.py
+
 import json
 import logging
 import sqlite3
@@ -5,14 +7,12 @@ import subprocess
 import uuid
 from datetime import datetime
 from typing import Dict, List
-
 from config.app_config import DB_PATH
 from config.logging_config import setup_logging
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
 logger = logging.getLogger("Synchronizer")
-
 DELIMITER = "\n"
 
 
@@ -23,7 +23,14 @@ def get_instructions_by_session(db_path: str = DB_PATH) -> Dict[str, List[Dict]]
         """
         SELECT id, session_id, modality, content, timestamp
         FROM instructions
-        WHERE modality IN ('voice', 'gesture')
+        WHERE modality = 'voice'
+
+        UNION ALL
+
+        SELECT id, session_id, 'gesture' AS modality,
+               natural_description AS content, timestamp
+        FROM commands
+        WHERE gesture_type IN ('open_hand', 'pointing', 'thumb_up')
     """
     )
     rows = cursor.fetchall()
@@ -46,7 +53,7 @@ def get_instructions_by_session(db_path: str = DB_PATH) -> Dict[str, List[Dict]]
     return sessions
 
 
-def create_unified_table(db_path: str = "sequences.db") -> None:
+def create_unified_table(db_path: str = DB_PATH) -> None:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     cursor.execute(
@@ -72,7 +79,7 @@ def store_unified_instruction(
     voice_command: str,
     gesture_command: str,
     unified_command: str,
-    db_path: str = "sequences.db",
+    db_path: str = DB_PATH,
 ) -> None:
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -94,38 +101,6 @@ def store_unified_instruction(
     logger.info(
         f"Stored unified instruction for session {session_id}: {unified_command}"
     )
-
-
-# def llm_unify(voice_text: str, gesture_text: str) -> str:
-#     prompt = (
-#         f"Please combine the following inputs into a coherent, context-aware unified command:\n"
-#         f"Voice: {voice_text}\nGesture: {gesture_text}\nUnified Command:"
-#     )
-#     try:
-#         result = subprocess.run(
-#             ["ollama", "run", "qwen2:0.5b", prompt],
-#             capture_output=True,
-#             text=True,
-#             check=True,
-#             encoding="utf-8",
-#         )
-#         if not result.stdout.strip():
-#             logger.error("Ollama API call returned empty output.")
-#             return f"Voice: {voice_text} | Gesture: {gesture_text}"
-#         try:
-#             output = json.loads(result.stdout)
-#             unified_command = output.get("generated_text", "").strip()
-#             return (
-#                 unified_command
-#                 if unified_command
-#                 else f"Voice: {voice_text} | Gesture: {gesture_text}"
-#             )
-#         except json.JSONDecodeError as e:
-#             logger.error(f"JSON decoding failed: {e}")
-#             return f"Voice: {voice_text} | Gesture: {gesture_text}"
-#     except subprocess.CalledProcessError as e:
-#         logger.error(f"Ollama API call failed: {e}")
-#         return f"Voice: {voice_text} | Gesture: {gesture_text}"
 
 
 def llm_unify(voice_text: str, gesture_text: str) -> str:
@@ -151,11 +126,7 @@ def llm_unify(voice_text: str, gesture_text: str) -> str:
         try:
             output = json.loads(result.stdout)
             unified_command = output.get("generated_text", "").strip()
-            return (
-                unified_command
-                if unified_command
-                else f"Voice: {voice_text} | Gesture: {gesture_text}"
-            )
+            return unified_command or f"Voice: {voice_text} | Gesture: {gesture_text}"
         except json.JSONDecodeError as e:
             logger.error(f"JSON decoding failed: {e}")
             return f"Voice: {voice_text} | Gesture: {gesture_text}"
@@ -174,10 +145,13 @@ def merge_session_commands(session_commands: List[Dict]) -> Dict[str, str]:
     ]
     merged_voice = DELIMITER.join(voice_texts).strip()
     merged_gesture = DELIMITER.join(gesture_texts).strip()
+        # Add debug logs in synchronize_and_unify()
+
     return {"voice": merged_voice, "gesture": merged_gesture}
 
 
-def synchronize_and_unify(db_path: str = "sequences.db") -> None:
+
+def synchronize_and_unify(db_path: str = DB_PATH) -> None:
     sessions = get_instructions_by_session(db_path)
     create_unified_table(db_path)
     for session_id, records in sessions.items():

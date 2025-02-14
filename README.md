@@ -1,3 +1,3 @@
 # mini_project
 
-mini project folder for test
+Thesis Project: Integrating Vision, Language Models, and Robotic Control for Personalized Task Execution in Virtual Environments.
