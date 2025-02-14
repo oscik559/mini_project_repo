@@ -9,7 +9,7 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 
-from config.config import *
+from config.app_config import *
 from mini_project.core.db_handler import DatabaseHandler
 from mini_project.modalities.camera_db_utils import (
     cleanup_camera_vision_records,

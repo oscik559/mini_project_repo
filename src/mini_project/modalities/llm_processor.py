@@ -5,7 +5,7 @@ from typing import Dict, List
 
 import ollama
 
-from config.config import DB_PATH
+from config.app_config import DB_PATH
 
 
 class InstructionProcessor:

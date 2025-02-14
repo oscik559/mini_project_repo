@@ -29,8 +29,8 @@ import numpy as np
 from db_handler import DatabaseHandler
 
 # Import configuration variables from our package.
-from config.config import MAX_ENCODINGS_PER_USER  # (Set to 5, for example)
-from config.config import (
+from config.app_config import MAX_ENCODINGS_PER_USER  # (Set to 5, for example)
+from config.app_config import (
     AUTO_CAPTURE_FRAME_COUNT,
     DB_PATH,
     EMAIL_PATTERN,

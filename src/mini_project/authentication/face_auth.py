@@ -25,7 +25,7 @@ import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
 
-from config.config import (
+from config.app_config import (
     AUTO_CAPTURE_FRAME_COUNT,
     DB_PATH,
     EMAIL_PATTERN,

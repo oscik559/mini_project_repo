@@ -17,7 +17,7 @@ import numpy as np
 # from config.config import DB_PATH
 from db_handler import DatabaseHandler
 
-from config.config import *
+from config.app_config import *
 from old_scripts.face_utils import FaceUtils
 
 

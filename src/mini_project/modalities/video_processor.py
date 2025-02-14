@@ -101,7 +101,7 @@ from datetime import datetime
 import cv2
 import mediapipe as mp
 
-from config.config import DB_PATH
+from config.app_config import DB_PATH
 
 
 class GestureProcessor:

@@ -31,7 +31,7 @@ import webrtcvad
 from faster_whisper import WhisperModel
 from scipy.io.wavfile import write
 
-from config.config import DB_PATH, TEMP_AUDIO_PATH
+from config.app_config import DB_PATH, TEMP_AUDIO_PATH
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

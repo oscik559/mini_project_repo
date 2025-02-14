@@ -6,7 +6,7 @@ import sqlite3
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from config.config import DB_PATH
+from config.app_config import DB_PATH
 
 logging.basicConfig(level=logging.INFO)
 
@@ -185,6 +185,16 @@ class DatabaseHandler:
                     sync_id INTEGER UNIQUE,
                     confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                );
+            """,
+            "unified_instructions": """
+                CREATE TABLE IF NOT EXISTS unified_instructions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT,
+                    timestamp DATETIME,
+                    voice_command TEXT,
+                    gesture_command TEXT,
+                    unified_command TEXT
                 );
             """,
             "instruction_operation_sequence": """
