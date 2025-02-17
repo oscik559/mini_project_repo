@@ -121,6 +121,7 @@ class DatabaseHandler:
                     last_name TEXT NOT NULL,
                     liu_id TEXT UNIQUE,
                     email TEXT UNIQUE,
+                    role TEXT,
                     preferences TEXT,
                     profile_image_path TEXT,
                     interaction_memory TEXT,
