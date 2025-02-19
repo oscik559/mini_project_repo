@@ -4,10 +4,15 @@ import logging
 import threading
 import uuid
 
-from config.app_config import DB_PATH, setup_logging
+from config.app_config import *
 from mini_project.modalities.gesture_processor import GestureDetector
-from mini_project.modalities.synchronizer import synchronize_and_unify
 from mini_project.modalities.voice_processor import VoiceProcessor
+from mini_project.modalities.synchronizer import synchronize_and_unify
+
+# from mini_project.authentication.voice_auth import VoiceAuth
+# from mini_project.authentication.face_auth import FaceAuthSystem
+# from mini_project.authentication.user_authentication import main
+
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
@@ -33,8 +38,26 @@ def run_gesture_capture(session_id: str):
     logger.info("Gesture capture completed.")
 
 
+# def authenticate_user() -> str:
+#     """
+#     Runs the authentication process (face and/or voice) and returns the authenticated LIU ID.
+#     If authentication fails, this function can prompt the user to register.
+#     """
+#     # Pseudocode for authentication process:
+#     liu_id = None
+#     # Try face authentication first.
+#     liu_id = FaceAuthSystem().identify_user  # Suppose this returns a LIU ID or None
+#     if not liu_id:
+#         # Fallback to voice authentication:
+#         liu_id = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH).register_user()
+#     if not liu_id:
+#         raise Exception("User could not be authenticated.")
+#     return liu_id
+
+
 if __name__ == "__main__":
     session_id = str(uuid.uuid4())
+    # authenticate_user()
     logger.info(f"Starting session with session_id: {session_id}")
 
     voice_thread = threading.Thread(target=run_voice_capture, args=(session_id,))

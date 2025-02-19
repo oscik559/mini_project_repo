@@ -213,7 +213,7 @@ class CommandProcessor:
                     # Lookup the sequence_id for the given sequence_name
                     cursor.execute(
                         "SELECT sequence_id FROM sequence_library WHERE sequence_name = ?",
-                        (op["sequence_name"],)
+                        (op["sequence_name"],),
                     )
                     seq_result = cursor.fetchone()
                     if not seq_result:
@@ -227,7 +227,7 @@ class CommandProcessor:
                     if op["object_name"]:
                         cursor.execute(
                             "SELECT object_id FROM camera_vision WHERE object_name = ?",
-                            (op["object_name"],)
+                            (op["object_name"],),
                         )
                         obj_result = cursor.fetchone()
                         if not obj_result:
@@ -251,7 +251,7 @@ class CommandProcessor:
                             sequence_id,
                             op["sequence_name"],
                             object_id,
-                            op.get("object_name", "")
+                            op.get("object_name", ""),
                         ),
                     )
 
@@ -297,6 +297,7 @@ class CommandProcessor:
             self.conn.close()
             self.conn = None
             logger.info("Database connection closed.")
+
 
 if __name__ == "__main__":
     processor = CommandProcessor()

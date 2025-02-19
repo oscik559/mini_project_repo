@@ -189,13 +189,13 @@ class DatabaseHandler:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     session_id TEXT,
                     timestamp DATETIME,
-                    user_id INTEGER,
+                    liu_id TEXT,
                     voice_command TEXT,
                     gesture_command TEXT,
                     unified_command TEXT,
                     confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
                     processed BOOLEAN DEFAULT FALSE,
-                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                    FOREIGN KEY (liu_id) REFERENCES users(liu_id) ON DELETE CASCADE
                 );
             """,
             "interaction_memory": """
@@ -301,6 +301,7 @@ class DatabaseHandler:
             "CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);",
             "CREATE INDEX IF NOT EXISTS idx_voice_session ON voice_instructions(session_id, timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_gesture_session ON gesture_instructions(session_id, timestamp);",
+            "CREATE INDEX IF NOT EXISTS idx_unified_liu_id ON unified_instructions(liu_id);"
         ]
         try:
             for index in indexes:
