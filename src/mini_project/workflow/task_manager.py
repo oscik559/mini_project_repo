@@ -1,4 +1,4 @@
-# task_manager
+# workflow/task_manager.py
 
 import logging
 import threading
@@ -10,8 +10,8 @@ from mini_project.authentication.face_auth import FaceAuthSystem
 
 # Import system components
 from mini_project.core.db_handler import DatabaseHandler
-from mini_project.modalities.command_processor import LLMClient
-from mini_project.modalities.video_processor import GestureProcessor
+from mini_project.modalities.command_processor import CommandProcessor
+from mini_project.modalities.gesture_processor import GestureDetector
 from mini_project.modalities.voice_processor import VoiceProcessor
 
 
@@ -30,8 +30,8 @@ class TaskManager:
         self.db_handler = DatabaseHandler()
         self.facial_auth = FaceAuthSystem()
         self.voice_processor = VoiceProcessor()
-        self.video_processor = GestureProcessor()
-        self.llm_processor = LLMClient()
+        self.video_processor = GestureDetector()
+        self.llm_processor = CommandProcessor()
 
         # UI Elements
         tk.Label(

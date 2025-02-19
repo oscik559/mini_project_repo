@@ -301,7 +301,7 @@ class DatabaseHandler:
             "CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);",
             "CREATE INDEX IF NOT EXISTS idx_voice_session ON voice_instructions(session_id, timestamp);",
             "CREATE INDEX IF NOT EXISTS idx_gesture_session ON gesture_instructions(session_id, timestamp);",
-            "CREATE INDEX IF NOT EXISTS idx_unified_liu_id ON unified_instructions(liu_id);"
+            "CREATE INDEX IF NOT EXISTS idx_unified_liu_id ON unified_instructions(liu_id);",
         ]
         try:
             for index in indexes:

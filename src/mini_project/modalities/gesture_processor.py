@@ -436,3 +436,5 @@ class GestureDetector:
 if __name__ == "__main__":
     gd = GestureDetector()
     gd.process_video_stream()
+# [MermaidChart: da00aae7-ed03-4b23-8a53-014369758cff]
+# [MermaidChart: da00aae7-ed03-4b23-8a53-014369758cff]

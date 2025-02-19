@@ -1,4 +1,4 @@
-# scripts/user_authentication.py
+# authentication/user_authentication.py
 #!/usr/bin/env python
 """
 User Authentication Module

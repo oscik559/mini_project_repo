@@ -1,4 +1,4 @@
-# scripts/voice_auth.py
+# authentication/voice_auth.py
 """
 Voice Authentication Module
 
@@ -53,7 +53,10 @@ class VoiceAuth:
     """
 
     def __init__(
-        self, db_path: str, temp_audio_path: str, voice_data_path: str
+        self,
+        db_path: str,
+        temp_audio_path: str = TEMP_AUDIO_PATH,
+        voice_data_path: str = VOICE_DATA_PATH,
     ) -> None:
         self.db_path = db_path
         self.temp_audio_path = temp_audio_path
