@@ -10,7 +10,7 @@ from mini_project.authentication.face_auth import FaceAuthSystem
 
 # Import system components
 from mini_project.core.db_handler import DatabaseHandler
-from mini_project.modalities.instruction_processor import LLMClient
+from mini_project.modalities.command_processor import LLMClient
 from mini_project.modalities.video_processor import GestureProcessor
 from mini_project.modalities.voice_processor import VoiceProcessor
 

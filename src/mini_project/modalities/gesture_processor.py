@@ -13,7 +13,6 @@ import mediapipe as mp
 
 from config.app_config import *
 
-
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
 logger = logging.getLogger("GestureProcessor")

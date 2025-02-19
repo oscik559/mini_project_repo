@@ -166,7 +166,8 @@ class DatabaseHandler:
                     timestamp DATETIME,
                     voice_command TEXT,
                     gesture_command TEXT,
-                    unified_command TEXT
+                    unified_command TEXT,
+                    processed BOOLEAN DEFAULT FALSE
                 );
             """,
             "interaction_memory": """
@@ -229,10 +230,10 @@ class DatabaseHandler:
                 CREATE TABLE IF NOT EXISTS instruction_operation_sequence (
                     task_id INTEGER PRIMARY KEY,
                     instruction_id INTEGER,
-                    skill_id INTEGER,
-                    skill_name TEXT,
                     sequence_id INTEGER,
                     sequence_name TEXT NOT NULL,
+                    skill_id INTEGER,
+                    skill_name TEXT,
                     object_id INTEGER,
                     object_name TEXT,
                     status TEXT CHECK(status IN ('pending', 'in_progress', 'completed', 'failed')) DEFAULT 'pending',

@@ -47,40 +47,47 @@ class CommandProcessor:
         **IMPORTANT**: Do NOT include any explanations, instructions, or text outside the JSON array. Return ONLY the JSON array.
         **Example Output**:
         ```json
-        [{"sequence_name": "pick", "object_name": "RedCube"}]
-        [{"sequence_name": "go_home", "object_name": ""}]
+        [{{"sequence_name": "pick", "object_name": "RedCube"}}]
+        [{{"sequence_name": "go_home", "object_name": ""}}]
         ```
         """
 
     def get_available_sequences(self) -> List[str]:
         """Fetch available sequence names from sequence_library in database"""
         try:
+
             cursor = self.conn.cursor()
             cursor.execute("SELECT sequence_name FROM sequence_library")
-            logger.info("Fetching available sequences...")
+            logger.info("Fetching available sequences...")  # Debugging
             available_sequences = [row[0] for row in cursor.fetchall()]
             logger.info(f"Available sequences: {available_sequences}")
             return available_sequences
         except sqlite3.Error as e:
-            logger.error("Database error in get_available_sequences: %s", str(e), exc_info=True)
+            logger.error(
+                "Database error in get_available_sequences: %s", str(e), exc_info=True
+            )
             raise
 
     def get_available_objects(self) -> List[str]:
         """Fetch available object names from camera_vision in database"""
         try:
+
             cursor = self.conn.cursor()
             cursor.execute("SELECT object_name FROM camera_vision")
-            logger.info("Fetching available objects...")
+            logger.info("Fetching available objects...")  # Debugging
             available_objects = [row[0] for row in cursor.fetchall()]
             logger.info(f"Available objects: {available_objects}")
             return available_objects
         except sqlite3.Error as e:
-            logger.error("Database error in get_available_objects: %s", str(e), exc_info=True)
+            logger.error(
+                "Database error in get_available_objects: %s", str(e), exc_info=True
+            )
             raise
 
     def get_unprocessed_unified_command(self) -> Dict:
         """Retrieve the latest unprocessed instruction"""
         try:
+
             self.conn.row_factory = sqlite3.Row
             cursor = self.conn.cursor()
             cursor.execute(
@@ -90,12 +97,16 @@ class CommandProcessor:
                 WHERE processed = 0
                 ORDER BY id DESC
                 LIMIT 1
-                """
+            """
             )
             result = cursor.fetchone()
             return dict(result) if result else None
         except sqlite3.Error as e:
-            logger.error("Database error in get_latest_unprocessed_instruction: %s", str(e), exc_info=True)
+            logger.error(
+                "Database error in get_latest_unprocessed_instruction: %s",
+                str(e),
+                exc_info=True,
+            )
             raise
 
     def validate_operation(self, operation: Dict) -> bool:
@@ -137,6 +148,7 @@ class CommandProcessor:
             available_sequences = self.get_available_sequences()
             available_objects = self.get_available_objects()
 
+            # Format the system prompt with available sequences
             formatted_system_prompt = self.system_prompt.format(
                 available_sequences=", ".join(available_sequences),
                 available_objects=", ".join(available_objects)
@@ -151,17 +163,24 @@ class CommandProcessor:
             )
 
         except sqlite3.Error as db_err:
-            logger.error("Database error while preparing prompt: %s", db_err, exc_info=True)
+            logger.error(
+                "Database error while preparing prompt: %s", db_err, exc_info=True
+            )
             return False
         except Exception as e:
-            logger.error("Unexpected error during prompt formation: %s", e, exc_info=True)
+            logger.error(
+                "Unexpected error during prompt formation: %s", e, exc_info=True
+            )
             return False
 
+            # Extract the raw response content
         try:
             raw_response = response["message"]["content"]
             logger.info("Raw LLM Response: %s", raw_response)
         except KeyError as key_err:
-            logger.error("LLM response structure is unexpected: %s", key_err, exc_info=True)
+            logger.error(
+                "LLM response structure is unexpected: %s", key_err, exc_info=True
+            )
             return False
 
         try:
@@ -222,7 +241,7 @@ class CommandProcessor:
                         INSERT INTO instruction_operation_sequence
                         (instruction_id, sequence_id, sequence_name, object_id, object_name)
                         VALUES (?, ?, ?, ?, ?)
-                        """,
+                    """,
                         (unified_command["id"], sequence_id, op["sequence_name"], object_id, op.get("object_name", ""))
                     )
 
@@ -233,7 +252,11 @@ class CommandProcessor:
                 self.conn.commit()
                 return True
             except sqlite3.Error as db_err:
-                logger.error("Database error while inserting operations: %s", db_err, exc_info=True)
+                logger.error(
+                    "Database error while inserting operations: %s",
+                    db_err,
+                    exc_info=True,
+                )
                 return False
         else:
             return False
@@ -248,9 +271,13 @@ class CommandProcessor:
         if unified_command:
             logger.info(f"Processing command ID: {unified_command['id']}")
             if self.process_command(unified_command):
-                logger.info(f"Successfully processed unified_command {unified_command['id']}")
+                logger.info(
+                    f"Successfully processed unified_command {unified_command['id']}"
+                )
             else:
-                logger.error(f"Failed to process unified_command {unified_command['id']}")
+                logger.error(
+                    f"Failed to process unified_command {unified_command['id']}"
+                )
         else:
             logger.info("No unprocessed unified_commands found")
 

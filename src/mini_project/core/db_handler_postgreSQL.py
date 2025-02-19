@@ -10,8 +10,10 @@ from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 
 from config.app_config import (
-    DB_URL,
     setup_logging,  # e.g., "dbname=mydb user=myuser password=mypass host=localhost"
+)
+from config.app_config import (
+    DB_URL,
 )
 
 # Initialize logging with desired level (optional)
