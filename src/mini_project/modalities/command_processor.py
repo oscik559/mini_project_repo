@@ -85,7 +85,7 @@ class CommandProcessor:
             raise
 
     def get_unprocessed_unified_command(self) -> Dict:
-        """Retrieve the latest unprocessed instruction"""
+        """Retrieve the latest unprocessed unified command."""
         try:
 
             self.conn.row_factory = sqlite3.Row
@@ -142,7 +142,7 @@ class CommandProcessor:
 
     def process_command(self, unified_command: Dict) -> bool:
         """
-        Process a single unified_command using LLM
+        Process a single unified command using LLM
         """
         try:
             available_sequences = self.get_available_sequences()
@@ -153,7 +153,7 @@ class CommandProcessor:
                 available_sequences=", ".join(available_sequences),
                 available_objects=", ".join(available_objects),
             )
-
+            logger.debug(f"Formatted system prompt: {formatted_system_prompt}")
             response = ollama.chat(
                 model=self.llm_model,
                 messages=[
@@ -213,7 +213,7 @@ class CommandProcessor:
                     # Lookup the sequence_id for the given sequence_name
                     cursor.execute(
                         "SELECT sequence_id FROM sequence_library WHERE sequence_name = ?",
-                        (op["sequence_name"],),
+                        (op["sequence_name"],)
                     )
                     seq_result = cursor.fetchone()
                     if not seq_result:
@@ -227,7 +227,7 @@ class CommandProcessor:
                     if op["object_name"]:
                         cursor.execute(
                             "SELECT object_id FROM camera_vision WHERE object_name = ?",
-                            (op["object_name"],),
+                            (op["object_name"],)
                         )
                         obj_result = cursor.fetchone()
                         if not obj_result:
@@ -251,7 +251,7 @@ class CommandProcessor:
                             sequence_id,
                             op["sequence_name"],
                             object_id,
-                            op.get("object_name", ""),
+                            op.get("object_name", "")
                         ),
                     )
 
@@ -273,7 +273,7 @@ class CommandProcessor:
 
     def run_processing_cycle(self):
         """
-        Process the latest unprocessed unified_command
+        Process the latest unprocessed unified command
         """
         logger.info("Checking for new unified_commands...")
         unified_command = self.get_unprocessed_unified_command()
@@ -297,7 +297,6 @@ class CommandProcessor:
             self.conn.close()
             self.conn = None
             logger.info("Database connection closed.")
-
 
 if __name__ == "__main__":
     processor = CommandProcessor()

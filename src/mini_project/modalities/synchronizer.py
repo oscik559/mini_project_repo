@@ -312,18 +312,31 @@ def mark_instructions_as_processed(session_id: str, db_path: str = DB_PATH) -> N
 
 
 def llm_unify(voice_text: str, gesture_text: str) -> str:
-    prompt = (
-        "You are a command unifier. Given the voice instruction and the gesture instruction below, "
-        "generate a single, clear, and concise command that COMBINES both inputs (voice Instruction and Gesture Instruction) in a context-aware manner. "
-        "Make sure that the intention is clear and that the output command combines the voice and gesture cue in a meaningful way.\n\n"
-        "The output should be a plain text string with no extra commentary or formatting.\n\n"
-        f"Voice Instruction: {voice_text}\n"
-        f"Gesture Instruction: {gesture_text}\n\n"
-        "Unified Command:(Voice Instruction + Gesture Instruction)"
+    prompt_template = (
+        # "You are a command unifier. Given the voice instruction and the gesture instruction below, "
+        # "generate a single, clear, and concise command that COMBINES both inputs (voice Instruction and Gesture Instruction) in a context-aware manner. "
+        # "Make sure that the intention is clear and that the output command combines the voice and gesture cue in a meaningful way.\n\n"
+        # "The output should be a plain text string with no extra commentary or formatting.\n\n"
+        # f"Voice Instruction: {voice_text}\n"
+        # f"Gesture Instruction: {gesture_text}\n\n"
+        # "Unified Command:(Voice Instruction + Gesture Instruction)"
+        "You are a command unifier. The voice command below contains a detailed set of instructions. "
+        "The gesture command provides a supplementary cue that may modify, emphasize, or clarify the voice command. "
+        "Your task is to generate a final, context-aware command that:\n\n"
+        "1. Preserves all the details from the voice command.\n"
+        "2. Incorporates the gesture cue appropriately (only modifying the voice command where the gesture explicitly indicates a change).\n\n"
+        "Do not omit any steps from the voice command unless the gesture explicitly indicates a modification.\n\n"
+        "Voice Command: {voice_text}\n\n"
+        "Gesture Cue: {gesture_text}\n\n"
+        "Unified Command:"
     )
+    formatted_prompt = prompt_template.format(
+        voice_text=voice_text, gesture_text=gesture_text
+    )
+    logger.debug(f"LLM Prompt: {formatted_prompt}")
     try:
         result = subprocess.run(
-            ["ollama", "run", "qwen2:0.5b", prompt],
+            ["ollama", "run", "mistral:latest", formatted_prompt],
             capture_output=True,
             text=True,
             check=True,
