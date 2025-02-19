@@ -130,24 +130,49 @@ class DatabaseHandler:
                     last_updated TIMESTAMP DEFAULT (datetime('now','localtime'))
                 );
             """,
-            "instructions": """
-                CREATE TABLE IF NOT EXISTS instructions (
+            # "instructions": """
+            #     CREATE TABLE IF NOT EXISTS instructions (
+            #         id INTEGER PRIMARY KEY AUTOINCREMENT,
+            #         session_id TEXT NOT NULL,
+            #         timestamp DATETIME DEFAULT (datetime('now','localtime')),
+            #         user_id INTEGER,
+            #         modality TEXT,
+            #         language TEXT,
+            #         instruction_type TEXT,
+            #         processed BOOLEAN DEFAULT FALSE,
+            #         transcribed_text TEXT,
+            #         gesture_type TEXT,
+            #         gesture_text TEXT,
+            #         natural_description TEXT,
+            #         hand_label TEXT,
+            #         sync_id INTEGER UNIQUE,
+            #         confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
+            #         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+            #     );
+            # """,
+            # Add new table for voice commands
+            "voice_instructions": """
+                CREATE TABLE IF NOT EXISTS voice_instructions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     session_id TEXT NOT NULL,
                     timestamp DATETIME DEFAULT (datetime('now','localtime')),
-                    user_id INTEGER,
-                    modality TEXT,
-                    language TEXT,
-                    instruction_type TEXT,
-                    processed BOOLEAN DEFAULT FALSE,
-                    transcribed_text TEXT,
-                    gesture_type TEXT,
-                    gesture_text TEXT,
+                    transcribed_text TEXT NOT NULL,
+                    confidence REAL,
+                    language TEXT NOT NULL,
+                    processed BOOLEAN DEFAULT FALSE
+                );
+            """,
+            # Add new table for gesture commands
+            "gesture_instructions": """
+                CREATE TABLE IF NOT EXISTS gesture_instructions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT (datetime('now','localtime')),
+                    gesture_text TEXT NOT NULL,
                     natural_description TEXT,
+                    confidence REAL,
                     hand_label TEXT,
-                    sync_id INTEGER UNIQUE,
-                    confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
-                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                    processed BOOLEAN DEFAULT FALSE
                 );
             """,
             "gesture_library": """
@@ -164,10 +189,13 @@ class DatabaseHandler:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     session_id TEXT,
                     timestamp DATETIME,
+                    user_id INTEGER,
                     voice_command TEXT,
                     gesture_command TEXT,
                     unified_command TEXT,
-                    processed BOOLEAN DEFAULT FALSE
+                    confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
+                    processed BOOLEAN DEFAULT FALSE,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
                 );
             """,
             "interaction_memory": """
@@ -271,6 +299,8 @@ class DatabaseHandler:
             "CREATE INDEX IF NOT EXISTS idx_camera_vision_last_detected ON camera_vision(last_detected);",
             "CREATE INDEX IF NOT EXISTS idx_user_prefs_task ON task_preferences(user_id, task_id);",
             "CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);",
+            "CREATE INDEX IF NOT EXISTS idx_voice_session ON voice_instructions(session_id, timestamp);",
+            "CREATE INDEX IF NOT EXISTS idx_gesture_session ON gesture_instructions(session_id, timestamp);",
         ]
         try:
             for index in indexes:
@@ -394,23 +424,23 @@ class DatabaseHandler:
                 ("task_name", "TEXT"),
                 ("preference_data", "TEXT"),
             ],
-            "instructions": [
-                ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
-                ("session_id", "TEXT NOT NULL"),
-                ("timestamp", "DATETIME DEFAULT (datetime('now','localtime'))"),
-                ("user_id", "INTEGER"),
-                ("modality", "TEXT"),
-                ("language", "TEXT"),
-                ("instruction_type", "TEXT"),
-                ("processed", "BOOLEAN DEFAULT FALSE"),
-                ("transcribed_text", "TEXT"),
-                ("gesture_type", "TEXT"),
-                ("gesture_text", "TEXT"),
-                ("natural_description", "TEXT"),
-                ("hand_label", "TEXT"),
-                ("sync_id", "INTEGER UNIQUE"),
-                ("confidence", "FLOAT CHECK(confidence BETWEEN 0 AND 1)"),
-            ],
+            # "instructions": [
+            #     ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+            #     ("session_id", "TEXT NOT NULL"),
+            #     ("timestamp", "DATETIME DEFAULT (datetime('now','localtime'))"),
+            #     ("user_id", "INTEGER"),
+            #     ("modality", "TEXT"),
+            #     ("language", "TEXT"),
+            #     ("instruction_type", "TEXT"),
+            #     ("processed", "BOOLEAN DEFAULT FALSE"),
+            #     ("transcribed_text", "TEXT"),
+            #     ("gesture_type", "TEXT"),
+            #     ("gesture_text", "TEXT"),
+            #     ("natural_description", "TEXT"),
+            #     ("hand_label", "TEXT"),
+            #     ("sync_id", "INTEGER UNIQUE"),
+            #     ("confidence", "FLOAT CHECK(confidence BETWEEN 0 AND 1)"),
+            # ],
             "instruction_operation_sequence": [
                 ("task_id", "INTEGER PRIMARY KEY"),
                 ("instruction_id", "INTEGER"),
@@ -474,7 +504,7 @@ class DatabaseHandler:
         dependent_tables = [
             "interaction_memory",
             "task_preferences",
-            "instructions",
+            "unified_instructions",
             "instruction_operation_sequence",
             "simulation_results",
         ]

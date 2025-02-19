@@ -150,19 +150,38 @@ class Storage:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                CREATE TABLE IF NOT EXISTS instructions (
+                CREATE TABLE IF NOT EXISTS voice_instructions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT,
-                    modality TEXT NOT NULL,
-                    language TEXT NOT NULL,
-                    instruction_type TEXT NOT NULL,
+                    session_id TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     transcribed_text TEXT NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                    language TEXT NOT NULL,
+                    confidence REAL,
+                    processed BOOLEAN DEFAULT FALSE
                 )
-            """
+                """
             )
             conn.commit()
-            logger.info("Ensured instructions table exists in the database.")
+            logger.info("Ensured voice_instructions table exists in the database.")
+
+    # def ensure_table_exists(self) -> None:
+    #     with sqlite3.connect(self.db_path) as conn:
+    #         cursor = conn.cursor()
+    #         cursor.execute(
+    #             """
+    #             CREATE TABLE IF NOT EXISTS instructions (
+    #                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #                 session_id TEXT,
+    #                 modality TEXT NOT NULL,
+    #                 language TEXT NOT NULL,
+    #                 instruction_type TEXT NOT NULL,
+    #                 transcribed_text TEXT NOT NULL,
+    #                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    #             )
+    #         """
+    #         )
+    #         conn.commit()
+    #         logger.info("Ensured instructions table exists in the database.")
 
     def store_instruction(
         self,
@@ -178,29 +197,29 @@ class Storage:
                     cursor = conn.cursor()
                     cursor.execute(
                         """
-                        INSERT INTO instructions (session_id, modality, language, instruction_type, transcribed_text)
-                        VALUES (?, ?, ?, ?, ?)
+                        INSERT INTO voice_instructions (session_id, transcribed_text, language)
+                        VALUES (?, ?, ?)
                     """,
                         (
                             session_id,
-                            "voice",
-                            detected_language,
-                            "voice command",
                             transcribed_text,
+                            detected_language,
                         ),
                     )
                     conn.commit()
-                    logger.info("Instruction stored successfully.")
+                    logger.info(
+                        "Voice instruction stored successfully in voice_instructions table."
+                    )
                     return
             except sqlite3.OperationalError as e:
                 if "database is locked" in str(e) and attempt < retries - 1:
                     logger.warning(f"Database locked. Retrying in {delay} seconds...")
                     time.sleep(delay)
                 else:
-                    logger.error(f"Error storing instruction: {e}")
+                    logger.error(f"Error storing voice instruction: {e}")
                     raise
             except Exception as e:
-                logger.error(f"Unexpected error storing instruction: {e}")
+                logger.error(f"Unexpected error storing voice instruction: {e}")
                 raise
 
 

@@ -151,7 +151,7 @@ class CommandProcessor:
             # Format the system prompt with available sequences
             formatted_system_prompt = self.system_prompt.format(
                 available_sequences=", ".join(available_sequences),
-                available_objects=", ".join(available_objects)
+                available_objects=", ".join(available_objects),
             )
 
             response = ollama.chat(
@@ -213,11 +213,13 @@ class CommandProcessor:
                     # Lookup the sequence_id for the given sequence_name
                     cursor.execute(
                         "SELECT sequence_id FROM sequence_library WHERE sequence_name = ?",
-                        (op["sequence_name"],)
+                        (op["sequence_name"],),
                     )
                     seq_result = cursor.fetchone()
                     if not seq_result:
-                        logger.error("No matching sequence found for: %s", op["sequence_name"])
+                        logger.error(
+                            "No matching sequence found for: %s", op["sequence_name"]
+                        )
                         continue  # Skip this operation if no valid sequence_id is found
                     sequence_id = seq_result[0]
 
@@ -225,11 +227,13 @@ class CommandProcessor:
                     if op["object_name"]:
                         cursor.execute(
                             "SELECT object_id FROM camera_vision WHERE object_name = ?",
-                            (op["object_name"],)
+                            (op["object_name"],),
                         )
                         obj_result = cursor.fetchone()
                         if not obj_result:
-                            logger.error("No matching object found for: %s", op["object_name"])
+                            logger.error(
+                                "No matching object found for: %s", op["object_name"]
+                            )
                             continue  # Skip this operation if no valid object_id is found
                         object_id = obj_result[0]
                     else:
@@ -242,12 +246,18 @@ class CommandProcessor:
                         (instruction_id, sequence_id, sequence_name, object_id, object_name)
                         VALUES (?, ?, ?, ?, ?)
                     """,
-                        (unified_command["id"], sequence_id, op["sequence_name"], object_id, op.get("object_name", ""))
+                        (
+                            unified_command["id"],
+                            sequence_id,
+                            op["sequence_name"],
+                            object_id,
+                            op.get("object_name", ""),
+                        ),
                     )
 
                 cursor.execute(
                     "UPDATE unified_instructions SET processed = 1 WHERE id = ?",
-                    (unified_command["id"],)
+                    (unified_command["id"],),
                 )
                 self.conn.commit()
                 return True
@@ -293,5 +303,4 @@ if __name__ == "__main__":
     processor = CommandProcessor()
     # Register the close method so it gets called when the program exits
     atexit.register(processor.close)
-
     processor.run_processing_cycle()

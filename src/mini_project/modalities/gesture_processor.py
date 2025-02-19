@@ -67,13 +67,11 @@ class GestureDetector:
     def _init_db(self):
         self.conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS instructions (
+            CREATE TABLE IF NOT EXISTS gesture_instructions (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id TEXT,
-                timestamp DATETIME,
-                modality TEXT NOT NULL,
-                gesture_type TEXT,
-                gesture_text TEXT,
+                session_id TEXT NOT NULL,
+                timestamp DATETIME DEFAULT (datetime('now','localtime')),
+                gesture_text TEXT NOT NULL,
                 natural_description TEXT,
                 confidence REAL,
                 hand_label TEXT
@@ -81,7 +79,7 @@ class GestureDetector:
             """
         )
         self.conn.commit()
-        logger.info("Gesture database initialized.")
+        logger.info("Gesture database initialized with gesture_instructions table.")
 
     def _log_gesture(
         self,
@@ -96,14 +94,12 @@ class GestureDetector:
             with self.conn:
                 self.conn.execute(
                     """
-                    INSERT INTO instructions (session_id, timestamp, modality, gesture_type, gesture_text, natural_description, confidence, hand_label)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO gesture_instructions (session_id, timestamp, gesture_text, natural_description, confidence, hand_label)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         self.session_id,
                         timestamp,
-                        "gesture",
-                        gesture_type,
                         gesture_text,
                         natural_description,
                         confidence,
