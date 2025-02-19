@@ -1,18 +1,24 @@
+# modalities/instruction_processor.py
+
 import json
 import sqlite3
 import time
 from typing import Dict, List
-
+import logging
 import ollama
 
-from config.app_config import DB_PATH
+from config.app_config import DB_PATH, setup_logging
+
+
+# === Logging Setup ===
+setup_logging(level=logging.INFO)
+logger = logging.getLogger("InstructionProcessor")
 
 
 class InstructionProcessor:
     def __init__(self):
         self.db_path = DB_PATH
 
-        # Define the LLM model to use
         self.llm_model = "llama3.2:latest"
         # self.llm_model = "llama3.2:1b"
         # self.llm_model = "deepseek-r1:1.5b"
@@ -43,31 +49,45 @@ class InstructionProcessor:
 
     def get_available_sequences(self) -> List[str]:
         """Fetch available sequence names from sequence_library in database"""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT sequence_name FROM sequence_library")
-            print("Fetching available sequences...")  # Debugging
-            available_sequences = [row[0] for row in cursor.fetchall()]
-            print("Available sequences:", available_sequences)  # Debugging
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT sequence_name FROM sequence_library")
+                logger.info("Fetching available sequences...")  # Debugging
+                available_sequences = [row[0] for row in cursor.fetchall()]
+                logger.info("Available sequences:", available_sequences)  # Debugging
 
-            return available_sequences
+                return available_sequences
+        except sqlite3.Error as e:
+            logger.error(
+                "Database error in get_available_sequences: %s", str(e), exc_info=True
+            )
+            raise
 
     def get_latest_unprocessed_instruction(self) -> Dict:
         """Retrieve the latest unprocessed instruction"""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute(
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    SELECT id, unified_command
+                    FROM unified_instructions
+                    WHERE processed = 0
+                    ORDER BY id DESC
+                    LIMIT 1
                 """
-                SELECT id, content
-                FROM instructions
-                WHERE processed = 0
-                ORDER BY id DESC
-                LIMIT 1
-            """
+                )
+                result = cursor.fetchone()
+                return dict(result) if result else None
+        except sqlite3.Error as e:
+            logger.error(
+                "Database error in get_latest_unprocessed_instruction: %s",
+                str(e),
+                exc_info=True,
             )
-            result = cursor.fetchone()
-            return dict(result) if result else None
+            raise
 
     def validate_operation(self, operation: Dict) -> bool:
         """Validate operation structure"""
@@ -82,36 +102,44 @@ class InstructionProcessor:
             return True
 
         # Validate object if specified
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT 1 FROM camera_vision WHERE object_name = ?",
-                (operation["object_name"],),
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT 1 FROM camera_vision WHERE object_name = ?",
+                    (operation["object_name"],),
+                )
+                return bool(cursor.fetchone())
+        except sqlite3.Error as e:
+            logger.error(
+                "Database error in validate_operation: %s", str(e), exc_info=True
             )
-            return bool(cursor.fetchone())
+            return False
 
     def process_instruction(self, instruction: Dict) -> bool:
-        """Process a single instruction using LLM"""
-
-        ### **Modify JSON Parsing Code**
-
+        """
+        Process a single instruction using LLM
+        """
         try:
-            sequence_library = self.get_available_sequences()
+            available_sequences = self.get_available_sequences()
 
             response = ollama.chat(
                 model=self.llm_model,
                 messages=[
                     {
                         "role": "system",
-                        "content": self.system_prompt.format(
-                            available_sequences=", ".join(sequence_library)
+                        "unified_command": self.system_prompt.format(
+                            available_sequences=", ".join(available_sequences)
                         ),
                     },
-                    {"role": "user", "content": instruction["content"]},
+                    {
+                        "role": "user",
+                        "unified_command": unified_instructions["unified_command"],
+                    },
                 ],
             )
 
-            raw_response = response["message"]["content"]
+            raw_response = response["message"]["unified_command"]
             print("Raw LLM Response:", raw_response)
 
             try:
@@ -130,10 +158,10 @@ class InstructionProcessor:
                     # Handle multiple JSON arrays manually
                     json_str_fixed = "[" + json_str.replace("][", "],[") + "]"
                     operations = json.loads(json_str_fixed)
-                print("Parsed Operations:", operations)  # Debugging
+                logger.debug("Parsed Operations:", operations)  # Debugging
 
             except (ValueError, json.JSONDecodeError) as e:
-                print(f"JSON parsing failed: {str(e)}")
+                logger.error(f"JSON parsing failed: {str(e)}")
                 print("Raw LLM Response:", raw_response)  # Debugging purpose
                 return False
 
@@ -142,17 +170,13 @@ class InstructionProcessor:
             for op in operations:
                 # try:
                 if not all(key in op for key in ["sequence_name", "object_name"]):
-                    print(f"Invalid operation missing keys: {op}")  # Debugging
+                    logger.error(f"Invalid operation missing keys: {op}")  # Debugging
                     continue
 
                 if self.validate_operation(op):
                     valid_operations.append(op)
                 else:
-                    print(f"Operation failed validation: {op}")  # Debugging
-            # except Exception as op_error:
-            #     print(f"Error validating operation {op}: {str(op_error)}")
-            #     continue
-
+                    logger.error(f"Operation failed validation: {op}")  # Debugging
             if valid_operations:
                 with sqlite3.connect(self.db_path) as conn:
                     cursor = conn.cursor()
@@ -176,7 +200,7 @@ class InstructionProcessor:
 
                     cursor.execute(
                         """
-                        UPDATE instructions
+                        UPDATE unified_instructions
                         SET processed = 1
                         WHERE id = ?
                     """,
@@ -186,26 +210,28 @@ class InstructionProcessor:
                 return True
             return False
         except Exception as e:
-            print(f"Error processing instruction {instruction.get('id')}: {str(e)}")
+            logger.error(
+                f"Error processing instruction {instruction.get('id')}: {str(e)}"
+            )
             return False
 
     def run_processing_cycle(self):
-        """Process the latest unprocessed instruction"""
-        print("Checking for new instructions...")
+        """
+        Process the latest unprocessed instruction
+        """
+        logger.info("Checking for new unified_commands...")
         instruction = self.get_latest_unprocessed_instruction()
 
         if instruction:
-            print(f"Processing instruction ID: {instruction['id']}")
+            logger.info(f"Processing instruction ID: {instruction['id']}")
             if self.process_instruction(instruction):
-                print(f"Successfully processed instruction {instruction['id']}")
+                logger.info(f"Successfully processed instruction {instruction['id']}")
             else:
-                print(f"Failed to process instruction {instruction['id']}")
+                logger.error(f"Failed to process instruction {instruction['id']}")
         else:
-            print("No unprocessed instructions found")
+            logger.info("No unprocessed unified_commands found")
 
 
 if __name__ == "__main__":
-    # # Initialize database schema
-    # with sqlite3.connect("sequences.db") as conn:
     processor = InstructionProcessor()
     processor.run_processing_cycle()

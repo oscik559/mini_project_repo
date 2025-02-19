@@ -4,10 +4,10 @@ import atexit
 import logging
 import sqlite3
 from datetime import datetime
+from functools import wraps
 from typing import Dict, List, Optional, Tuple
 
-from config.app_config import DB_PATH
-from config.logging_config import setup_logging
+from config.app_config import DB_PATH, setup_logging
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
@@ -27,7 +27,6 @@ class DatabaseHandler:
             db_name (str): Path to the SQLite database file. Defaults to DB_PATH from config.
         """
         self.db_name = db_name
-        self.conn = sqlite3.connect(self.db_name)
         self.conn = sqlite3.connect(self.db_name, timeout=60)
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.execute("PRAGMA journal_mode=WAL;")  # WAL mode for concurrency
@@ -75,7 +74,7 @@ class DatabaseHandler:
             "operation_sequence": """
                 CREATE TABLE IF NOT EXISTS operation_sequence (
                     sequence_id INTEGER PRIMARY KEY,
-                    operation_id INTEGER,
+                    operation_id INTEGER NOT NULL,
                     sequence_name TEXT NOT NULL,
                     object_name TEXT
                 );
@@ -83,12 +82,12 @@ class DatabaseHandler:
             "screw_op_parameters": """
                 CREATE TABLE IF NOT EXISTS screw_op_parameters (
                     sequence_id INTEGER PRIMARY KEY,
-                    operation_order INTEGER,
-                    object_id TEXT,
-                    rotation_dir BOOLEAN,
-                    number_of_rotations INTEGER,
-                    current_rotation INTEGER,
-                    operation_status BOOLEAN
+                    operation_order INTEGER NOT NULL,
+                    object_id TEXT NOT NULL,
+                    rotation_dir BOOLEAN NOT NULL,
+                    number_of_rotations INTEGER NOT NULL,
+                    current_rotation INTEGER NOT NULL,
+                    operation_status BOOLEAN NOT NULL
                 );
             """,
             "camera_vision": """
@@ -121,14 +120,53 @@ class DatabaseHandler:
                     last_name TEXT NOT NULL,
                     liu_id TEXT UNIQUE,
                     email TEXT UNIQUE,
-                    role TEXT,
+                    role TEXT NOT NULL DEFAULT 'guest' CHECK(role IN ('admin','operator','guest')),
                     preferences TEXT,
                     profile_image_path TEXT,
-                    interaction_memory TEXT,
+                    user_interaction_memory TEXT,
                     face_encoding BLOB,
                     voice_embedding BLOB,
                     created_at TIMESTAMP DEFAULT (datetime('now','localtime')),
                     last_updated TIMESTAMP DEFAULT (datetime('now','localtime'))
+                );
+            """,
+            "instructions": """
+                CREATE TABLE IF NOT EXISTS instructions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT NOT NULL,
+                    timestamp DATETIME DEFAULT (datetime('now','localtime')),
+                    user_id INTEGER,
+                    modality TEXT,
+                    language TEXT,
+                    instruction_type TEXT,
+                    processed BOOLEAN DEFAULT FALSE,
+                    transcribed_text TEXT,
+                    gesture_type TEXT,
+                    gesture_text TEXT,
+                    natural_description TEXT,
+                    hand_label TEXT,
+                    sync_id INTEGER UNIQUE,
+                    confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
+                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+                );
+            """,
+            "gesture_library": """
+                CREATE TABLE IF NOT EXISTS gesture_library (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    gesture_type TEXT UNIQUE NOT NULL,
+                    gesture_text TEXT NOT NULL,
+                    natural_description TEXT,
+                    config JSON
+                );
+            """,
+            "unified_instructions": """
+                CREATE TABLE IF NOT EXISTS unified_instructions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT,
+                    timestamp DATETIME,
+                    voice_command TEXT,
+                    gesture_command TEXT,
+                    unified_command TEXT
                 );
             """,
             "interaction_memory": """
@@ -142,17 +180,28 @@ class DatabaseHandler:
                     end_time TIMESTAMP,    -- End of the conversation group (e.g., end of the day)
                     timestamp TIMESTAMP DEFAULT (datetime('now','localtime')),
                     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-                    FOREIGN KEY (instruction_id) REFERENCES instructions(id) ON DELETE CASCADE
+                    FOREIGN KEY (instruction_id) REFERENCES unified_instructions(id) ON DELETE CASCADE
                 );
             """,
-            "skills": """
-                CREATE TABLE IF NOT EXISTS skills (
+            "skill_library": """
+                CREATE TABLE IF NOT EXISTS skill_library (
                     skill_id INTEGER PRIMARY KEY,
                     skill_name TEXT NOT NULL UNIQUE,
                     description TEXT,
                     parameters TEXT,
                     required_capabilities TEXT,
                     average_duration FLOAT
+                );
+            """,
+            # Add new table for security audit
+            "access_logs": """
+                CREATE TABLE IF NOT EXISTS access_logs (
+                    log_id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    action_type TEXT NOT NULL,
+                    target_table TEXT,
+                    timestamp DATETIME DEFAULT (datetime('now','localtime')),
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)
                 );
             """,
             "simulation_results": """
@@ -163,7 +212,7 @@ class DatabaseHandler:
                     metrics TEXT,
                     error_log TEXT,
                     timestamp TIMESTAMP DEFAULT (datetime('now','localtime')),
-                    FOREIGN KEY (instruction_id) REFERENCES instructions(id) ON DELETE CASCADE
+                    FOREIGN KEY (instruction_id) REFERENCES unified_instructions(id) ON DELETE CASCADE
                 );
             """,
             "task_preferences": """
@@ -174,36 +223,6 @@ class DatabaseHandler:
                     task_name TEXT,
                     preference_data TEXT,
                     FOREIGN KEY (user_id) REFERENCES users (user_id) ON DELETE CASCADE
-                );
-            """,
-            "instructions": """
-                CREATE TABLE IF NOT EXISTS instructions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    timestamp DATETIME DEFAULT (datetime('now','localtime')),
-                    user_id INTEGER,
-                    modality TEXT,
-                    language TEXT,
-                    instruction_type TEXT,
-                    processed BOOLEAN DEFAULT FALSE,
-                    transcribed_text  TEXT,
-                    gesture_type TEXT,
-                    gesture_text TEXT,
-                    natural_description TEXT,
-                    hand_label TEXT,
-                    sync_id INTEGER UNIQUE,
-                    confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
-                    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-                );
-            """,
-            "unified_instructions": """
-                CREATE TABLE IF NOT EXISTS unified_instructions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT,
-                    timestamp DATETIME,
-                    voice_command TEXT,
-                    gesture_command TEXT,
-                    unified_command TEXT
                 );
             """,
             "instruction_operation_sequence": """
@@ -218,8 +237,8 @@ class DatabaseHandler:
                     object_name TEXT,
                     status TEXT CHECK(status IN ('pending', 'in_progress', 'completed', 'failed')) DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT (datetime('now','localtime')),
-                    FOREIGN KEY (instruction_id) REFERENCES instructions(id) ON DELETE CASCADE,
-                    FOREIGN KEY (skill_id) REFERENCES skills(skill_id),
+                    FOREIGN KEY (instruction_id) REFERENCES unified_instructions(id) ON DELETE CASCADE,
+                    FOREIGN KEY (skill_id) REFERENCES skill_library(skill_id),
                     FOREIGN KEY (sequence_id) REFERENCES sequence_library(sequence_id),
                     FOREIGN KEY (object_id) REFERENCES camera_vision(object_id)
                 );
@@ -245,11 +264,12 @@ class DatabaseHandler:
             "CREATE INDEX IF NOT EXISTS idx_interaction_memory_user_id ON interaction_memory (user_id);",
             "CREATE INDEX IF NOT EXISTS idx_task_preferences_user_id ON task_preferences (user_id);",
             "CREATE INDEX IF NOT EXISTS idx_conv_memory_instruction ON interaction_memory(instruction_id);",
-            "CREATE INDEX IF NOT EXISTS idx_skills_name ON skills(skill_name);",
+            "CREATE INDEX IF NOT EXISTS idx_skills_name ON skill_library(skill_name);",
             "CREATE INDEX IF NOT EXISTS idx_simulation_instruction ON simulation_results(instruction_id);",
             "CREATE INDEX IF NOT EXISTS idx_operation_sequence_object ON instruction_operation_sequence(object_id);",
             "CREATE INDEX IF NOT EXISTS idx_camera_vision_last_detected ON camera_vision(last_detected);",
             "CREATE INDEX IF NOT EXISTS idx_user_prefs_task ON task_preferences(user_id, task_id);",
+            "CREATE INDEX IF NOT EXISTS idx_users_role ON users (role);",
         ]
         try:
             for index in indexes:
@@ -274,6 +294,7 @@ class DatabaseHandler:
             "sequence_library": [
                 ("sequence_id", "INTEGER PRIMARY KEY"),
                 ("sequence_name", "TEXT NOT NULL"),
+                ("skill_name", "TEXT"),
                 ("node_name", "TEXT"),
                 ("description", "TEXT"),
                 ("conditions", "TEXT"),
@@ -330,9 +351,10 @@ class DatabaseHandler:
                 ("last_name", "TEXT NOT NULL"),
                 ("liu_id", "TEXT UNIQUE"),
                 ("email", "TEXT UNIQUE"),
+                ("role", "TEXT NOT NULL"),
                 ("preferences", "TEXT"),
                 ("profile_image_path", "TEXT"),
-                ("interaction_memory", "TEXT"),
+                ("user_interaction_memory", "TEXT"),
                 ("face_encoding", "BLOB"),
                 ("voice_embedding", "BLOB"),
                 ("created_at", "TIMESTAMP DEFAULT (datetime('now','localtime'))"),
@@ -348,7 +370,7 @@ class DatabaseHandler:
                 ("end_time", "TIMESTAMP"),
                 ("timestamp", "TIMESTAMP DEFAULT (datetime('now','localtime'))"),
             ],
-            "skills": [
+            "skill_library": [
                 ("skill_id", "INTEGER PRIMARY KEY"),
                 ("skill_name", "TEXT NOT NULL UNIQUE"),
                 ("description", "TEXT"),
@@ -380,12 +402,11 @@ class DatabaseHandler:
                 ("language", "TEXT"),
                 ("instruction_type", "TEXT"),
                 ("processed", "BOOLEAN DEFAULT FALSE"),
-                ("transcribed_text ", "TEXT"),
+                ("transcribed_text", "TEXT"),
                 ("gesture_type", "TEXT"),
                 ("gesture_text", "TEXT"),
-                ("natural_description" ,"TEXT"),
-                ("confidence", "REAL"),
-                ("hand_label" ,"TEXT"),
+                ("natural_description", "TEXT"),
+                ("hand_label", "TEXT"),
                 ("sync_id", "INTEGER UNIQUE"),
                 ("confidence", "FLOAT CHECK(confidence BETWEEN 0 AND 1)"),
             ],
@@ -441,13 +462,12 @@ class DatabaseHandler:
         """Clear tables in the correct order to prevent foreign key constraint failures."""
         try:
             with self.conn:
-                self._extracted_from_clear_tables_5()
+                self._clear_tables_ordered()
         except sqlite3.Error as e:
             logger.error(f"Error clearing tables: {e}")
             raise
 
-    # TODO Rename this here and in `clear_tables`
-    def _extracted_from_clear_tables_5(self):
+    def _clear_tables_ordered(self):
         self.cursor.execute("PRAGMA foreign_keys = OFF;")
 
         dependent_tables = [
@@ -468,7 +488,7 @@ class DatabaseHandler:
             "screw_op_parameters",
             "camera_vision",
             "sort_order",
-            "skills",
+            "skill_library",
         ]
         for table in parent_tables:
             self.cursor.execute(f"DELETE FROM {table}")
@@ -484,8 +504,10 @@ class DatabaseHandler:
 
                 # Populate parent tables first
                 self.populate_users()  # Must come first
+
                 self.populate_sequence_library()
-                self.populate_skills()
+                self.populate_skill_library()
+                self.populate_gesture_library()
 
                 # Now populate child tables
                 self.populate_states()
@@ -686,6 +708,7 @@ class DatabaseHandler:
                 "Ikechukwu",
                 "oscik559",
                 "oscik559@student.liu.se",
+                "admin",
                 '{"likes": ["AI", "Robotics"]}',
                 "/images/oscar.jpg",
                 '{"last_task": "Pick object", "successful_tasks": 5}',
@@ -695,6 +718,7 @@ class DatabaseHandler:
                 "Chiramel",
                 "rahch515",
                 "rahch515@student.liu.se",
+                "admin",
                 '{"likes": ["Aeroplanes", "Automation"]}',
                 "/images/rahul.jpg",
                 '{"last_task": "Screw object", "successful_tasks": 10}',
@@ -704,6 +728,7 @@ class DatabaseHandler:
                 "Nambiar",
                 "sanna58",
                 "sanjay.nambiar@liu.se",
+                "operator",
                 '{"likes": ["Programming", "Machine Learning"]}',
                 "/images/sanjay.jpg",
                 '{"last_task": "Slide object", "successful_tasks": 7}',
@@ -713,13 +738,14 @@ class DatabaseHandler:
                 "Tarkian",
                 "mehta77",
                 "mehdi.tarkian@liu.se",
+                "guest",
                 '{"likes": ["Running", "Cats"]}',
                 "/images/mehdi.jpg",
                 '{"last_task": "Drop object", "successful_tasks": 2}',
             ),
         ]
         self.cursor.executemany(
-            "INSERT INTO users (first_name, last_name, liu_id, email, preferences, profile_image_path, interaction_memory) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO users (first_name, last_name, liu_id, email, role, preferences, profile_image_path, user_interaction_memory) VALUES (?, ?, ?,?, ?, ?, ?, ?)",
             users,
         )
 
@@ -766,8 +792,8 @@ class DatabaseHandler:
             interactions,
         )
 
-    def populate_skills(self):
-        skills = [
+    def populate_skill_library(self):
+        skill_library = [
             (
                 "pick",
                 "Pick up object",
@@ -778,8 +804,8 @@ class DatabaseHandler:
             ("place", "Place object", '{"precision": 0.01}', '{"vision": true}', 3.0),
         ]
         self.cursor.executemany(
-            "INSERT INTO skills (skill_name, description, parameters, required_capabilities, average_duration) VALUES (?, ?, ?, ?, ?)",
-            skills,
+            "INSERT INTO skill_library (skill_name, description, parameters, required_capabilities, average_duration) VALUES (?, ?, ?, ?, ?)",
+            skill_library,
         )
 
     def populate_simulation_results(self):
@@ -791,6 +817,85 @@ class DatabaseHandler:
             "INSERT INTO simulation_results (instruction_id, success, metrics, error_log) VALUES (?, ?, ?, ?)",
             results,
         )
+
+    def require_role(allowed_roles):
+        """
+        Decorator to require one or more roles to access a function.
+        `allowed_roles` can be a single role (string) or an iterable of roles.
+        """
+
+        def decorator(func):
+            @wraps(func)
+            def wrapper(self, user_id, *args, **kwargs):
+                user_role = self.get_user_role(user_id)
+                if isinstance(allowed_roles, (list, tuple, set)):
+                    if user_role not in allowed_roles:
+                        raise PermissionError(
+                            f"Access denied. Requires one of the roles: {allowed_roles}"
+                        )
+                else:
+                    if user_role != allowed_roles:
+                        raise PermissionError(
+                            f"Access denied. Requires role: {allowed_roles}"
+                        )
+                return func(self, user_id, *args, **kwargs)
+
+            return wrapper
+
+        return decorator
+
+    def get_user_role(self, user_id):
+        """Fetch user role from the database."""
+        query = "SELECT role FROM users WHERE user_id = ?"
+        self.cursor.execute(query, (user_id,))
+        result = self.cursor.fetchone()
+        return result[0] if result else "guest"
+
+    def populate_gesture_library(self):
+        gesture_library = [
+            (
+                "thumbs_up",
+                "Approval",
+                "The thumb is raised above the index finger.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "open_hand",
+                "Stop",
+                "All fingers are extended, signaling stop.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "pointing",
+                "Select Object",
+                "The index finger is extended while other fingers are curled.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "closed_fist",
+                "Grab",
+                "The hand is clenched into a fist.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "victory",
+                "Confirm",
+                "The hand forms a V-shape with the index and middle fingers extended.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "ok_sign",
+                "OK",
+                "The thumb and index finger are touching to form a circle.",
+                '{"threshold": 0.05}',
+            ),
+        ]
+        query = """
+            INSERT OR IGNORE INTO gesture_library (gesture_type, gesture_text, natural_description, config)
+            VALUES (?, ?, ?, ?)
+        """
+        self.cursor.executemany(query, gesture_library)
+        self.conn.commit()
 
     def close(self):
         """Close the database connection."""

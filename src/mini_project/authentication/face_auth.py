@@ -36,8 +36,8 @@ from config.app_config import (
     LIU_ID_PATTERN,
     MAX_ENCODINGS_PER_USER,
     TIMEDELAY,
+    setup_logging,
 )
-from config.logging_config import setup_logging
 from mini_project.core.db_handler import DatabaseHandler
 
 

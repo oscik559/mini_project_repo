@@ -15,7 +15,6 @@ It leverages:
 import logging
 
 from config.app_config import *
-from config.logging_config import setup_logging
 
 setup_logging()  # You can pass a different level if needed
 

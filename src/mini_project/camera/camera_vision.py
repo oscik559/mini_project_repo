@@ -10,11 +10,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from config.app_config import *
-from mini_project.core.db_handler import DatabaseHandler
-from mini_project.modalities.camera_db_utils import (
+from mini_project.camera.camera_db_utils import (
     cleanup_camera_vision_records,
     upsert_camera_vision_record,
 )
+from mini_project.core.db_handler import DatabaseHandler
 
 
 def process_image(image_path, wait_key, db_handler):
@@ -224,7 +224,10 @@ def color_image_process(image, wait_key):
                 if cv2.contourArea(red_contour) > 500:
                     red_center = np.mean(
                         cv2.boxPoints(cv2.minAreaRect(red_contour)), axis=0
-                    ) + [x, y]
+                    ) + [
+                        x,
+                        y,
+                    ]
                     closest_idx = np.argmin(
                         [np.linalg.norm(corner - red_center) for corner in box]
                     )
@@ -812,7 +815,7 @@ def main():
     db = DatabaseHandler()
     image_path = CAMERA_DATA_PATH / "image_2.png"
 
-    wait_key = 2000  # Time to wait for a keypress in milliseconds
+    wait_key = 1000
     process_image(image_path, wait_key, db_handler=db)
 
 

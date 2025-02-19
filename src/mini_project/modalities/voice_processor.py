@@ -13,8 +13,7 @@ import webrtcvad
 from faster_whisper import WhisperModel
 from scipy.io.wavfile import write
 
-from config.app_config import VOICE_PROCESSING_CONFIG
-from config.logging_config import setup_logging
+from config.app_config import VOICE_PROCESSING_CONFIG, setup_logging
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)

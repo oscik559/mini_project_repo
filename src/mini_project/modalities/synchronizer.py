@@ -7,8 +7,8 @@ import subprocess
 import uuid
 from datetime import datetime
 from typing import Dict, List
-from config.app_config import DB_PATH
-from config.logging_config import setup_logging
+
+from config.app_config import DB_PATH, setup_logging
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
@@ -131,7 +131,9 @@ def llm_unify(voice_text: str, gesture_text: str) -> str:
             if output_str.startswith("{"):
                 output = json.loads(output_str)
                 unified_command = output.get("generated_text", "").strip()
-                return unified_command or f"Voice: {voice_text} | Gesture: {gesture_text}"
+                return (
+                    unified_command or f"Voice: {voice_text} | Gesture: {gesture_text}"
+                )
             else:
                 # Otherwise, assume it's the unified text directly
                 return output_str
@@ -143,21 +145,23 @@ def llm_unify(voice_text: str, gesture_text: str) -> str:
         return f"Voice: {voice_text} | Gesture: {gesture_text}"
 
 
-
 def merge_session_commands(session_commands: List[Dict]) -> Dict[str, str]:
     session_commands.sort(key=lambda x: x["timestamp"])
     voice_texts = [
-        cmd["transcribed_text"] for cmd in session_commands if cmd["modality"] == "voice"
+        cmd["transcribed_text"]
+        for cmd in session_commands
+        if cmd["modality"] == "voice"
     ]
     gesture_texts = [
-        cmd["transcribed_text"] for cmd in session_commands if cmd["modality"] == "gesture"
+        cmd["transcribed_text"]
+        for cmd in session_commands
+        if cmd["modality"] == "gesture"
     ]
     merged_voice = DELIMITER.join(voice_texts).strip()
     merged_gesture = DELIMITER.join(gesture_texts).strip()
-        # Add debug logs in synchronize_and_unify()
+    # Add debug logs in synchronize_and_unify()
 
     return {"voice": merged_voice, "gesture": merged_gesture}
-
 
 
 def synchronize_and_unify(db_path: str = DB_PATH) -> None:

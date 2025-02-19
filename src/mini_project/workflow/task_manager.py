@@ -10,7 +10,7 @@ from mini_project.authentication.face_auth import FaceAuthSystem
 
 # Import system components
 from mini_project.core.db_handler import DatabaseHandler
-from mini_project.modalities.llm_processor import InstructionProcessor
+from mini_project.modalities.instruction_processor import LLMClient
 from mini_project.modalities.video_processor import GestureProcessor
 from mini_project.modalities.voice_processor import VoiceProcessor
 
@@ -31,7 +31,7 @@ class TaskManager:
         self.facial_auth = FaceAuthSystem()
         self.voice_processor = VoiceProcessor()
         self.video_processor = GestureProcessor()
-        self.llm_processor = InstructionProcessor()
+        self.llm_processor = LLMClient()
 
         # UI Elements
         tk.Label(

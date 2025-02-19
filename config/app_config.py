@@ -16,13 +16,8 @@ including paths, thresholds, and validation patterns.
 import logging
 from pathlib import Path
 
-from config.logging_config import setup_logging
 logger = logging.getLogger(__name__)
 
-
-
-
-# === Directory Setup ===
 
 # Define the base directory
 BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project/ directory path
@@ -87,6 +82,31 @@ VOICE_PROCESSING_CONFIG = {
         "db_path": str(DB_PATH),  # Path to the SQLite database
     },
 }
+
+# === Gesture Recognition Settings ===
+MIN_DETECTION_CONFIDENCE = 0.7
+MIN_TRACKING_CONFIDENCE = 0.5
+MAX_NUM_HANDS = 2
+FRAME_SKIP = 2
+
+
+# === logging setup settings ===
+def setup_logging(level: int = logging.INFO) -> None:
+    """
+    Configures logging for the project.
+
+    Args:
+        level (int): The logging level. Default is logging.INFO.
+    """
+    logging.basicConfig(
+        level=level,
+        # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    # Optionally, set specific loggers (e.g., for numba) to a different level.
+    logging.getLogger("numba").setLevel(logging.WARNING)
 
 
 # Function to validate paths at runtime

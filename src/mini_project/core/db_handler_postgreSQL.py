@@ -2,13 +2,17 @@
 
 import atexit
 import logging
-import psycopg2
-from psycopg2 import sql, Error as Psycopg2Error
 from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
-from config.app_config import DB_URL  # e.g., "dbname=mydb user=myuser password=mypass host=localhost"
-from config.logging_config import setup_logging
+import psycopg2
+from psycopg2 import Error as Psycopg2Error
+from psycopg2 import sql
+
+from config.app_config import (
+    DB_URL,
+    setup_logging,  # e.g., "dbname=mydb user=myuser password=mypass host=localhost"
+)
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
@@ -222,7 +226,7 @@ class DatabaseHandler:
                     FOREIGN KEY (sequence_id) REFERENCES sequence_library(sequence_id),
                     FOREIGN KEY (object_id) REFERENCES camera_vision(object_id)
                 );
-            """
+            """,
         }
         try:
             for create_statement in tables.values():
@@ -263,7 +267,9 @@ class DatabaseHandler:
         Schema validation and dynamic alteration is not implemented for PostgreSQL.
         Consider using a migration tool like Alembic.
         """
-        logger.info("Skipping schema update. Use migrations for PostgreSQL schema changes.")
+        logger.info(
+            "Skipping schema update. Use migrations for PostgreSQL schema changes."
+        )
 
     def clear_tables(self):
         """
@@ -285,9 +291,11 @@ class DatabaseHandler:
                 "skills",
                 "sequence_library",
                 "users",
-                "unified_instructions"
+                "unified_instructions",
             ]
-            truncate_query = "TRUNCATE TABLE " + ", ".join(tables) + " RESTART IDENTITY CASCADE;"
+            truncate_query = (
+                "TRUNCATE TABLE " + ", ".join(tables) + " RESTART IDENTITY CASCADE;"
+            )
             self.cursor.execute(truncate_query)
             self.conn.commit()
         except Psycopg2Error as e:
@@ -302,10 +310,10 @@ class DatabaseHandler:
             self.clear_tables()
 
             # Populate parent tables first
-            self.populate_users()             # Must come first
+            self.populate_users()  # Must come first
             self.populate_sequence_library()
             self.populate_skills()
-            self.populate_instructions()        # New method to populate instructions
+            self.populate_instructions()  # New method to populate instructions
 
             # Now populate child tables
             self.populate_states()

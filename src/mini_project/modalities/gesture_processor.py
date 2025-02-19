@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import cv2
 import mediapipe as mp
 
-from config.app_config import DB_PATH
-from config.logging_config import setup_logging
+from config.app_config import *
+
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
@@ -23,10 +23,10 @@ class GestureDetector:
     def __init__(
         self,
         db_path: str = DB_PATH,
-        min_detection_confidence: float = 0.7,
-        min_tracking_confidence: float = 0.5,
-        max_num_hands: int = 2,
-        frame_skip: int = 2,
+        min_detection_confidence: float = MIN_DETECTION_CONFIDENCE,
+        min_tracking_confidence: float = MIN_TRACKING_CONFIDENCE,
+        max_num_hands: int = MAX_NUM_HANDS,
+        frame_skip: int = FRAME_SKIP,
         session_id: Optional[str] = None,
     ):
         self.mp_hands = mp.solutions.hands
@@ -41,18 +41,24 @@ class GestureDetector:
 
         self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self._init_db()
+        self.cursor = self.conn.cursor()
 
         self.session_id = session_id or str(uuid.uuid4())
         self.frame_skip = frame_skip
         self.frame_counter = 0
 
-        self.gesture_map = {
-            "thumbs_up": {"func": self._is_thumbs_up, "text": "Approval"},
-            "open_hand": {"func": self._is_open_hand, "text": "Stop"},
-            "pointing": {"func": self._is_pointing, "text": "Select Object"},
-            "closed_fist": {"func": self._is_closed_fist, "text": "Grab"},
-            "victory": {"func": self._is_victory, "text": "Confirm"},
-        }
+        loaded_gestures = self.load_gesture_definitions()
+        if loaded_gestures:
+            self.gesture_map = loaded_gestures
+        # else:
+        #     self.gesture_map = {
+        #         "thumbs_up": {"func": self._is_thumbs_up, "text": "Approval"},
+        #         "open_hand": {"func": self._is_open_hand, "text": "Stop"},
+        #         "pointing": {"func": self._is_pointing, "text": "Select Object"},
+        #         "closed_fist": {"func": self._is_closed_fist, "text": "Grab"},
+        #         "victory": {"func": self._is_victory, "text": "Confirm"},
+        #         "ok_sign": {"func": self._is_ok_sign, "text": "OK"},
+        #     }
 
         self.last_gesture: Optional[str] = None
         self.last_log_time: float = 0
@@ -116,6 +122,11 @@ class GestureDetector:
     ) -> Tuple[float, float, float]:
         landmark = landmarks.landmark[landmark_id]
         return (landmark.x, landmark.y, landmark.z)
+
+    def _euclidean_distance(
+        self, a: Tuple[float, float, float], b: Tuple[float, float, float]
+    ) -> float:
+        return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5
 
     def _is_thumbs_up(self, landmarks) -> bool:
         thumb_tip = self._get_landmark_coords(
@@ -187,6 +198,18 @@ class GestureDetector:
             and ring_tip[1] > wrist_y
         )
 
+    def _is_ok_sign(self, landmarks) -> bool:
+        thumb_tip = self._get_landmark_coords(
+            landmarks, self.mp_hands.HandLandmark.THUMB_TIP
+        )
+        index_tip = self._get_landmark_coords(
+            landmarks, self.mp_hands.HandLandmark.INDEX_FINGER_TIP
+        )
+        # Define a threshold for the OK sign; adjust if needed.
+        threshold = 0.05
+        distance = self._euclidean_distance(thumb_tip, index_tip)
+        return distance < threshold
+
     def _analyze_thumb(self, landmarks) -> str:
         thumb_tip = self._get_landmark_coords(
             landmarks, self.mp_hands.HandLandmark.THUMB_TIP
@@ -233,6 +256,8 @@ class GestureDetector:
             base_desc = "The hand is clenched into a fist, a posture often associated with grabbing or assertiveness."
         elif gesture_type == "victory":
             base_desc = "The hand forms a V-shape with the index and middle fingers extended, commonly used to signal victory or confirmation."
+        elif gesture_type == "ok_sign":
+            base_desc = "The thumb and index finger are touching to form a circle, commonly known as the OK sign."
         else:
             base_desc = "A neutral gesture with no distinct features."
         return f"{base_desc} Additionally, the thumb is {thumb_state} and {open_fingers} fingers are open."
@@ -354,6 +379,37 @@ class GestureDetector:
                     )
         return frame
 
+    def load_gesture_definitions(self) -> Dict[str, Dict[str, Any]]:
+        try:
+            query = "SELECT gesture_type, gesture_text, natural_description, config FROM gesture_library"
+            self.cursor.execute(query)
+            definitions = {}
+            for row in self.cursor.fetchall():
+                gesture_type, gesture_text, natural_description, config = row
+                definitions[gesture_type] = {
+                    "text": gesture_text,
+                    "description": natural_description,
+                    # You can parse the JSON config if needed:
+                    "config": config,
+                    # Map to your detection function via gesture_map_functions:
+                    "func": self.gesture_map_functions().get(gesture_type),
+                }
+            return definitions
+        except sqlite3.Error as e:
+            logger.error(f"Error loading gesture definitions: {e}")
+            return {}
+
+    def gesture_map_functions(self) -> Dict[str, Any]:
+        """Returns a mapping of gesture types to detection functions."""
+        return {
+            "thumbs_up": self._is_thumbs_up,
+            "open_hand": self._is_open_hand,
+            "pointing": self._is_pointing,
+            "closed_fist": self._is_closed_fist,
+            "victory": self._is_victory,
+            "ok_sign": self._is_ok_sign,
+        }
+
     def process_video_stream(self, termination_event: Optional[threading.Event] = None):
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
@@ -361,7 +417,9 @@ class GestureDetector:
             return
 
         def video_loop():
-            while cap.isOpened() and not (termination_event and termination_event.is_set()):
+            while cap.isOpened() and not (
+                termination_event and termination_event.is_set()
+            ):
                 ret, frame = cap.read()
                 if not ret:
                     logger.error("Failed to capture frame from camera.")
