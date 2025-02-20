@@ -1,167 +1,277 @@
-# workflow/task_manager.py
-
-import logging
 import threading
 import time
 import tkinter as tk
 from tkinter import messagebox, scrolledtext
+import uuid
+import logging
 
+# Import your project modules (adjust import paths as needed)
 from mini_project.authentication.face_auth import FaceAuthSystem
-
-# Import system components
-from mini_project.core.db_handler import DatabaseHandler
+from mini_project.authentication.voice_auth import VoiceAuth
+from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
+from mini_project.modalities.orchestrator import run_voice_capture, run_gesture_capture
+from mini_project.modalities.synchronizer import synchronize_and_unify
 from mini_project.modalities.command_processor import CommandProcessor
-from mini_project.modalities.gesture_processor import GestureDetector
-from mini_project.modalities.voice_processor import VoiceProcessor
+
+# Configure logging for the application
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
+logger = logging.getLogger("TaskManagerGUI_Approach1")
 
 
-class TaskManager:
+class TaskManagerGUIApproach1:
     def __init__(self):
+        # Create the main GUI window
         self.root = tk.Tk()
-        self.root.title("HRI Task Manager")
-        self.root.geometry("600x500")
+        self.root.title("HRI Task Manager - Approach 1")
+        self.root.geometry("700x550")
 
-        self.running = False  # Control flag for execution
-        self.execution_thread = None
+        # State variables for execution and session
+        self.running = False
+        self.session_id = None
+        self.authenticated_user = (
+            None  # Expected to be a dict with keys 'liu_id', 'first_name', etc.
+        )
 
-        self.authenticated_user = None
+        # Instantiate core modules using existing authentication and processing components
+        self.face_auth = FaceAuthSystem()
+        self.voice_auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
+        self.cmd_processor = CommandProcessor()
 
-        # Initialize components
-        self.db_handler = DatabaseHandler()
-        self.facial_auth = FaceAuthSystem()
-        self.voice_processor = VoiceProcessor()
-        self.video_processor = GestureDetector()
-        self.llm_processor = CommandProcessor()
-
-        # UI Elements
+        # Build GUI elements
         tk.Label(
-            self.root, text="Human-Robot Interaction System", font=("Arial", 16)
-        ).pack(pady=10)
-        self.status_label = tk.Label(self.root, text="Status: Idle", font=("Arial", 10))
-        self.status_label.pack(pady=10)
-
-        tk.Button(
-            self.root, text="Start Execution", command=self.start_execution, width=30
-        ).pack(pady=5)
-        tk.Button(
-            self.root, text="Stop Execution", command=self.stop_execution, width=30
-        ).pack(pady=5)
-        tk.Button(
             self.root,
-            text="Clear Instructions",
-            command=self.clear_instructions,
-            width=30,
-        ).pack(pady=5)
+            text="Human-Robot Interaction System (Approach 1)",
+            font=("Arial", 18),
+        ).pack(pady=10)
+        self.status_label = tk.Label(self.root, text="Status: Idle", font=("Arial", 12))
+        self.status_label.pack(pady=5)
 
-        # Real-time Logging Panel
+        # Create a button frame and add control buttons
+        btn_frame = tk.Frame(self.root)
+        btn_frame.pack(pady=10)
+        self.start_btn = tk.Button(
+            btn_frame, text="Start Execution", width=15, command=self.start_execution
+        )
+        self.start_btn.grid(row=0, column=0, padx=5, pady=5)
+        self.stop_btn = tk.Button(
+            btn_frame,
+            text="Stop Execution",
+            width=15,
+            command=self.stop_execution,
+            state=tk.DISABLED,
+        )
+        self.stop_btn.grid(row=0, column=1, padx=5, pady=5)
+        self.new_cmd_btn = tk.Button(
+            btn_frame,
+            text="New Command",
+            width=15,
+            command=self.new_command,
+            state=tk.DISABLED,
+        )
+        self.new_cmd_btn.grid(row=1, column=0, padx=5, pady=5)
+        tk.Button(
+            btn_frame, text="Clear Tables", width=15, command=self.clear_tables
+        ).grid(row=1, column=1, padx=5, pady=5)
+        tk.Button(btn_frame, text="Exit", width=15, command=self.exit_application).grid(
+            row=2, column=0, columnspan=2, pady=10
+        )
+
+        # Create a scrolling text widget to display system logs
         tk.Label(self.root, text="System Logs:", font=("Arial", 12)).pack(pady=5)
         self.log_text = scrolledtext.ScrolledText(
-            self.root, width=70, height=10, wrap=tk.WORD
+            self.root, width=80, height=15, wrap=tk.WORD
         )
-        self.log_text.pack(pady=10)
+        self.log_text.pack(pady=5)
 
-        # Set up logging
-        logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
-        self.logger = logging.getLogger()
+        self.log_event("Application started. Please authenticate.")
 
     def log_event(self, message, level=logging.INFO):
-        """Logs messages to both the UI and backend logger."""
-        self.logger.log(level, message)
+        logger.log(level, message)
         self.log_text.insert(tk.END, f"{message}\n")
-        self.log_text.yview(tk.END)
+        self.log_text.see(tk.END)
+        self.status_label.config(text=f"Status: {message}")
+
+    def set_controls_state(
+        self, start_enabled=True, stop_enabled=False, new_cmd_enabled=False
+    ):
+        self.start_btn.config(state=tk.NORMAL if start_enabled else tk.DISABLED)
+        self.stop_btn.config(state=tk.NORMAL if stop_enabled else tk.DISABLED)
+        self.new_cmd_btn.config(state=tk.NORMAL if new_cmd_enabled else tk.DISABLED)
 
     def authenticate_user(self):
-        """Authenticate user using face or voice with error handling"""
-        if self.authenticated_user:  # Skip re-authentication if already authenticated
-            return self.authenticated_user
-
-        self.log_event("Authenticating user...")
-        user = self.facial_auth.identify_user()
+        self.log_event("Performing initial face identification...")
+        # Attempt face authentication (blocking call)
+        user = self.face_auth.identify_user()
         if user:
             self.authenticated_user = user
             self.log_event(
-                f"User authenticated: {user['first_name']} {user['last_name']}"
+                f"Welcome, {user['first_name']} {user['last_name']}! (liu_id: {user['liu_id']})"
             )
-            return user
         else:
-            self.log_event("Face not recognized, switching to voice authentication...")
-            return None
-
-    def capture_user_input(self):
-        """Capture voice and video input asynchronously"""
-        self.log_event("Capturing user input...", level=logging.INFO)
-
-        voice_thread = threading.Thread(
-            target=self.voice_processor.capture_voice, daemon=True
-        )
-        # video_thread = threading.Thread(target=self.video_processor.process_video, daemon=True)
-
-        voice_thread.start()
-        # video_thread.start()
-
-        self.log_event("Input capture started in background.")
-
-    def process_instruction(self):
-        """Process the latest instruction with error handling"""
-        try:
-            self.log_event("Fetching latest instruction...")
-            instruction = self.llm_processor.get_latest_unprocessed_instruction()
-            if instruction:
-                self.log_event(f"Processing instruction: {instruction['content']}")
-                self.llm_processor.process_instruction(instruction)
-            else:
-                self.log_event("No new instructions found.")
-        except Exception as e:
-            self.log_event(f"Instruction Processing Error: {str(e)}")
-
-    def execute_pipeline(self):
-        """Main execution loop"""
-        if not self.authenticated_user:  # Authenticate only if no user is stored
-            self.authenticated_user = self.authenticate_user()
-
-        if self.authenticated_user:
             self.log_event(
-                f"User {self.authenticated_user['first_name']} authenticated. Starting pipeline..."
+                "Face not recognized. Initiating manual face registration...",
+                level=logging.WARNING,
             )
-            while self.running:
-                self.capture_user_input()
-                self.process_instruction()
-                time.sleep(5)  # Adjust for performance
-        else:
-            self.log_event("Authentication failed. Stopping execution.")
-            self.running = False
+            # Call face registration first
+            self.face_auth.register_user()
+            self.log_event(
+                "Initiating voice registration...",
+                level=logging.WARNING,
+            )
+            # Then call voice registration
+            self.voice_auth.register_user()
+            # Retry face identification after both registrations
+            user = self.face_auth.identify_user()
+            if user:
+                self.authenticated_user = user
+                self.log_event(
+                    f"Welcome, {user['first_name']} {user['last_name']}! (liu_id: {user['liu_id']})"
+                )
+            else:
+                self.log_event(
+                    "Authentication failed. Please try again.", level=logging.ERROR
+                )
+        return self.authenticated_user
+
+    def generate_session_id(self):
+        self.session_id = str(uuid.uuid4())
+        self.log_event(f"New session started. Session ID: {self.session_id}")
+        return self.session_id
 
     def start_execution(self):
-        """Start execution loop in a separate thread"""
         if not self.running:
+            # First, ensure the user is authenticated
+            if not self.authenticated_user:
+                if not self.authenticate_user():
+                    return  # Abort if authentication fails
+            if not self.session_id:
+                self.generate_session_id()
             self.running = True
-            self.execution_thread = threading.Thread(target=self.execute_pipeline)
-            self.execution_thread.start()
+            self.set_controls_state(
+                start_enabled=False, stop_enabled=True, new_cmd_enabled=False
+            )
+            threading.Thread(target=self.execution_pipeline, daemon=True).start()
             self.log_event("Execution started.")
 
     def stop_execution(self):
-        """Stop execution loop gracefully"""
         if self.running:
             self.running = False
-            self.log_event("Stopping execution...")
-
-            # Ensure threads complete their work before exiting
-            if self.execution_thread and self.execution_thread.is_alive():
-                self.execution_thread.join()
-
+            self.set_controls_state(
+                start_enabled=True, stop_enabled=False, new_cmd_enabled=True
+            )
             self.log_event("Execution stopped.")
 
-    def clear_instructions(self):
-        """Clear instructions from the database"""
-        self.db_handler.cursor.execute("DELETE FROM instructions")
-        self.db_handler.conn.commit()
-        self.log_event("All instructions cleared.")
+    def new_command(self):
+        # Generate a new session ID and start a new capture cycle
+        self.session_id = self.generate_session_id()
+        self.log_event("New command session started.")
+        self.start_execution()
+
+    def clear_tables(self):
+        try:
+            cursor = self.cmd_processor.conn.cursor()
+            cursor.execute("DELETE FROM unified_instructions")
+            cursor.execute("DELETE FROM voice_instructions")
+            cursor.execute("DELETE FROM gesture_instructions")
+            cursor.execute("DELETE FROM instruction_operation_sequence")
+            self.cmd_processor.conn.commit()
+            self.log_event("Database instructions cleared.")
+        except Exception as e:
+            self.log_event(f"Error clearing tables: {str(e)}", level=logging.ERROR)
+
+    def exit_application(self):
+        self.stop_execution()
+        self.cmd_processor.close()
+        self.root.destroy()
+
+    def execution_pipeline(self):
+        """
+        Execution Pipeline Flow:
+          1. Start voice and gesture capture concurrently.
+          2. Immediately after starting the threads, display a prompt: "Please speak your request".
+          3. Wait for both capture threads to complete.
+          4. With the pre-authenticated liu_id, merge captured inputs via the synchronizer.
+          5. Retrieve the unified command and prompt the user for confirmation.
+          6. If confirmed and processed successfully, end the session.
+             If rejected or processing fails, re-capture inputs.
+        """
+        while self.running:
+            try:
+
+                # Start voice and gesture capture concurrently
+                voice_thread = threading.Thread(
+                    target=run_voice_capture, args=(self.session_id,), daemon=True
+                )
+                gesture_thread = threading.Thread(
+                    target=run_gesture_capture, args=(self.session_id,), daemon=True
+                )
+                voice_thread.start()
+                gesture_thread.start()
+                # Now that capture threads are running, display the prompt.
+                self.log_event(
+                    "Voice and gesture capture started. Please speak your request."
+                )
+                voice_thread.join()
+                gesture_thread.join()
+                self.log_event("Voice and gesture capture complete.")
+
+                # Use the stored liu_id from the authenticated user
+                liu_id = (
+                    self.authenticated_user.get("liu_id")
+                    if self.authenticated_user
+                    else None
+                )
+
+                self.log_event("Merging inputs...")
+                synchronize_and_unify(db_path=DB_PATH, liu_id=liu_id)
+                unified = self.cmd_processor.get_unprocessed_unified_command()
+                if unified:
+                    unified_text = unified.get("unified_command", "")
+                    self.log_event(f"Unified Command: {unified_text}")
+                    # Ask for confirmation via a pop-up
+                    if messagebox.askyesno(
+                        "Confirm Command",
+                        f"Is this your intended command?\n\n{unified_text}",
+                    ):
+                        self.log_event("User confirmed the command. Processing...")
+                        if self.cmd_processor.process_command(unified):
+                            self.log_event("Command processed successfully.")
+                            # End session after successful processing.
+                            self.running = False
+                            break
+
+                        else:
+                            self.log_event(
+                                "Command processing failed. Re-capturing input...",
+                                level=logging.ERROR,
+                            )
+                            continue
+                    else:
+                        self.log_event(
+                            "Command rejected by user. Re-capturing input command..."
+                        )
+                        continue  # Repeat the input capture loop
+                else:
+                    self.log_event(
+                        "No unified command generated. Retrying capture...",
+                        level=logging.WARNING,
+                    )
+                time.sleep(2)  # Brief pause before next loop iteration
+            except Exception as e:
+                self.log_event(
+                    f"Error during execution pipeline: {str(e)}", level=logging.ERROR
+                )
+                break
+        # When loop exits, update control states appropriately
+        self.set_controls_state(
+            start_enabled=True, stop_enabled=False, new_cmd_enabled=True
+        )
+        self.log_event("Session ended. Use 'Start Execution' to begin a new session.")
 
     def run(self):
-        """Run the GUI"""
         self.root.mainloop()
 
 
 if __name__ == "__main__":
-    manager = TaskManager()
-    manager.run()
+    app = TaskManagerGUIApproach1()
+    app.run()
