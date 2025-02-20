@@ -38,23 +38,6 @@ def run_gesture_capture(session_id: str):
     logger.info("Gesture capture completed.")
 
 
-# def authenticate_user() -> str:
-#     """
-#     Runs the authentication process (face and/or voice) and returns the authenticated LIU ID.
-#     If authentication fails, this function can prompt the user to register.
-#     """
-#     # Pseudocode for authentication process:
-#     liu_id = None
-#     # Try face authentication first.
-#     liu_id = FaceAuthSystem().identify_user  # Suppose this returns a LIU ID or None
-#     if not liu_id:
-#         # Fallback to voice authentication:
-#         liu_id = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH).register_user()
-#     if not liu_id:
-#         raise Exception("User could not be authenticated.")
-#     return liu_id
-
-
 if __name__ == "__main__":
     session_id = str(uuid.uuid4())
     # authenticate_user()
