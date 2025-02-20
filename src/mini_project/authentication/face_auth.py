@@ -38,9 +38,12 @@ from config.app_config import (
     LIU_ID_PATTERN,
     MAX_ENCODINGS_PER_USER,
     TIMEDELAY,
+    TEMP_AUDIO_PATH,
+    VOICE_DATA_PATH,
     setup_logging,
 )
 from mini_project.core.db_handler import DatabaseHandler
+from mini_project.authentication.voice_auth import VoiceAuth
 
 
 # Define a context manager for cv2.VideoCapture that calls release() on exit.
@@ -118,6 +121,10 @@ class FaceUtils:
 class FaceAuthSystem:
     def __init__(self) -> None:
         self.db_handler = DatabaseHandler(DB_PATH)
+        # Instantiate the VoiceAuth module to integrate voice registration
+        from mini_project.authentication.voice_auth import VoiceAuth
+
+        self.voice_auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
         self.face_utils = FaceUtils()
         self.known_encodings: Dict[str, dict] = self._preload_encodings()
         self.faiss_index: Optional[faiss.IndexFlatL2] = self._build_faiss_index()
@@ -137,6 +144,7 @@ class FaceAuthSystem:
                         "user_id": user[0],
                         "first_name": user[1],
                         "last_name": user[2],
+                        "liu_id": user[3],
                         "encodings": pickle.loads(user[4]),
                     }
         except sqlite3.Error as e:
@@ -328,11 +336,14 @@ class FaceAuthSystem:
 
     def register_user(self) -> None:
         """
-        Handle new user registration (manual capture).
+        Handle new user registration (manual capture) and integrate voice registration.
         If a user with the given LIU ID or email exists, prompt for update confirmation.
 
-        Note: During registration the system will re-capture the face (via manual capture).
-        The face captured during identification is not used for registration.
+        This method:
+         - Captures a face (manual capture).
+         - Prompts for registration details (first name, last name, liu_id, email).
+         - Saves the face encoding to the database.
+         - Then calls a helper to capture the user's voice and update the same record with the voice embedding.
         """
         frame_encoding = self._capture_face("manual")
         if not frame_encoding:
@@ -342,11 +353,11 @@ class FaceAuthSystem:
         frame, encoding = frame_encoding
         logging.info("Face captured for registration.")
 
-        # Gather registration details.
-        first_name = input("First Name: ").strip()
-        last_name = input("Last Name: ").strip()
-        liu_id = input("LIU ID: ").strip()
-        email = input("Email: ").strip()
+        # Gather registration details once.
+        first_name = input("Enter your first name: ").strip()
+        last_name = input("Enter your last name: ").strip()
+        liu_id = input("Enter your LIU ID (e.g. abcxy123): ").strip()
+        email = input("Enter your Email: ").strip()
 
         if not first_name or not last_name:
             logging.error("First name and last name cannot be empty.")
@@ -392,17 +403,19 @@ class FaceAuthSystem:
                         logging.info(
                             "Face encoding updated for %s %s", first_name, last_name
                         )
-                        self._refresh_index()
-                        return
+                        # self._refresh_index()
+                        # return
+                        user_row_id = user_id
+
                 else:
                     profile_image_path = str(FACE_CAPTURE_PATH / f"{liu_id}.jpg")
                     preferences = "{}"
-                    interaction_memory = "[]"
+                    user_interaction_memory = "[]"
                     encoding_blob = pickle.dumps([encoding])
                     cursor.execute(
                         """INSERT INTO users
                            (first_name, last_name, liu_id, email, face_encoding,
-                           preferences, profile_image_path, interaction_memory)
+                           preferences, profile_image_path, user_interaction_memory)
                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                         (
                             first_name,
@@ -412,13 +425,22 @@ class FaceAuthSystem:
                             encoding_blob,
                             preferences,
                             profile_image_path,
-                            interaction_memory,
+                            user_interaction_memory,
                         ),
                     )
                     cv2.imwrite(profile_image_path, frame)
+                    user_row_id = cursor.lastrowid
                     logging.info(
                         "User %s %s registered successfully", first_name, last_name
                     )
+            self._refresh_index()
+            # Integrate voice registration:
+            try:
+                # Call the public method from the separate VoiceAuth module.
+                self.voice_auth.register_voice_for_user(first_name, last_name, liu_id)
+            except Exception as e:
+                logging.error("Integrated voice registration failed: %s", e)
+                # Optionally, you could decide whether to rollback or mark the record incomplete.
         except sqlite3.Error as e:
             logging.error("Database error: %s", e)
             self.db_handler.conn.rollback()
@@ -471,9 +493,11 @@ class FaceAuthSystem:
         # Welcome recognized users (if recognized in any frame)
         if recognized_users:
             for liu_id in recognized_users:
-                user = self.known_encodings.get(liu_id)
+                best_liu = max(recognized_users, key=recognized_users.get)
+                user = self.known_encodings.get(best_liu)
                 if user:
                     print(f"Welcome back, {user['first_name']} {user['last_name']}!")
+                    return user
         else:
             print("No known faces detected.")
 

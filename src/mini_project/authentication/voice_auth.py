@@ -288,6 +288,45 @@ class VoiceAuth:
             logging.exception("Registration failed.")
             print(f"Registration failed: {e}")
 
+    def register_voice_for_user(
+        self, first_name: str, last_name: str, liu_id: str, duration: int = 8
+    ) -> None:
+        """
+        Record a voice statement for an already-registered user.
+        This method does not prompt for personal details, instead it uses the provided first_name,
+        last_name, and liu_id. It records audio, transcribes (if desired), captures the voice embedding,
+        and updates the user record with the voice embedding.
+        """
+        try:
+            # Construct the file path for the voice statement.
+            voice_statement_audio = os.path.join(
+                self.temp_audio_path, f"{liu_id}_voice.wav"
+            )
+
+            # Record a voice statement.
+            self._record_audio(
+                voice_statement_audio,
+                "Please speak a short voice statement for registration:",
+                duration=duration,
+                sampling_rate=16000,  # or use your configured sampling_rate
+            )
+
+            # (Optional) Transcribe the audio and log the transcription.
+            transcription = self._transcribe_audio(voice_statement_audio)
+            logging.info("Voice transcription: %s", transcription)
+
+            # Capture the voice embedding.
+            embedding = self._capture_voice_embedding(voice_statement_audio)
+            if not embedding:
+                raise Exception("Failed to capture voice embedding.")
+
+            # Save the voice embedding: update the database and save the pickle file.
+            self._save_voice_embedding(liu_id, embedding, first_name, last_name)
+            logging.info("Voice embedding recorded and saved for LIU ID: %s", liu_id)
+        except Exception as e:
+            logging.error("Voice registration for user failed: %s", e)
+            raise
+
 
 if __name__ == "__main__":
     auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)

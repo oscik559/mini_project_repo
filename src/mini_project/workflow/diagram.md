@@ -7,12 +7,11 @@
   "primaryBorderColor": "#8E44AD",
   "lineColor": "#FFFFFF",
   "fontSize": "16px",
-  "secondaryColor": "#000",
-  "tertiaryColor": "#000",
+  "secondaryColor": "#FFFFFF",
+  "tertiaryColor": "#FFFFFF",
 }}}%%
 
 flowchart TB
-    id1[This is the text]
     classDef nodeStyle fill:#00C853, stroke:#faf7f7, stroke-width:4px, font-weight:bold, color:#000000;
     classDef decisionStyle fill:#D50000, stroke:#faf7f7, stroke-width:4px, font-weight:bold, color:#000000;
     classDef processStyle fill:#FF6D00, stroke:#faf7f7, stroke-width:4px, font-weight:bold, color:#000000;
@@ -69,7 +68,7 @@ flowchart TB
 
 
     %% Styles
-    %% A:::nodeStyle
+    A:::nodeStyle
     B:::processStyle
     C:::processStyle
     F:::nodeStyle
@@ -120,5 +119,5 @@ flowchart TB
   linkStyle 23 stroke:#D50000,fill:none
 
   %% Style the directional arrows to be white
-  linkStyle default stroke:#ffffff,stroke-width:2px;
+  linkStyle default stroke:#ffffff,stroke-width:3px;
 ```

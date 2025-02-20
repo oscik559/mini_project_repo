@@ -1,0 +1,2 @@
+Refactor Blocking Registration:
+The current registration process relies on console inputs (using input()). For a production GUI application, consider creating a dedicated registration window so that the process is fully integrated into the GUI and non‑blocking.

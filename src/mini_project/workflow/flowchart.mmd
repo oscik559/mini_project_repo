@@ -2,7 +2,7 @@
 config:
   look: classic
   theme: mc
-  layout: fixed
+  layout: elk
   themeVariables:
     primaryColor: '#000'
     primaryTextColor: '#fff'
@@ -12,7 +12,7 @@ config:
     tertiaryColor: '#0000'
 ---
 flowchart TD
-    A["Start Application (Task Manager GUI)"] --> B["Authenticate User"]
+    A("Start Application (Task Manager GUI)") --> B["Authenticate User"]
     B --> C["Face Authentication"]
     C L_C_F_0@o-- Face recognized --o F["User Authenticated (liu_id stored)"]
     C -- Face not recognized --> D["Voice Registration"]
@@ -35,7 +35,6 @@ flowchart TD
     S --> T["Insert Operation Sequence into DB"]
     T --> V["Execution Complete<br>or Loop for Next Command"]
     U --> I
-    A@{ shape: rounded}
      A:::nodeStyle
      B:::processStyle
      C:::processStyle
@@ -59,9 +58,7 @@ flowchart TD
      T:::processStyle
      V:::nodeStyle
     classDef nodeStyle fill:#00C853, stroke:#faf7f7, stroke-width:2px, font-weight:bold, color:#000000
-    classDef decisionStyle fill:#D50000, stroke:#faf7f7, stroke-width:2px, font-weight:bold, color:#000000
     classDef processStyle fill:#FF6D00, stroke:#faf7f7, stroke-width:4px, font-weight:bold, color:#000000, stroke-dasharray: 0
-    style A fill:#FFD600
+    classDef decisionStyle fill:#D50000, stroke:#faf7f7, stroke-width:2px, font-weight:bold, color:#000000
     linkStyle 2 stroke:#D50000,fill:none
-    linkStyle 18 stroke:#000000,fill:none
     L_C_F_0@{ animation: slow }
