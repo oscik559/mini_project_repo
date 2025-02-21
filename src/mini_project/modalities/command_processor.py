@@ -1,11 +1,11 @@
 # modalities/command_processor.py
 
+import atexit
 import json
 import logging
 import sqlite3
 import time
 from typing import Dict, List
-import atexit
 
 import ollama
 

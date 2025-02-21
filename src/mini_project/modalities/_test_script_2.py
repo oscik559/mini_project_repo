@@ -1,17 +1,18 @@
+import logging
 import threading
 import time
 import tkinter as tk
-from tkinter import messagebox, scrolledtext
 import uuid
-import logging
+from tkinter import messagebox, scrolledtext
+
+from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
 
 # Import modules from your project
 from mini_project.authentication.face_auth import FaceAuthSystem
 from mini_project.authentication.voice_auth import VoiceAuth
-from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
-from mini_project.modalities.orchestrator import run_voice_capture, run_gesture_capture
-from mini_project.modalities.synchronizer import synchronize_and_unify
 from mini_project.modalities.command_processor import CommandProcessor
+from mini_project.modalities.orchestrator import run_gesture_capture, run_voice_capture
+from mini_project.modalities.synchronizer import synchronize_and_unify
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger("TaskManagerGUI_Approach2")

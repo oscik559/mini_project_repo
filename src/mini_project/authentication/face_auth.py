@@ -13,6 +13,7 @@ face_recognition, and FAISS for similarity search. It supports:
 The module uses a custom context manager to handle video capture resources.
 """
 
+
 # import sys
 import logging
 import pickle
@@ -37,13 +38,13 @@ from config.app_config import (
     IDENTIFICATION_FRAMES,
     LIU_ID_PATTERN,
     MAX_ENCODINGS_PER_USER,
-    TIMEDELAY,
     TEMP_AUDIO_PATH,
+    TIMEDELAY,
     VOICE_DATA_PATH,
     setup_logging,
 )
-from mini_project.core.db_handler import DatabaseHandler
 from mini_project.authentication.voice_auth import VoiceAuth
+from mini_project.core.db_handler import DatabaseHandler
 
 
 # Define a context manager for cv2.VideoCapture that calls release() on exit.
