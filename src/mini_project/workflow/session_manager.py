@@ -51,9 +51,7 @@ class SessionManager:
                 )
                 # Trigger voice registration (this method should exist in VoiceAuth)
                 try:
-                    logger.info(
-                        f"Initiating voice registration..."
-                    )
+                    logger.info(f"Initiating voice registration...")
                     self.voice_auth.register_voice_for_user(
                         first_name=user.get("first_name"),
                         last_name=user.get("last_name"),

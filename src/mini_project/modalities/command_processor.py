@@ -17,18 +17,13 @@ logger = logging.getLogger("CommandProcessor")
 
 
 class CommandProcessor:
-    def __init__(self):
+    def __init__(self, llm_model: str = "llama3.2:latest"):
         self.db_path = DB_PATH
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.execute("PRAGMA foreign_keys = ON")
         self.conn.execute("PRAGMA journal_mode=WAL;")
 
-        self.llm_model = "llama3.2:latest"
-        # self.llm_model = "llama3.2:1b"
-        # self.llm_model = "deepseek-r1:1.5b"
-        # self.llm_model = "deepseek-r1:32b"
-        # self.llm_model = "mistral:latest"
-        # self.llm_model = "mistral:latest"
+        self.llm_model = llm_model
 
         self.system_prompt = """You are a robot task and operation sequence planner. Analyze the instruction and break it down into sequential operations using these available sequence_names:
         {available_sequences} and available object_names {available_objects}
@@ -51,6 +46,10 @@ class CommandProcessor:
         [{{"sequence_name": "go_home", "object_name": ""}}]
         ```
         """
+
+        # Cache available sequences and objects from database for validation purposes
+        self.available_sequences = self.get_available_sequences()
+        self.available_objects = self.get_available_objects()
 
     def get_available_sequences(self) -> List[str]:
         """Fetch available sequence names from sequence_library in database"""
@@ -300,7 +299,11 @@ class CommandProcessor:
 
 
 if __name__ == "__main__":
-    processor = CommandProcessor()
+
+    # models: "llama3.2:1b", "deepseek-r1:1.5b", "mistral:latest", "deepseek-r1:32b"
+
+    processor = CommandProcessor(llm_model="mistral:latest")
+
     # Register the close method so it gets called when the program exits
     atexit.register(processor.close)
     processor.run_processing_cycle()
