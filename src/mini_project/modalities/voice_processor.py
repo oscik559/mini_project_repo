@@ -143,26 +143,26 @@ class Storage:
         if not os.path.exists(self.db_path):
             open(self.db_path, "w").close()
             logger.info(f"Created database file: {self.db_path}")
-        self.ensure_table_exists()
+        # self.ensure_table_exists()
 
-    def ensure_table_exists(self) -> None:
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS voice_instructions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    transcribed_text TEXT NOT NULL,
-                    language TEXT NOT NULL,
-                    confidence REAL,
-                    processed BOOLEAN DEFAULT FALSE
-                )
-                """
-            )
-            conn.commit()
-            logger.info("Ensured voice_instructions table exists in the database.")
+    # def ensure_table_exists(self) -> None:
+    #     with sqlite3.connect(self.db_path) as conn:
+    #         cursor = conn.cursor()
+    #         cursor.execute(
+    #             """
+    #             CREATE TABLE IF NOT EXISTS voice_instructions (
+    #                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+    #                 session_id TEXT NOT NULL,
+    #                 timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    #                 transcribed_text TEXT NOT NULL,
+    #                 language TEXT NOT NULL,
+    #                 confidence REAL,
+    #                 processed BOOLEAN DEFAULT FALSE
+    #             )
+    #             """
+    #         )
+    #         conn.commit()
+    #         logger.info("Ensured voice_instructions table exists in the database.")
 
     # def ensure_table_exists(self) -> None:
     #     with sqlite3.connect(self.db_path) as conn:

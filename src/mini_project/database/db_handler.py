@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple
 from config.app_config import DB_PATH, setup_logging
 
 # Initialize logging with desired level (optional)
-setup_logging(level=logging.INFO)
+setup_logging()
 logger = logging.getLogger("dbHandler")
 
 
@@ -88,6 +88,8 @@ class DatabaseHandler:
                     number_of_rotations INTEGER NOT NULL,
                     current_rotation INTEGER NOT NULL,
                     operation_status BOOLEAN NOT NULL
+
+
                 );
             """,
             "camera_vision": """
@@ -130,26 +132,6 @@ class DatabaseHandler:
                     last_updated TIMESTAMP DEFAULT (datetime('now','localtime'))
                 );
             """,
-            # "instructions": """
-            #     CREATE TABLE IF NOT EXISTS instructions (
-            #         id INTEGER PRIMARY KEY AUTOINCREMENT,
-            #         session_id TEXT NOT NULL,
-            #         timestamp DATETIME DEFAULT (datetime('now','localtime')),
-            #         user_id INTEGER,
-            #         modality TEXT,
-            #         language TEXT,
-            #         instruction_type TEXT,
-            #         processed BOOLEAN DEFAULT FALSE,
-            #         transcribed_text TEXT,
-            #         gesture_type TEXT,
-            #         gesture_text TEXT,
-            #         natural_description TEXT,
-            #         hand_label TEXT,
-            #         sync_id INTEGER UNIQUE,
-            #         confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
-            #         FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
-            #     );
-            # """,
             # Add new table for voice commands
             "voice_instructions": """
                 CREATE TABLE IF NOT EXISTS voice_instructions (
@@ -175,6 +157,7 @@ class DatabaseHandler:
                     processed BOOLEAN DEFAULT FALSE
                 );
             """,
+            # Add new table for the library of all possible gesture cues
             "gesture_library": """
                 CREATE TABLE IF NOT EXISTS gesture_library (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -212,17 +195,6 @@ class DatabaseHandler:
                     FOREIGN KEY (instruction_id) REFERENCES unified_instructions(id) ON DELETE CASCADE
                 );
             """,
-            "skill_library": """
-                CREATE TABLE IF NOT EXISTS skill_library (
-                    skill_id INTEGER PRIMARY KEY,
-                    skill_name TEXT NOT NULL UNIQUE,
-                    description TEXT,
-                    parameters TEXT,
-                    required_capabilities TEXT,
-                    average_duration FLOAT
-                );
-            """,
-            # Add new table for security audit
             "access_logs": """
                 CREATE TABLE IF NOT EXISTS access_logs (
                     log_id INTEGER PRIMARY KEY,
@@ -260,21 +232,16 @@ class DatabaseHandler:
                     instruction_id INTEGER,
                     sequence_id INTEGER,
                     sequence_name TEXT NOT NULL,
-                    skill_id INTEGER,
-                    skill_name TEXT,
                     object_id INTEGER,
                     object_name TEXT,
                     status TEXT CHECK(status IN ('pending', 'in_progress', 'completed', 'failed')) DEFAULT 'pending',
                     created_at TIMESTAMP DEFAULT (datetime('now','localtime')),
                     FOREIGN KEY (instruction_id) REFERENCES unified_instructions(id) ON DELETE CASCADE,
-                    FOREIGN KEY (skill_id) REFERENCES skill_library(skill_id),
                     FOREIGN KEY (sequence_id) REFERENCES sequence_library(sequence_id),
                     FOREIGN KEY (object_id) REFERENCES camera_vision(object_id)
                 );
             """,
         }
-        # for table_name, create_statement in tables.items():
-        #     self.cursor.execute(create_statement)
         try:
             for create_statement in tables.values():
                 self.cursor.execute(create_statement)
@@ -291,9 +258,7 @@ class DatabaseHandler:
             "CREATE INDEX IF NOT EXISTS idx_users_liu_id ON users (liu_id);",
             "CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);",
             "CREATE INDEX IF NOT EXISTS idx_interaction_memory_user_id ON interaction_memory (user_id);",
-            "CREATE INDEX IF NOT EXISTS idx_task_preferences_user_id ON task_preferences (user_id);",
             "CREATE INDEX IF NOT EXISTS idx_conv_memory_instruction ON interaction_memory(instruction_id);",
-            "CREATE INDEX IF NOT EXISTS idx_skills_name ON skill_library(skill_name);",
             "CREATE INDEX IF NOT EXISTS idx_simulation_instruction ON simulation_results(instruction_id);",
             "CREATE INDEX IF NOT EXISTS idx_operation_sequence_object ON instruction_operation_sequence(object_id);",
             "CREATE INDEX IF NOT EXISTS idx_camera_vision_last_detected ON camera_vision(last_detected);",
@@ -402,14 +367,6 @@ class DatabaseHandler:
                 ("end_time", "TIMESTAMP"),
                 ("timestamp", "TIMESTAMP DEFAULT (datetime('now','localtime'))"),
             ],
-            "skill_library": [
-                ("skill_id", "INTEGER PRIMARY KEY"),
-                ("skill_name", "TEXT NOT NULL UNIQUE"),
-                ("description", "TEXT"),
-                ("parameters", "TEXT"),
-                ("required_capabilities", "TEXT"),
-                ("average_duration", "FLOAT"),
-            ],
             "simulation_results": [
                 ("simulation_id", "INTEGER PRIMARY KEY"),
                 ("instruction_id", "INTEGER"),
@@ -418,35 +375,9 @@ class DatabaseHandler:
                 ("error_log", "TEXT"),
                 ("timestamp", "TIMESTAMP DEFAULT (datetime('now','localtime'))"),
             ],
-            "task_preferences": [
-                ("preference_id", "INTEGER PRIMARY KEY"),
-                ("user_id", "INTEGER"),
-                ("task_id", "TEXT"),
-                ("task_name", "TEXT"),
-                ("preference_data", "TEXT"),
-            ],
-            # "instructions": [
-            #     ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
-            #     ("session_id", "TEXT NOT NULL"),
-            #     ("timestamp", "DATETIME DEFAULT (datetime('now','localtime'))"),
-            #     ("user_id", "INTEGER"),
-            #     ("modality", "TEXT"),
-            #     ("language", "TEXT"),
-            #     ("instruction_type", "TEXT"),
-            #     ("processed", "BOOLEAN DEFAULT FALSE"),
-            #     ("transcribed_text", "TEXT"),
-            #     ("gesture_type", "TEXT"),
-            #     ("gesture_text", "TEXT"),
-            #     ("natural_description", "TEXT"),
-            #     ("hand_label", "TEXT"),
-            #     ("sync_id", "INTEGER UNIQUE"),
-            #     ("confidence", "FLOAT CHECK(confidence BETWEEN 0 AND 1)"),
-            # ],
             "instruction_operation_sequence": [
                 ("task_id", "INTEGER PRIMARY KEY"),
                 ("instruction_id", "INTEGER"),
-                ("skill_id", "INTEGER"),
-                ("skill_name", "TEXT"),
                 ("sequence_id", "INTEGER"),
                 ("sequence_name", "TEXT NOT NULL"),
                 ("object_id", "INTEGER"),
@@ -520,7 +451,7 @@ class DatabaseHandler:
             "screw_op_parameters",
             "camera_vision",
             "sort_order",
-            "skill_library",
+            # "skill_library",
         ]
         for table in parent_tables:
             self.cursor.execute(f"DELETE FROM {table}")
@@ -538,7 +469,6 @@ class DatabaseHandler:
                 self.populate_users()  # Must come first
 
                 self.populate_sequence_library()
-                self.populate_skill_library()
                 self.populate_gesture_library()
 
                 # Now populate child tables
@@ -550,7 +480,6 @@ class DatabaseHandler:
                 self.populate_interaction_memory()
                 self.populate_simulation_results()
 
-                # self.populate_instructions()
                 # self.populate_screw_op_parameters()
                 # self.populate_instruction_operation_sequence()
 
@@ -603,7 +532,7 @@ class DatabaseHandler:
                 "task complete",
                 "robot at home position",
                 1,
-                "thresh_met and self.context.gripper_has_block",
+                "aaa",
                 1,
             ),
             (

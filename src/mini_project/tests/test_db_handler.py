@@ -7,7 +7,7 @@ Role-based access decorator: Ensuring that access is granted only to users with 
 import sqlite3
 import unittest
 
-from mini_project.core.db_handler import DatabaseHandler
+from mini_project.database.db_handler import DatabaseHandler
 
 
 # Create a dummy subclass to test the role-based access decorator.

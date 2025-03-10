@@ -1,20 +1,22 @@
 # authentication/voice_auth.py
 """
-Voice Authentication Module
-
-This module provides a voice authentication system that:
-- Records audio using sounddevice.
-- Transcribes audio via Google Speech Recognition.
-- Captures voice embeddings using resemblyzer.
-- Stores voice embeddings in a SQLite database (using upsert) and as a pickle file.
-
-It demonstrates:
-- Using context managers for resource handling.
-- Consistent error messaging and granular error handling (merged in the script).
-- Logging configuration and type annotations.
+This module provides functionality for voice authentication, including recording audio,
+transcribing it, capturing voice embeddings, and storing them in a SQLite database and on disk.
+Classes:
+    VoiceAuth: A class for handling voice authentication tasks.
+Functions:
+    audio_session: A context manager for handling an audio recording session.
+VoiceAuth Methods:
+    __init__: Initialize the VoiceAuth class with database path, temporary audio path, and voice data path.
+    _create_directories: Ensure that the directories for voice data and temporary audio exist.
+    _record_audio: Record audio from the microphone and save it to a WAV file.
+    _transcribe_audio: Transcribe recorded audio to text using Google Speech Recognition.
+    _capture_voice_embedding: Capture a voice embedding from the recorded audio.
+    _validate_liu_id: Validate the LIU ID format.
+    _save_voice_embedding: Save the voice embedding in the database and as a pickle file.
+    register_user: Register a new user using voice authentication.
+    register_voice_for_user: Record a voice statement for an already-registered user.
 """
-
-
 import logging
 import os
 import pickle
@@ -64,43 +66,13 @@ class VoiceAuth:
         self.voice_data_path = voice_data_path
         self.encoder = VoiceEncoder()
         self._create_directories()
-        self._initialize_database()
+        # self._initialize_database()
 
     def _create_directories(self) -> None:
         """Ensure that the directories for voice data and temporary audio exist."""
         os.makedirs(self.voice_data_path, exist_ok=True)
         os.makedirs(self.temp_audio_path, exist_ok=True)
         logging.info("Directories ensured for voice data and temporary audio.")
-
-    def _initialize_database(self) -> None:
-        """Initialize the SQLite database with the required users table."""
-        try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS users (
-                        user_id INTEGER PRIMARY KEY,
-                        first_name TEXT NOT NULL,
-                        last_name TEXT NOT NULL,
-                        liu_id TEXT UNIQUE,
-                        email TEXT UNIQUE,
-                        preferences TEXT,
-                        profile_image_path TEXT,
-                        interaction_memory TEXT,
-                        face_encoding BLOB,
-                        voice_embedding BLOB,
-                        created_at TIMESTAMP DEFAULT (datetime('now','localtime')),
-                        last_updated TIMESTAMP DEFAULT (datetime('now','localtime'))
-                    );
-                """
-                )
-                conn.commit()
-            logging.info("Database initialized successfully.")
-        except sqlite3.Error as e:
-            msg = f"Database initialization error: {e}"
-            logging.error(msg)
-            raise Exception(msg)
 
     def _record_audio(
         self, filename: str, prompt: str, duration: int = 5, sampling_rate: int = 16000

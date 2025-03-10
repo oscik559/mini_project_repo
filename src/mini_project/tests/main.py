@@ -2,9 +2,9 @@
 import logging
 import threading
 
-from mini_project.test_.command_unifier import CommandUnifier
-from mini_project.test_.gesture_processor_copy import GestureDetector
-from mini_project.test_.voice_processor_copy import VoiceProcessor
+from mini_project.tests.command_unifier import CommandUnifier
+from mini_project.tests.gesture_processor_copy import GestureDetector
+from mini_project.tests.voice_processor_copy import VoiceProcessor
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"

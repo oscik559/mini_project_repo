@@ -147,7 +147,7 @@ class CommandProcessor:
             available_sequences = self.get_available_sequences()
             available_objects = self.get_available_objects()
 
-            # Format the system prompt with available sequences
+            # Format the system prompt with available sequences and objects
             formatted_system_prompt = self.system_prompt.format(
                 available_sequences=", ".join(available_sequences),
                 available_objects=", ".join(available_objects),
@@ -303,7 +303,6 @@ if __name__ == "__main__":
     # models: "llama3.2:1b", "deepseek-r1:1.5b", "mistral:latest", "deepseek-r1:32b"
 
     processor = CommandProcessor(llm_model="mistral:latest")
-
     # Register the close method so it gets called when the program exits
     atexit.register(processor.close)
     processor.run_processing_cycle()

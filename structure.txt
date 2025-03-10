@@ -24,11 +24,16 @@ mini_project/
 └── tests/
     ├── __init__.py
     └── test_voice_auth.py
-	
-	
+
+
+
+
+
+
+
 	mini_project/
-├── pyproject.toml 
-├── requirements.txt 
+├── pyproject.toml
+├── requirements.txt
 ├──README.md
 ├──LICENSE
 ├── .gitignore
@@ -40,7 +45,7 @@ mini_project/
 │   └── config.py
 ├── database/
 │   └── sequences.db
-├── src/       
+├── src/
 │   ├── __init__.py
 │   ├── db_handler.py
 │   ├── face_auth.py
@@ -59,13 +64,22 @@ mini_project/
 └── tests/
     ├── __init__.py
     └── test_voice_auth.py
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
+
+
+
+
 	mini_project/
-├── pyproject.toml 
-├── requirements.txt 
+├── pyproject.toml
+├── requirements.txt
 ├──README.md
 ├──LICENSE
 ├── .gitignore
@@ -76,7 +90,7 @@ mini_project/
 │   └── config.py
 ├── database/
 │   └── sequences.db
-├──mini_project/       
+├──mini_project/
 │   ├── __init__.py
 │   ├── db_handler.py
 │   ├── face_auth.py
@@ -94,13 +108,18 @@ mini_project/
 └── tests/
     ├── __init__.py
     └── test_voice_auth.py
-	
-	
-	
-	
+
+
+
+
+
+
+
+
+
 	mini_project/
-├── pyproject.toml 
-├── requirements.txt 
+├── pyproject.toml
+├── requirements.txt
 ├── README.md
 ├── LICENSE
 ├── .gitignore

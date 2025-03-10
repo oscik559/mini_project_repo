@@ -15,7 +15,7 @@ from mini_project.camera.camera_db_utils import (
     cleanup_camera_vision_records,
     upsert_camera_vision_record,
 )
-from mini_project.core.db_handler import DatabaseHandler
+from mini_project.database.db_handler import DatabaseHandler
 
 
 def process_image(image_path, wait_key, db_handler):

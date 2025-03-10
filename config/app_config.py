@@ -1,16 +1,13 @@
-# config/config.py
+# config/app_config.py
 
 """
 Configuration module for the mini_project application.
 
 This module defines various configuration settings required for the application,
 including paths, thresholds, and validation patterns.
+
+- for environment variables and the prompt template.
 """
-
-# mini_project/
-#   ├── config/
-#   │   └── config.py
-
 
 # === Logging Setup ===
 import logging
@@ -18,15 +15,19 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+import os
+
 
 # Define the base directory
 BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project/ directory path
 
 # Use network share or local database file: be aware of potential issues with file locking on a network share.
 # DB_PATH = Path(r"\\ad.liu.se\coop\i\industrialrobotsetup\sequences.db")
-# DB_PATH = BASE_DIR / "database" / "sequences.db"
-DB_PATH = BASE_DIR / "sequences.db"
-DB_URL = "dbname=sequences_db user=oscar password=oscik559 host=localhost"
+DB_PATH = BASE_DIR / "src" / "mini_project" / "database" / "sequences.db"
+# DB_PATH = BASE_DIR / "sequences.db"
+
+
+# DB_URL = "dbname=sequences_db user=oscar password=oscik559 host=localhost"
 # DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
 
 
@@ -89,6 +90,25 @@ MIN_TRACKING_CONFIDENCE = 0.5
 MAX_NUM_HANDS = 2
 FRAME_SKIP = 2
 
+# === synchronizer LLM Settings ===
+BATCH_SIZE = int(os.getenv("BATCH_SIZE", 1000))
+LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", 3))
+LLM_MODEL = os.getenv("LLM_MODEL", "mistral:latest")
+UNIFY_PROMPT_TEMPLATE = (
+    "Role: Command Unifier. Combine voice commands (primary) with gesture cues (supplementary).\n"
+    "Rules:\n"
+    "1. Preserve ALL details from the voice command.\n"
+    "2. Integrate gestures ONLY if they add context (e.g., direction, emphasis).\n"
+    "3. NEVER omit voice content unless the gesture explicitly contradicts it.\n"
+    "4. Output format: Plain text, no markdown or JSON.\n\n"
+    "Examples:\n"
+    "- Voice: 'Turn right', Gesture: 'Pointing up' → 'Turn right upward'\n"
+    "- Voice: 'Stop', Gesture: '' → 'Stop'\n\n"
+    "Voice Instruction: {voice_text}\n"
+    "Gesture Instruction: {gesture_text}\n"
+    "Unified Command:"
+)
+
 
 # === logging setup settings ===
 def setup_logging(level: int = logging.INFO) -> None:
@@ -106,7 +126,7 @@ def setup_logging(level: int = logging.INFO) -> None:
     )
 
     # Optionally, set specific loggers (e.g., for numba) to a different level.
-    logging.getLogger("numba").setLevel(logging.WARNING)
+    # logging.getLogger("numba").setLevel(logging.WARNING)
 
 
 # Function to validate paths at runtime

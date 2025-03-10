@@ -44,7 +44,7 @@ from config.app_config import (
     setup_logging,
 )
 from mini_project.authentication.voice_auth import VoiceAuth
-from mini_project.core.db_handler import DatabaseHandler
+from mini_project.database.db_handler import DatabaseHandler
 
 
 # Define a context manager for cv2.VideoCapture that calls release() on exit.
@@ -431,21 +431,28 @@ class FaceAuthSystem:
                     )
                     cv2.imwrite(profile_image_path, frame)
                     user_row_id = cursor.lastrowid
+                    try:
+                        # Call the public method from the separate VoiceAuth module.
+                        self.voice_auth.register_voice_for_user(
+                            first_name, last_name, liu_id
+                        )
+                        logging.info(
+                            "Voice registration completed for user %s %s",
+                            first_name,
+                            last_name,
+                        )
+                    except Exception as e:
+                        logging.error(
+                            "Voice registration failed after face registration: %s", e
+                        )
                     logging.info(
                         "User %s %s registered successfully", first_name, last_name
                     )
             self._refresh_index()
-            # Integrate voice registration:
-            try:
-                # Call the public method from the separate VoiceAuth module.
-                self.voice_auth.register_voice_for_user(first_name, last_name, liu_id)
-            except Exception as e:
-                logging.error("Integrated voice registration failed: %s", e)
-                # Optionally, you could decide whether to rollback or mark the record incomplete.
         except sqlite3.Error as e:
-            logging.error("Database error: %s", e)
             self.db_handler.conn.rollback()
-            return
+            logging.error("Registration failed: %s", e)
+            raise
 
         self._refresh_index()
 

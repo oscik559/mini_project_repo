@@ -1,5 +1,4 @@
 # workflow/task_manager.py
-# Approach 1: Task Manager GUI
 
 import logging
 import threading
