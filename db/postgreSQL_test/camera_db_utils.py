@@ -86,7 +86,9 @@ def cleanup_camera_vision_records(db_handler, active_object_names):
 
     # Build the query with the correct number of placeholders
     placeholders = ", ".join(["%s"] * len(active_object_names))
-    delete_query = f"DELETE FROM camera_vision WHERE object_name NOT IN ({placeholders})"
+    delete_query = (
+        f"DELETE FROM camera_vision WHERE object_name NOT IN ({placeholders})"
+    )
 
     db_handler.cursor.execute(delete_query, tuple(active_object_names))
     db_handler.conn.commit()

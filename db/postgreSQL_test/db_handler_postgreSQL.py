@@ -9,6 +9,9 @@ import psycopg2
 from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 
+DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
+DB_URL = "dbname=sequences_db user=oscar password=oscik559 host=localhost"
+
 # # from config.app_config import (
 #     setup_logging,  # e.g., "dbname=mydb user=myuser password=mypass host=localhost"
 # )
@@ -20,7 +23,7 @@ from psycopg2 import sql
 # setup_logging(level=logging.INFO)
 logger = logging.getLogger("dbHandler")
 
-DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
+
 
 
 class DatabaseHandler:

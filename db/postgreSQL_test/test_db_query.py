@@ -1,7 +1,7 @@
 import psycopg2
 
 # Replace with your actual database details
-DB_HOST = "10.245.0.28"  # Use the IP address of the PostgreSQL server
+DB_HOST = "10.245.0.28"  # Use the IP address of the computer running PostgreSQL
 DB_PORT = "5432"  # Default PostgreSQL port
 DB_NAME = "sequences_db"  # Database name
 DB_USER = "oscar"  # PostgreSQL username

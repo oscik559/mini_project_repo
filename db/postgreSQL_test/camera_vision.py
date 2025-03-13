@@ -15,9 +15,9 @@ from camera_db_utils import (
     cleanup_camera_vision_records,
     upsert_camera_vision_record,
 )
-from db_handler_postgreSQL import DatabaseHandler  # Ensure this imports the correct PostgreSQL handler
-
-
+from db_handler_postgreSQL import (
+    DatabaseHandler,
+)  # Ensure this imports the correct PostgreSQL handler
 
 
 # from config.app_config import *
