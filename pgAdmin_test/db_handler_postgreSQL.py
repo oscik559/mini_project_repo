@@ -9,18 +9,18 @@ import psycopg2
 from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 
-from config.app_config import (
-    setup_logging,  # e.g., "dbname=mydb user=myuser password=mypass host=localhost"
-)
-from config.app_config import (
-    DB_URL,
-)
+# # from config.app_config import (
+#     setup_logging,  # e.g., "dbname=mydb user=myuser password=mypass host=localhost"
+# )
+# from config.app_config import (
+#     DB_URL,
+# )
 
 # Initialize logging with desired level (optional)
-setup_logging(level=logging.INFO)
+# setup_logging(level=logging.INFO)
 logger = logging.getLogger("dbHandler")
 
-# DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
+DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
 
 
 class DatabaseHandler:
