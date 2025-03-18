@@ -1,15 +1,4 @@
 {
     "python.analysis.autoImportCompletions": true,
-    "svg.preview.background": "editor",
-    "sqltools.connections": [
-        {
-            "previewLimit": 50,
-            "server": "localhost",
-            "port": 5432,
-            "driver": "PostgreSQL",
-            "name": "sequences_db",
-            "username": "oscar",
-            "database": "sequences_db"
-        }
-    ]
+    "svg.preview.background": "editor"
 }

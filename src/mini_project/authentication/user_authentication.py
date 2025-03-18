@@ -1,5 +1,5 @@
 # authentication/user_authentication.py
-#!/usr/bin/env python
+
 """
 User Authentication Module
 

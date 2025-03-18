@@ -1,5 +1,6 @@
 # modalities/synchronizer.py
 
+
 import json
 import logging
 import sqlite3
