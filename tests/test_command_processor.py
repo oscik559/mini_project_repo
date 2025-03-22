@@ -1,7 +1,7 @@
-import unittest
-from unittest.mock import patch, MagicMock
-import sqlite3
 import json
+import sqlite3
+import unittest
+from unittest.mock import MagicMock, patch
 
 # Assuming CommandProcessor is in command_processor.py
 from command_processor import CommandProcessor, logger

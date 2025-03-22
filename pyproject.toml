@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=64", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -7,10 +7,11 @@ name = "mini_project"
 version = "0.1.0"
 description = "Thesis: Integrating Computer Vision, LLMs, and Robotic Control for Personalized Task Execution in Virtual Environments."
 readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
 authors = [
   { name = "Oscar Ikechukwu", email = "oscik559@student.liu.se" }
 ]
-license = { file = "LICENSE" }
 dependencies = [
   "opencv-python",
   "face_recognition",
@@ -21,22 +22,20 @@ dependencies = [
   "SpeechRecognition",
   "resemblyzer"
 ]
-classifiers = [
-  "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent"
-]
 keywords = [
   "authentication", "LLM", "face", "gesture", "voice", "multimodal", "SQLite", "database"
 ]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+
+[project.scripts]
+mini-gui = "mini_project.__main__:main"
 
 [tool.black]
 line-length = 88
 target-version = ["py38"]
-include = '\.pyi?$'
+include = '\\.pyi?$'
 exclude = '''
 /(
     \.eggs
@@ -56,6 +55,6 @@ skip-string-normalization = false
 [tool.isort]
 profile = "black"
 line_length = 88
-known_first_party = ["mini_project"]  # Adjust this if your package name changes.
+known_first_party = ["mini_project"]
 multi_line_output = 3
 include_trailing_comma = true

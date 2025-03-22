@@ -44,7 +44,7 @@ from config.app_config import (
     setup_logging,
 )
 from mini_project.authentication.voice_auth import VoiceAuth
-from mini_project.database.db_handler import DatabaseHandler
+from mini_project.database.db_handler_SQLite import DatabaseHandler
 
 
 # Define a context manager for cv2.VideoCapture that calls release() on exit.

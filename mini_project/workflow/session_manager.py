@@ -1,10 +1,11 @@
 # workflow/session_manager.py
 
-import uuid
 import logging
+import uuid
+
+from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
 from mini_project.authentication.face_auth import FaceAuthSystem
 from mini_project.authentication.voice_auth import VoiceAuth
-from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
 
 logger = logging.getLogger("SessionManager")
 

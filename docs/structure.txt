@@ -1,0 +1,82 @@
+
+# Project Structure
+
+mini_project/
+├── .venv/
+├── .vscode/
+    ├── launch.json
+    └── settings.json
+├── assets/
+	├── camera_data/
+        └── image_1.png
+	├── face_capture/
+        └── oscik559.jpg
+	├── face_encodings/
+	├── gui_design/
+	├── temp_audio/
+        └── oscik559_voice.wav
+	├── voice_capture/
+	└── voice_embeddings/
+        └── oscik559_voice.pkl
+├── config/
+    ├── __init__.py
+    ├── app_config.py
+	├── logging_config.yaml
+	└── constants.py
+├── docs/
+	├── approach.md
+	├── structure.txt
+	└── description.txt
+├── tests/
+	├── test_command_processor.py
+	├── test_db_pgSQL_connection.py
+	├── test_db_pgSQL.py
+	└── test_synchronizer.py
+├── src/
+	└── __init__.py
+	└── mini_project/
+		└── authentication/
+            ├── __init__.py
+			├── face_auth.py
+			└── voice_auth.py
+		└── camera/
+            ├── __init__.py
+			├── camera_db_utils.py
+			└── camera_vision.py
+		└── database/
+            ├── __init__.py
+            ├── connection.py
+			├── db_handler_pgSQL.py
+            ├── populate_data.py
+            ├── schema_sql.py
+			├── db_handler_SQLite.py
+			└── sequences.db
+		└── modalities/
+			├── __init__.py
+			├── command_processor.py
+			├── gesture_processor.py
+			├── orchestrator.py
+			├── synchronizer.py
+			└── voice_processor.py
+		└── workflow/
+			├── __init__.py
+			├── session_manager.py
+			└── task_manager.py
+        └── simulation/
+            ├── omniverse_connector.py
+            └── scenario_templates/
+		└── __init__.py
+        └── __main__.py             # Entry point
+└── gui.py
+├── pyproject.toml
+├── requirements.txt
+├── README.md
+├── LICENSE
+├── .env
+├── .gitignore
+└── mini_project.egg-info/
+	├── dependency_links.txt
+	├── PKG-INFO
+	├── requires.txt
+	├── SOURCES.txt
+	└── top_level.txt

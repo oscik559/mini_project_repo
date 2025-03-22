@@ -11,14 +11,14 @@ from functools import lru_cache
 from typing import Dict, List, Optional
 
 from config.app_config import (
-    DB_PATH,
-    LLM_MODEL,
     BATCH_SIZE,
+    DB_PATH,
     LLM_MAX_RETRIES,
+    LLM_MODEL,
     UNIFY_PROMPT_TEMPLATE,
     setup_logging,
 )
-from config.constants import VOICE_TABLE, GESTURE_TABLE, PROCESSED_COL, UNIFIED_TABLE
+from config.constants import GESTURE_TABLE, PROCESSED_COL, UNIFIED_TABLE, VOICE_TABLE
 
 # Initialize logging with desired level
 setup_logging(level=logging.INFO)

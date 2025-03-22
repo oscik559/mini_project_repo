@@ -9,13 +9,33 @@ including paths, thresholds, and validation patterns.
 - for environment variables and the prompt template.
 """
 
-# === Logging Setup ===
-import logging
+import os
+import logging.config
+import yaml
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
 
-import os
+def setup_logging(level: int = logging.INFO) -> None:
+    logging.basicConfig(
+        level=level,
+        # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+def load_logging_config():
+    config_path = Path(__file__).parent / "logging_config.yaml"
+    if config_path.exists():
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        logging.config.dictConfig(config)
+    else:
+        setup_logging()
+
+# Set up logging
+load_logging_config()
+logger = logging.getLogger("mini_project")
+
 
 
 # Define the base directory
@@ -23,17 +43,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project/ directory pat
 
 # Use network share or local database file: be aware of potential issues with file locking on a network share.
 # DB_PATH = Path(r"\\ad.liu.se\coop\i\industrialrobotsetup\sequences.db")
-DB_PATH = BASE_DIR / "src" / "mini_project" / "database" / "sequences.db"
+DB_PATH = BASE_DIR / "assets" / "db_data" / "sequences.db"
 # DB_PATH = BASE_DIR / "sequences.db"
 
 
 # DB_URL = "dbname=sequences_db user=oscar password=oscik559 host=localhost"
-# DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
+DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
 
 
 # Face recognition utilities
-FACIAL_DATA_PATH = BASE_DIR / "utils" / "face_encodings"
-FACE_CAPTURE_PATH = BASE_DIR / "utils" / "face_capture"
+FACIAL_DATA_PATH = BASE_DIR / "assets" / "face_encodings"
+FACE_CAPTURE_PATH = BASE_DIR / "assets" / "face_capture"
 IDENTIFICATION_FRAMES = (
     2  # Constant to control how many frames are used for identification averaging.
 )
@@ -47,13 +67,13 @@ AUTO_CAPTURE_FRAME_COUNT = (
 )
 
 # Voice recognition parameters
-VOICE_DATA_PATH = BASE_DIR / "utils" / "voice_embeddings"
-VOICE_CAPTURE_PATH = BASE_DIR / "utils" / "voice_capture"
+VOICE_DATA_PATH = BASE_DIR / "assets" / "voice_embeddings"
+VOICE_CAPTURE_PATH = BASE_DIR / "assets" / "voice_capture"
 
-TEMP_AUDIO_PATH = BASE_DIR / "utils" / "temp_audio"
+TEMP_AUDIO_PATH = BASE_DIR / "assets" / "temp_audio"
 
 # Camera vision utilities
-CAMERA_DATA_PATH = BASE_DIR / "utils" / "camera_data"
+CAMERA_DATA_PATH = BASE_DIR / "assets" / "camera_data"
 
 
 # Email and ID validation patterns
@@ -110,23 +130,7 @@ UNIFY_PROMPT_TEMPLATE = (
 )
 
 
-# === logging setup settings ===
-def setup_logging(level: int = logging.INFO) -> None:
-    """
-    Configures logging for the project.
 
-    Args:
-        level (int): The logging level. Default is logging.INFO.
-    """
-    logging.basicConfig(
-        level=level,
-        # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        format="[%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-    # Optionally, set specific loggers (e.g., for numba) to a different level.
-    # logging.getLogger("numba").setLevel(logging.WARNING)
 
 
 # Function to validate paths at runtime
