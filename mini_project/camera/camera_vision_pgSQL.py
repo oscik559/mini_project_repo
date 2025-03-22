@@ -2,6 +2,7 @@
 
 import math
 
+
 # import pyrealsense2 as rs
 import time
 
@@ -10,11 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from config.app_config import *
-from mini_project.camera.camera_db_utils import (
-    cleanup_camera_vision_records,
-    upsert_camera_vision_record,
-)
-from mini_project.database.db_handler_SQLite import DatabaseHandler
+from mini_project.database.db_handler_pgSQL import DatabaseHandler
 
 
 def process_image(image_path, wait_key, db_handler):
@@ -111,19 +108,19 @@ def update_camera_vision_database(
     Update the camera_vision table with detection results.
     """
     active_names = []  # to keep track of all object names that are active
-
+    DEFAULT_BLACK_CODE = [0.0, 0.0, 0.0]
     # --- Update the Tray record ---
     tray_data = {
         "object_name": "tray",
         "object_color": "black",  # default color name
-        "color_code": "[0.0, 0.0, 0.0]",  # black in normalized RGB
+        "color_code": DEFAULT_BLACK_CODE,  # black in normalized RGB
         "pos_x": tray_vector[0],
         "pos_y": tray_vector[1],
         "pos_z": tray_vector[2],
         "rot_x": 0.0,
         "rot_y": 0.0,
         "rot_z": tray_angle,
-        "usd_name": "tray.usd",
+        "usd_name": "Fixture.usd",
     }
     upsert_camera_vision_record(db_handler, **tray_data)
     active_names.append(tray_data["object_name"])
@@ -132,14 +129,14 @@ def update_camera_vision_database(
     holder_data = {
         "object_name": "holder",
         "object_color": "black",
-        "color_code": "[0.0, 0.0, 0.0]",  # default color for holder
+        "color_code": DEFAULT_BLACK_CODE,  # default color for holder
         "pos_x": holder_vector[0],
         "pos_y": holder_vector[1],
         "pos_z": holder_vector[2],
         "rot_x": 0.0,
         "rot_y": 0.0,
         "rot_z": holder_angle,
-        "usd_name": "holder.usd",
+        "usd_name": "Slide_Holder.usd",
     }
     upsert_camera_vision_record(db_handler, **holder_data)
     active_names.append(holder_data["object_name"])
@@ -153,7 +150,7 @@ def update_camera_vision_database(
         slide_pos_y = tray_vector[1] + 5 * index
         slide_pos_z = tray_vector[2]
         # Use the color code computed during detection; if not available, default to black.
-        slide_color_code = detection.get("color_code", "[0.0, 0.0, 0.0]")
+        slide_color_code = detection.get("color_code", DEFAULT_BLACK_CODE)
         slide_data = {
             "object_name": slide_name,
             "object_color": slide_color,
@@ -164,7 +161,7 @@ def update_camera_vision_database(
             "rot_x": 0.0,
             "rot_y": 0.0,
             "rot_z": tray_angle,
-            "usd_name": "slide.usd",
+            "usd_name": "Slide.usd",
         }
         upsert_camera_vision_record(db_handler, **slide_data)
         active_names.append(slide_name)
@@ -628,8 +625,8 @@ def get_normalized_color(image, bounding_box):
     # Convert BGR to RGB
     avg_color_rgb = [avg_color_bgr[2], avg_color_bgr[1], avg_color_bgr[0]]
     # Normalize each channel and round the result to 2 decimal places.
-    normalized = [round(c / 255.0, 2) for c in avg_color_rgb]
-    return str(normalized)
+    normalized = [round(float(c) / 255.0, 2) for c in avg_color_rgb]
+    return normalized  # Return as a list of Python floats
 
 
 def match_objects_to_midpoints(detected_objects, midpoints):
@@ -809,6 +806,118 @@ def vector_changed(new_vector, old_vector, tolerance=5.0):
     # A function to check if the relative vector has changed significantly
 
     return any(abs(n - o) > tolerance for n, o in zip(new_vector, old_vector))
+
+
+# camera_db_utils.py
+# with postgres
+
+
+def upsert_camera_vision_record(
+    db_handler,
+    object_name,
+    object_color,
+    color_code,
+    pos_x,
+    pos_y,
+    pos_z,
+    rot_x,
+    rot_y,
+    rot_z,
+    usd_name,
+):
+    """
+    Inserts a new row or updates the existing row (identified by object_name)
+    in the camera_vision table, including the color_code field.
+    """
+    try:
+        # Check if a record already exists for the given object_name
+        query = "SELECT object_id FROM camera_vision WHERE object_name = %s"
+        db_handler.cursor.execute(query, (object_name,))
+        result = db_handler.cursor.fetchone()
+
+        if result is None:
+            # Insert a new row if no record exists
+            insert_query = """
+                INSERT INTO camera_vision
+                (object_name, object_color, color_code, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, usd_name, last_detected)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            """
+            db_handler.cursor.execute(
+                insert_query,
+                (
+                    object_name,
+                    object_color,
+                    color_code,
+                    pos_x,
+                    pos_y,
+                    pos_z,
+                    rot_x,
+                    rot_y,
+                    rot_z,
+                    usd_name,
+                ),
+            )
+        else:
+            # Update the existing row
+            update_query = """
+                UPDATE camera_vision
+                SET object_color = %s,
+                    color_code = %s,
+                    pos_x = %s,
+                    pos_y = %s,
+                    pos_z = %s,
+                    rot_x = %s,
+                    rot_y = %s,
+                    rot_z = %s,
+                    usd_name = %s,
+                    last_detected = NOW()
+                WHERE object_name = %s
+            """
+            db_handler.cursor.execute(
+                update_query,
+                (
+                    object_color,
+                    color_code,
+                    pos_x,
+                    pos_y,
+                    pos_z,
+                    rot_x,
+                    rot_y,
+                    rot_z,
+                    usd_name,
+                    object_name,
+                ),
+            )
+
+        db_handler.conn.commit()
+
+    except Exception as e:
+        print(f"Database error in upsert_camera_vision_record: {e}")
+        db_handler.conn.rollback()
+
+
+def cleanup_camera_vision_records(db_handler, active_object_names):
+    """
+    Deletes any rows from camera_vision whose object_name is not in the active list.
+    """
+    try:
+        if not active_object_names:
+            # Avoid executing an invalid SQL statement
+            print("Warning: No active object names provided. Skipping cleanup.")
+            return
+
+        # Create a safe query with placeholders for each item
+        placeholders = ",".join(["%s"] * len(active_object_names))
+        delete_query = (
+            f"DELETE FROM camera_vision WHERE object_name NOT IN ({placeholders})"
+        )
+
+        db_handler.cursor.execute(delete_query, active_object_names)
+        db_handler.conn.commit()
+
+    except Exception as e:
+        print(f"Database error in cleanup_camera_vision_records: {e}")
+        db_handler.conn.rollback()
 
 
 def main():

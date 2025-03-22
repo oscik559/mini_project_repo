@@ -2,6 +2,22 @@
 
 
 tables = {
+    "usd_data": """
+                CREATE TABLE IF NOT EXISTS USD_data (
+                sequence_id INTEGER PRIMARY KEY,
+                usd_name TEXT NOT NULL,
+                type_of_usd TEXT NOT NULL,
+                repository TEXT NOT NULL,
+                scale_x FLOAT NOT NULL,
+                scale_y FLOAT NOT NULL,
+                scale_z FLOAT NOT NULL,
+                prim_path TEXT NOT NULL,
+                initial_pos_x FLOAT NOT NULL,
+                initial_pos_y FLOAT NOT NULL,
+                initial_pos_z FLOAT NOT NULL,
+                register_obstacle BOOLEAN NOT NULL
+            );
+            """,
     "sequence_library": """
                 CREATE TABLE IF NOT EXISTS sequence_library (
                     sequence_id SERIAL PRIMARY KEY,
@@ -92,7 +108,7 @@ tables = {
                     object_id SERIAL PRIMARY KEY,
                     object_name TEXT NOT NULL,
                     object_color TEXT NOT NULL,
-                    color_code TEXT,
+                    color_code FLOAT8[],
                     pos_x REAL NOT NULL,
                     pos_y REAL NOT NULL,
                     pos_z REAL NOT NULL,

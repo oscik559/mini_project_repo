@@ -7,9 +7,9 @@
             "server": "localhost",
             "port": 5432,
             "driver": "PostgreSQL",
+            "name": "RobotSetup",
             "database": "sequences_db",
-            "username": "oscar",
-            "name": "IndustrialRobotSetup"
+            "username": "oscar"
         }
     ]
 }

@@ -123,7 +123,7 @@ class DatabaseHandler:
     def populate_database(self):
         try:
             self.clear_tables()
-
+            populate_data.populate_USD_data(self)
             populate_data.populate_users(self)
             populate_data.populate_sequence_library(self)
             populate_data.populate_skills(self)
@@ -149,9 +149,8 @@ class DatabaseHandler:
 
 
 if __name__ == "__main__":
-        db = DatabaseHandler()
-        db.drop_all_tables()
-        db.create_tables()
-        db.populate_database()
-        atexit.register(db.close)
-
+    db = DatabaseHandler()
+    db.drop_all_tables()
+    db.create_tables()
+    db.populate_database()
+    atexit.register(db.close)

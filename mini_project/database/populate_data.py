@@ -62,6 +62,26 @@ def populate_sequence_library(self):
     self.cursor.executemany(insert_query, sequence_library)
 
 
+        # Populate USD_data
+def populate_USD_data(self):
+    USD_data = [
+            (1, "Fixture.usd", "GeometryPrim", "/fixture_description/Slide_Fixture.usd", 0.1, 0.1, 0.1, "/World/fixtureprim", 0.20, -0.07, 0.094, False),
+            (2, "Slide_Holder.usd", "GeometryPrim", "/fixture_description/Slide_Holder.usd", 0.001, 0.001, 0.001, "/World", 0.47, 0.05, 0.180, False),
+            (3, "Cuboid.usd", "DynamicCuboid", "/basicshapes/cuboid.usd", 0.0825, 0.0825, 0.0825, "/World/fixtureprim/Fixture", 0.0, 0.0, 0.0, False),
+            (4, "Cylinder.usd", "DynamicCuboid", "/basicshapes/cylinder.usd", 0.0825, 0.0825, 0.0825, "/World/fixtureprim/Fixture", 0.0, 0.0, 0.0, False),
+            (5, "Slide.usd", "DynamicCuboid", "aaa", 75.0, 24.4, 2.0, "/World/fixtureprim/Fixture", 0.0, 0.0, 0.0, True)
+        ]
+
+    insert_query = """
+            INSERT INTO USD_data (
+                    sequence_id, usd_name, type_of_usd, repository, scale_x, scale_y, scale_z,
+                    prim_path, initial_pos_x, initial_pos_y, initial_pos_z, register_obstacle
+                )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    self.cursor.executemany(insert_query, USD_data)
+
+
 def populate_users(self):
     users = [
         (

@@ -1,0 +1,5 @@
+All Notes to keep:
+
+To display the CUDA compiler version, which corresponds to your installed CUDA toolkit version.
+nvcc --version.
+
