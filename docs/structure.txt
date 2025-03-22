@@ -32,41 +32,40 @@ mini_project/
 	├── test_db_pgSQL_connection.py
 	├── test_db_pgSQL.py
 	└── test_synchronizer.py
-├── src/
+└── mini_project/
+	└── authentication/
+		├── __init__.py
+		├── face_auth.py
+		└── voice_auth.py
+	└── camera/
+		├── __init__.py
+		├── camera_db_utils.py
+		└── camera_vision.py
+	└── database/
+		├── __init__.py
+		├── connection.py
+		├── db_handler_pgSQL.py
+		├── populate_data.py
+		├── schema_sql.py
+		├── db_handler_SQLite.py
+		└── sequences.db
+	└── modalities/
+		├── __init__.py
+		├── command_processor.py
+		├── gesture_processor.py
+		├── orchestrator.py
+		├── synchronizer.py
+		└── voice_processor.py
+	└── workflow/
+		├── __init__.py
+		├── session_manager.py
+		└── task_manager.py
+	└── simulation/
+		├── omniverse_connector.py
+		└── scenario_templates/
 	└── __init__.py
-	└── mini_project/
-		└── authentication/
-            ├── __init__.py
-			├── face_auth.py
-			└── voice_auth.py
-		└── camera/
-            ├── __init__.py
-			├── camera_db_utils.py
-			└── camera_vision.py
-		└── database/
-            ├── __init__.py
-            ├── connection.py
-			├── db_handler_pgSQL.py
-            ├── populate_data.py
-            ├── schema_sql.py
-			├── db_handler_SQLite.py
-			└── sequences.db
-		└── modalities/
-			├── __init__.py
-			├── command_processor.py
-			├── gesture_processor.py
-			├── orchestrator.py
-			├── synchronizer.py
-			└── voice_processor.py
-		└── workflow/
-			├── __init__.py
-			├── session_manager.py
-			└── task_manager.py
-        └── simulation/
-            ├── omniverse_connector.py
-            └── scenario_templates/
-		└── __init__.py
-        └── __main__.py             # Entry point
+	└── __main__.py             # Entry point
+└── __init__.py
 └── gui.py
 ├── pyproject.toml
 ├── requirements.txt

@@ -298,6 +298,16 @@ class CommandProcessor:
             self.conn = None
             logger.info("Database connection closed.")
 
+    def fetch_column(self, table: str, column: str) -> list:
+        """Fetch all values in a column from a table."""
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(f"SELECT {column} FROM {table}")
+            return [row[0] for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            logger.error("Database error in fetch_column: %s", str(e), exc_info=True)
+            raise
+
 
 if __name__ == "__main__":
 

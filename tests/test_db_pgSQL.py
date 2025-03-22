@@ -1,7 +1,7 @@
 # tests/test_db_handler.py
 
 import pytest
-from mini_project.database.db_handler_new.db_handler_pgSQL import DatabaseHandler
+from mini_project.database.db_handler_pgSQL import DatabaseHandler
 
 
 @pytest.fixture(scope="module")
