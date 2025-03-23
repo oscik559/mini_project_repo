@@ -1,5 +1,4 @@
 import pytest
-from mini_project.database.db_handler_pgSQL import DatabaseHandler
 
 
 def test_tables_created(test_db):
