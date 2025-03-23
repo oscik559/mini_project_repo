@@ -1,6 +1,5 @@
 # modalities/voice_processor.py
 
-
 import logging
 import os
 import sqlite3
