@@ -3,20 +3,20 @@
 
 tables = {
     "usd_data": """
-                CREATE TABLE IF NOT EXISTS USD_data (
-                sequence_id INTEGER PRIMARY KEY,
-                usd_name TEXT NOT NULL,
-                type_of_usd TEXT NOT NULL,
-                repository TEXT NOT NULL,
-                scale_x FLOAT NOT NULL,
-                scale_y FLOAT NOT NULL,
-                scale_z FLOAT NOT NULL,
-                prim_path TEXT NOT NULL,
-                initial_pos_x FLOAT NOT NULL,
-                initial_pos_y FLOAT NOT NULL,
-                initial_pos_z FLOAT NOT NULL,
-                register_obstacle BOOLEAN NOT NULL
-            );
+                CREATE TABLE IF NOT EXISTS usd_data (
+                    sequence_id INTEGER PRIMARY KEY,
+                    usd_name TEXT NOT NULL,
+                    type_of_usd TEXT NOT NULL,
+                    repository TEXT NOT NULL,
+                    scale_x FLOAT NOT NULL,
+                    scale_y FLOAT NOT NULL,
+                    scale_z FLOAT NOT NULL,
+                    prim_path TEXT NOT NULL,
+                    initial_pos_x FLOAT NOT NULL,
+                    initial_pos_y FLOAT NOT NULL,
+                    initial_pos_z FLOAT NOT NULL,
+                    register_obstacle BOOLEAN NOT NULL
+                );
             """,
     "sequence_library": """
                 CREATE TABLE IF NOT EXISTS sequence_library (

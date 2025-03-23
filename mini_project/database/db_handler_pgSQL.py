@@ -3,13 +3,16 @@
 # database/db_handler_postgreSQL.py
 
 import atexit
+import argparse
+import sys
 import logging
 import os
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Self, Tuple
 
 from dotenv import load_dotenv
-from matplotlib import table
+
+# from matplotlib import table
 from psycopg2 import Error as Psycopg2Error
 
 from config.app_config import (
@@ -120,20 +123,33 @@ class DatabaseHandler:
             self.conn.rollback()
             raise
 
+    def clear_camera_vision(self):
+        try:
+            # Delete all rows from the camera_vision table
+            self.cursor.execute("DELETE FROM camera_vision;")
+            self.conn.commit()
+            print("[DB] Cleared camera_vision table.")
+        except Exception as e:
+            logger.error(f"Error clearing camera_vision table: {e}")
+            self.conn.rollback()
+
     def populate_database(self):
         try:
             self.clear_tables()
-            populate_data.populate_USD_data(self)
-            populate_data.populate_users(self)
-            populate_data.populate_sequence_library(self)
-            populate_data.populate_skills(self)
-            populate_data.populate_instructions(self)
-            populate_data.populate_states(self)
-            populate_data.populate_operation_sequence(self)
-            populate_data.populate_sort_order(self)
-            populate_data.populate_task_preferences(self)
-            populate_data.populate_interaction_memory(self)
-            populate_data.populate_simulation_results(self)
+
+            populator = populate_data.DatabasePopulator(self.cursor)
+
+            populator.populate_usd_data()
+            populator.populate_users()
+            populator.populate_sequence_library()
+            populator.populate_skills()
+            populator.populate_instructions()
+            populator.populate_states()
+            populator.populate_operation_sequence()
+            populator.populate_sort_order()
+            populator.populate_task_preferences()
+            populator.populate_interaction_memory()
+            populator.populate_simulation_results()
 
             self.conn.commit()
             logger.info("Database populated successfully.")
@@ -148,9 +164,58 @@ class DatabaseHandler:
             self.conn.close()
 
 
-if __name__ == "__main__":
+def main_cli():
+    parser = argparse.ArgumentParser(description="Manage PostgreSQL database.")
+
+    parser.add_argument("--drop", action="store_true", help="Drop all tables.")
+    parser.add_argument("--create", action="store_true", help="Create all tables.")
+    parser.add_argument(
+        "--populate", action="store_true", help="Populate tables with sample data."
+    )
+    parser.add_argument(
+        "--reset",
+        action="store_true",
+        help="Drop, create, and populate all tables.",
+    )
+
+    args = parser.parse_args()
+
+    # Show help if no arguments are passed
+    if not any(vars(args).values()):
+        parser.print_help()
+        print("No arguments provided — defaulting to --reset.\n")
+        args.reset = True
+
     db = DatabaseHandler()
-    db.drop_all_tables()
-    db.create_tables()
-    db.populate_database()
-    atexit.register(db.close)
+
+    try:
+        if args.drop:
+            db.drop_all_tables()
+
+        if args.create:
+            db.create_tables()
+            db.create_indexes()
+
+        if args.populate:
+            db.populate_database()
+
+        if args.reset:
+            db.drop_all_tables()
+            db.create_tables()
+            db.create_indexes()
+            db.populate_database()
+
+    finally:
+        db.close()
+        atexit.register(db.close)
+
+
+if __name__ == "__main__":
+    main_cli()
+
+    # db = DatabaseHandler()
+    # db.drop_all_tables()
+    # db.create_tables()
+    # db.create_indexes()
+    # db.populate_database()
+    # atexit.register(db.close)

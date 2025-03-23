@@ -43,7 +43,7 @@ def process_image(image_path, wait_key, db_handler):
             color_image = cv2.imread(image_path)
             if color_image is None:
                 print(f"Error: Could not load image from {image_path}")
-                return
+                raise ValueError("Image not found")
 
             (
                 tray_relative_position,
@@ -52,6 +52,11 @@ def process_image(image_path, wait_key, db_handler):
                 angle_with_x,
                 angle_with_x_holder,
             ) = color_image_process(color_image, wait_key)
+
+            if not matched_objects:
+                print("[INFO] No objects detected. Clearing camera_vision table.")
+                db_handler.clear_camera_vision()
+                continue
 
             # Convert np.float64 values in tray_relative_position to Python float
             tray_relative_position = [float(value) for value in tray_relative_position]
@@ -99,6 +104,10 @@ def process_image(image_path, wait_key, db_handler):
             )
     finally:
         cv2.destroyAllWindows()
+        print("[INFO] Script ending. Clearing camera_vision table...")
+        db_handler.clear_camera_vision()
+        db_handler.close()
+
 
 
 def update_camera_vision_database(

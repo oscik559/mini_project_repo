@@ -134,7 +134,6 @@ def process_image(image_path, wait_key, db_handler):
             if cv2.waitKey(wait_key) & 0xFF == ord("q"):
                 break
     finally:
-        pipeline.stop()
         cv2.destroyAllWindows()
 
 

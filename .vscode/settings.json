@@ -9,7 +9,8 @@
             "driver": "PostgreSQL",
             "name": "RobotSetup",
             "database": "sequences_db",
-            "username": "oscar"
+            "username": "oscar",
+            "password": "oscik559"
         }
     ]
 }
