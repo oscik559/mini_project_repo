@@ -1,0 +1,306 @@
+# authentication/voice_auth.py
+"""
+This module provides functionality for voice authentication, including recording audio,
+transcribing it, capturing voice embeddings, and storing them in a SQLite database and on disk.
+Classes:
+    VoiceAuth: A class for handling voice authentication tasks.
+Functions:
+    audio_session: A context manager for handling an audio recording session.
+VoiceAuth Methods:
+    __init__: Initialize the VoiceAuth class with database path, temporary audio path, and voice data path.
+    _create_directories: Ensure that the directories for voice data and temporary audio exist.
+    _record_audio: Record audio from the microphone and save it to a WAV file.
+    _transcribe_audio: Transcribe recorded audio to text using Google Speech Recognition.
+    _capture_voice_embedding: Capture a voice embedding from the recorded audio.
+    _validate_liu_id: Validate the LIU ID format.
+    _save_voice_embedding: Save the voice embedding in the database and as a pickle file.
+    register_user: Register a new user using voice authentication.
+    register_voice_for_user: Record a voice statement for an already-registered user.
+"""
+import logging
+import os
+import pickle
+import re
+import sqlite3
+import warnings
+from contextlib import contextmanager
+from typing import List
+
+import sounddevice as sd
+from resemblyzer import VoiceEncoder, preprocess_wav
+from scipy.io.wavfile import write
+from speech_recognition import AudioFile, Recognizer, RequestError, UnknownValueError
+
+from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH, setup_logging
+
+# Suppress warnings if desired
+warnings.filterwarnings("ignore", category=FutureWarning)
+
+
+# Context manager for handling an audio recording session.
+@contextmanager
+def audio_session():
+    try:
+        yield
+    finally:
+        sd.stop()
+
+
+class VoiceAuth:
+    """
+    A class for voice authentication which handles:
+    - Audio recording.
+    - Transcription.
+    - Voice embedding capture.
+    - Storing embeddings in a SQLite database and on disk.
+    """
+
+    def __init__(
+        self,
+        db_path: str,
+        temp_audio_path: str = TEMP_AUDIO_PATH,
+        voice_data_path: str = VOICE_DATA_PATH,
+    ) -> None:
+        self.db_path = db_path
+        self.temp_audio_path = temp_audio_path
+        self.voice_data_path = voice_data_path
+        self.encoder = VoiceEncoder()
+        self._create_directories()
+        # self._initialize_database()
+
+    def _create_directories(self) -> None:
+        """Ensure that the directories for voice data and temporary audio exist."""
+        os.makedirs(self.voice_data_path, exist_ok=True)
+        os.makedirs(self.temp_audio_path, exist_ok=True)
+        logging.info("Directories ensured for voice data and temporary audio.")
+
+    def _record_audio(
+        self, filename: str, prompt: str, duration: int = 5, sampling_rate: int = 16000
+    ) -> None:
+        """
+        Record audio from the microphone and save it to a WAV file.
+
+        Args:
+            filename (str): The file path to save the recorded audio.
+            prompt (str): The message to display to the user before recording.
+            duration (int): Duration of the recording in seconds.
+            sampling_rate (int): Sampling rate for the audio recording.
+        """
+        logging.info(prompt)
+        try:
+            with audio_session():
+                audio = sd.rec(
+                    int(duration * sampling_rate),
+                    samplerate=sampling_rate,
+                    channels=1,
+                    dtype="int16",
+                )
+                sd.wait()
+            write(filename, sampling_rate, audio)
+            logging.info(f"Audio recorded and saved to {filename}")
+        except Exception as e:
+            msg = f"Error during audio recording: {e}"
+            logging.error(msg)
+            raise Exception(msg)
+
+    def _transcribe_audio(self, filename: str) -> str:
+        """
+        Transcribe recorded audio to text using Google Speech Recognition.
+
+        Args:
+            filename (str): The file path of the audio file.
+
+        Returns:
+            str: The transcribed text.
+
+        Raises:
+            Exception: If transcription fails.
+        """
+        recognizer = Recognizer()
+        try:
+            with AudioFile(filename) as source:
+                audio = recognizer.record(source)
+                text = recognizer.recognize_google(audio)
+                logging.info(f"Transcription: {text}")
+                return text
+        except UnknownValueError:
+            msg = "Audio transcription failed: speech was unintelligible."
+            logging.error(msg)
+            raise Exception(msg)
+        except RequestError as e:
+            msg = f"Audio transcription failed: API error: {e}"
+            logging.error(msg)
+            raise Exception(msg)
+        except Exception as e:
+            msg = f"An unexpected error occurred during transcription: {e}"
+            logging.error(msg)
+            raise Exception(msg)
+
+    def _capture_voice_embedding(self, audio_path: str) -> List[float]:
+        """
+        Capture a voice embedding from the recorded audio.
+
+        Args:
+            audio_path (str): Path to the audio file.
+
+        Returns:
+            List[float]: The voice embedding vector.
+        """
+        try:
+            wav = preprocess_wav(audio_path)
+            embedding = self.encoder.embed_utterance(wav)
+            logging.info(f"Voice embedding captured, shape: {embedding.shape}")
+            return embedding.tolist()
+        except Exception as e:
+            msg = f"Error capturing voice embedding: {e}"
+            logging.error(msg)
+            raise Exception(msg)
+
+    @staticmethod
+    def _validate_liu_id(liu_id: str) -> bool:
+        """
+        Validate the LIU ID format.
+
+        Args:
+            liu_id (str): The LIU ID to validate.
+
+        Returns:
+            bool: True if the LIU ID is valid; False otherwise.
+        """
+        pattern = r"^[a-z]{5}[0-9]{3}$"
+        return bool(re.match(pattern, liu_id))
+
+    def _save_voice_embedding(
+        self, liu_id: str, voice_embedding: List[float], first_name: str, last_name: str
+    ) -> None:
+        """
+        Save the voice embedding in the database (using upsert) and as a pickle file.
+
+        Args:
+            liu_id (str): The LIU ID of the user.
+            voice_embedding (List[float]): The voice embedding vector.
+            first_name (str): The user's first name.
+            last_name (str): The user's last name.
+        """
+        voice_file = os.path.join(self.voice_data_path, f"{liu_id}_voice.pkl")
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    """
+                    INSERT INTO users (liu_id, voice_embedding, first_name, last_name)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(liu_id) DO UPDATE SET voice_embedding = excluded.voice_embedding
+                """,
+                    (liu_id, pickle.dumps(voice_embedding), first_name, last_name),
+                )
+                conn.commit()
+            with open(voice_file, "wb") as file:
+                pickle.dump(voice_embedding, file)
+            logging.info(f"Voice embedding saved for LIU ID: {liu_id}")
+        except sqlite3.Error as e:
+            msg = f"Error saving voice embedding to database: {e}"
+            logging.error(msg)
+            raise Exception(msg)
+        except Exception as e:
+            msg = f"Error saving voice embedding to file: {e}"
+            logging.error(msg)
+            raise Exception(msg)
+
+    def register_user(self) -> None:
+        """
+        Register a new user using voice authentication.
+
+        This method:
+        - Collects user details.
+        - Records a voice statement.
+        - Transcribes the statement.
+        - Captures the voice embedding.
+        - Saves the embedding in the database and as a file.
+        """
+        logging.info("Starting voice-driven user registration...")
+        try:
+            first_name = input("Enter your first name: ").strip()
+            if not first_name:
+                raise Exception("First name cannot be empty.")
+
+            last_name = input("Enter your last name: ").strip()
+            if not last_name:
+                raise Exception("Last name cannot be empty.")
+
+            liu_id = input("Enter your LIU ID (e.g. abcxy123): ").strip()
+            if not self._validate_liu_id(liu_id):
+                raise Exception("Invalid LIU ID format.")
+
+            # Record a voice statement.
+            statement_audio = os.path.join(
+                self.temp_audio_path, f"{liu_id}_statement.wav"
+            )
+            self._record_audio(
+                statement_audio,
+                "Please read the following sentence clearly: 'Artificial intelligence enables machines to recognize patterns, process language, and make decisions.'",
+                duration=12,
+            )
+
+            # Transcribe the audio.
+            transcription = self._transcribe_audio(statement_audio)
+            if not transcription:
+                raise Exception("Audio transcription failed. Please try again.")
+
+            # Capture the voice embedding.
+            embedding = self._capture_voice_embedding(statement_audio)
+            if not embedding:
+                raise Exception("Failed to capture voice embedding.")
+
+            # Save the voice embedding, passing first_name and last_name.
+            self._save_voice_embedding(liu_id, embedding, first_name, last_name)
+            logging.info(
+                f"Registration complete for {first_name} {last_name} (LIU ID: {liu_id})."
+            )
+        except Exception as e:
+            logging.exception("Registration failed.")
+            print(f"Registration failed: {e}")
+
+    def register_voice_for_user(
+        self, first_name: str, last_name: str, liu_id: str, duration: int = 8
+    ) -> None:
+        """
+        Record a voice statement for an already-registered user.
+        This method does not prompt for personal details, instead it uses the provided first_name,
+        last_name, and liu_id. It records audio, transcribes (if desired), captures the voice embedding,
+        and updates the user record with the voice embedding.
+        """
+        try:
+            # Construct the file path for the voice statement.
+            voice_statement_audio = os.path.join(
+                self.temp_audio_path, f"{liu_id}_voice.wav"
+            )
+
+            # Record a voice statement.
+            self._record_audio(
+                voice_statement_audio,
+                "Please speak a short voice statement for registration:",
+                duration=duration,
+                sampling_rate=16000,  # or use your configured sampling_rate
+            )
+
+            # (Optional) Transcribe the audio and log the transcription.
+            transcription = self._transcribe_audio(voice_statement_audio)
+            logging.info("Voice transcription: %s", transcription)
+
+            # Capture the voice embedding.
+            embedding = self._capture_voice_embedding(voice_statement_audio)
+            if not embedding:
+                raise Exception("Failed to capture voice embedding.")
+
+            # Save the voice embedding: update the database and save the pickle file.
+            self._save_voice_embedding(liu_id, embedding, first_name, last_name)
+            logging.info("Voice embedding recorded and saved for LIU ID: %s", liu_id)
+        except Exception as e:
+            logging.error("Voice registration for user failed: %s", e)
+            raise
+
+
+if __name__ == "__main__":
+    auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
+    auth.register_user()

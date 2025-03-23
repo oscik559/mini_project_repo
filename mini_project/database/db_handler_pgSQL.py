@@ -1,11 +1,9 @@
-# Main DatabaseHandler class (cleaned)
-
 # database/db_handler_postgreSQL.py
 
 import argparse
-import sys
 import logging
 import os
+import sys
 from datetime import datetime
 from typing import Dict, List, Optional, Self, Tuple
 
@@ -17,9 +15,7 @@ from psycopg2 import Error as Psycopg2Error
 from config.app_config import (
     setup_logging,
 )
-
-from mini_project.database import schema_sql
-from mini_project.database import populate_db
+from mini_project.database import populate_db, schema_sql
 from mini_project.database.connection import get_connection
 
 # Load .env variables

@@ -1,9 +1,10 @@
-import cv2
-import numpy as np
 import math
-import matplotlib.pyplot as plt
-import pyrealsense2 as rs
 import time
+
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+import pyrealsense2 as rs
 
 # import rospy
 # from geometry_msgs.msg import Vector3

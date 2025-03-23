@@ -1,6 +1,9 @@
 import os
+
 import pytest
+
 from mini_project.database.db_handler_pgSQL import DatabaseHandler
+
 
 @pytest.fixture(scope="function")
 def test_db(monkeypatch):

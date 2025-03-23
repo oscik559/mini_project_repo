@@ -9,10 +9,11 @@ including paths, thresholds, and validation patterns.
 - for environment variables and the prompt template.
 """
 
-import os
 import logging.config
-import yaml
+import os
 from pathlib import Path
+
+import yaml
 
 
 def setup_logging(level: int = logging.INFO) -> None:
@@ -44,12 +45,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project/ directory pat
 # Use network share or local database file: be aware of potential issues with file locking on a network share.
 # DB_PATH = Path(r"\\ad.liu.se\coop\i\industrialrobotsetup\sequences.db")
 DB_PATH = BASE_DIR / "assets" / "db_data" / "sequences.db"
-# DB_PATH = BASE_DIR / "sequences.db"
-
 
 # DB_URL = "dbname=sequences_db user=oscar password=oscik559 host=localhost"
 DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
-
 
 # Face recognition utilities
 FACIAL_DATA_PATH = BASE_DIR / "assets" / "face_encodings"
@@ -69,6 +67,10 @@ AUTO_CAPTURE_FRAME_COUNT = (
 # Voice recognition parameters
 VOICE_DATA_PATH = BASE_DIR / "assets" / "voice_embeddings"
 VOICE_CAPTURE_PATH = BASE_DIR / "assets" / "voice_capture"
+TRANSCRIPTION_SENTENCE = (
+    "Artificial intelligence enables machines to recognize patterns, process language, and make decisions."
+)
+MAX_RETRIES = 3
 
 TEMP_AUDIO_PATH = BASE_DIR / "assets" / "temp_audio"
 
