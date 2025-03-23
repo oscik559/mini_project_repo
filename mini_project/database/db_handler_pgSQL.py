@@ -2,7 +2,6 @@
 
 # database/db_handler_postgreSQL.py
 
-import atexit
 import argparse
 import sys
 import logging
@@ -19,7 +18,8 @@ from config.app_config import (
     setup_logging,
 )
 
-from mini_project.database import schema_sql, populate_data
+from mini_project.database import schema_sql
+from mini_project.database import populate_db
 from mini_project.database.connection import get_connection
 
 # Load .env variables
@@ -52,20 +52,16 @@ class DatabaseHandler:
             self.conn = get_connection()
             self.conn.autocommit = False
             self.cursor = self.conn.cursor()
-            self.initialize_database()
         except Psycopg2Error as e:
             logger.error(f"Error connecting to PostgreSQL database: {e}")
             raise
-
-    def initialize_database(self):
-        self.create_tables()
-        self.create_indexes()
 
     def create_tables(self):
         try:
             for create_sql in schema_sql.tables.values():
                 self.cursor.execute(create_sql)
             self.conn.commit()
+            logger.info("All tables created successfully.")
         except Psycopg2Error as e:
             logger.error(f"Error creating tables: {e}")
             self.conn.rollback()
@@ -98,6 +94,7 @@ class DatabaseHandler:
             )
             self.cursor.execute(truncate_query)
             self.conn.commit()
+            logger.info("All tables cleared successfully.")
         except Psycopg2Error as e:
             logger.error(f"Error clearing tables: {e}")
             self.conn.rollback()
@@ -117,7 +114,7 @@ class DatabaseHandler:
             """
             )
             self.conn.commit()
-            print("All tables dropped successfully.")
+            logger.info("All tables dropped successfully.")
         except Psycopg2Error as e:
             logger.error(f"Error dropping tables: {e}")
             self.conn.rollback()
@@ -128,7 +125,7 @@ class DatabaseHandler:
             # Delete all rows from the camera_vision table
             self.cursor.execute("DELETE FROM camera_vision;")
             self.conn.commit()
-            print("[DB] Cleared camera_vision table.")
+            logger.info("[DB] Cleared camera_vision table.")
         except Exception as e:
             logger.error(f"Error clearing camera_vision table: {e}")
             self.conn.rollback()
@@ -137,7 +134,7 @@ class DatabaseHandler:
         try:
             self.clear_tables()
 
-            populator = populate_data.DatabasePopulator(self.cursor)
+            populator = populate_db.DatabasePopulator(self.cursor)
 
             populator.populate_usd_data()
             populator.populate_users()
@@ -167,6 +164,9 @@ class DatabaseHandler:
 def main_cli():
     parser = argparse.ArgumentParser(description="Manage PostgreSQL database.")
 
+    parser.add_argument(
+        "--clear", action="store_true", help="Truncate all tables and reset identities."
+    )
     parser.add_argument("--drop", action="store_true", help="Drop all tables.")
     parser.add_argument("--create", action="store_true", help="Create all tables.")
     parser.add_argument(
@@ -186,28 +186,36 @@ def main_cli():
         print("No arguments provided — defaulting to --reset.\n")
         args.reset = True
 
-    db = DatabaseHandler()
-
     try:
-        if args.drop:
-            db.drop_all_tables()
-
-        if args.create:
-            db.create_tables()
-            db.create_indexes()
-
-        if args.populate:
-            db.populate_database()
+        db = DatabaseHandler()
 
         if args.reset:
+            print("Resetting the database (drop, create, populate)...")
             db.drop_all_tables()
             db.create_tables()
             db.create_indexes()
             db.populate_database()
+        else:
+            if args.drop:
+                print("Dropping all tables...")
+                db.drop_all_tables()
+            if args.create:
+                print("Creating tables...")
+                db.create_tables()
+                db.create_indexes()
+            if args.clear:
+                print("Clearing tables...")
+                db.clear_tables()
+            if args.populate:
+                print("Populating tables...")
+                db.populate_database()
 
-    finally:
         db.close()
-        atexit.register(db.close)
+
+    except Exception as e:
+        logger.exception("Unexpected error during CLI execution")
+        print(f"❌ Error: {e}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
