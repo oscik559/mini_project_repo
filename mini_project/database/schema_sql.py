@@ -43,7 +43,7 @@ tables = {
                     profile_image_path TEXT,
                     interaction_memory TEXT,
                     face_encoding BYTEA,
-                    voice_embedding JSONB,
+                    voice_embedding BYTEA,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );

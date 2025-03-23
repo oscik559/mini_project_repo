@@ -38,7 +38,6 @@ load_logging_config()
 logger = logging.getLogger("mini_project")
 
 
-
 # Define the base directory
 BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project/ directory path
 
@@ -71,6 +70,7 @@ TRANSCRIPTION_SENTENCE = (
     "Artificial intelligence enables machines to recognize patterns, process language, and make decisions."
 )
 MAX_RETRIES = 3
+VOICE_MATCH_THRESHOLD = 0.7  # Cosine similarity threshold for identification.
 
 TEMP_AUDIO_PATH = BASE_DIR / "assets" / "temp_audio"
 
@@ -130,9 +130,6 @@ UNIFY_PROMPT_TEMPLATE = (
     "Gesture Instruction: {gesture_text}\n"
     "Unified Command:"
 )
-
-
-
 
 
 # Function to validate paths at runtime

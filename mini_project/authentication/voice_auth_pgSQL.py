@@ -17,7 +17,6 @@ VoiceAuth Methods:
     register_user: Register a new user using voice authentication.
     register_voice_for_user: Record a voice statement for an already-registered user.
 """
-import json
 import logging
 import os
 import pickle
@@ -40,6 +39,7 @@ from config.app_config import (
     TEMP_AUDIO_PATH,
     TRANSCRIPTION_SENTENCE,
     VOICE_DATA_PATH,
+    VOICE_MATCH_THRESHOLD,
     setup_logging,
 )
 from mini_project.database.connection import get_connection
@@ -197,10 +197,15 @@ class VoiceAuth:
             self.cursor.execute(
                 """
                     INSERT INTO users (liu_id, voice_embedding, first_name, last_name)
-                    VALUES (%s, %s::jsonb, %s, %s)
-                    ON CONFLICT(liu_id) DO UPDATE SET voice_embedding = excluded.voice_embedding
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT(liu_id) DO UPDATE SET voice_embedding = EXCLUDED.voice_embedding
                 """,
-                (liu_id, json.dumps(voice_embedding), first_name, last_name),
+                (
+                    liu_id,
+                    psycopg2.Binary(pickle.dumps([voice_embedding])),
+                    first_name,
+                    last_name,
+                ),
             )
             self.conn.commit()
 
@@ -338,15 +343,15 @@ class VoiceAuth:
             raise
 
     def verify_user_by_voice(
-        self, liu_id: str, audio_path: str, threshold: float = 0.75
+        self, liu_id: str, audio_path: str
     ) -> bool:
         """
         Verifies whether the voice in the provided audio matches the registered user's embedding.
 
+
         Args:
             liu_id (str): The user's LIU ID.
             audio_path (str): Path to the newly recorded voice sample.
-            threshold (float): Cosine similarity threshold for verification.
 
         Returns:
             bool: True if match passes the threshold; False otherwise.
@@ -368,7 +373,7 @@ class VoiceAuth:
             # Compare using cosine similarity
             similarity = cosine_similarity([new_embedding], [stored_embedding])[0][0]
             logging.info(f"Voice similarity score: {similarity:.4f}")
-            return similarity >= threshold
+            return similarity >= VOICE_MATCH_THRESHOLD
         except Exception as e:
             logging.error(f"Voice verification failed: {e}")
             return False
