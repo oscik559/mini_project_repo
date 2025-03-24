@@ -132,7 +132,6 @@ class DatabaseHandler:
                     last_updated TIMESTAMP DEFAULT (datetime('now','localtime'))
                 );
             """,
-            # Add new table for voice commands
             "voice_instructions": """
                 CREATE TABLE IF NOT EXISTS voice_instructions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -144,7 +143,6 @@ class DatabaseHandler:
                     processed BOOLEAN DEFAULT FALSE
                 );
             """,
-            # Add new table for gesture commands
             "gesture_instructions": """
                 CREATE TABLE IF NOT EXISTS gesture_instructions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -157,7 +155,6 @@ class DatabaseHandler:
                     processed BOOLEAN DEFAULT FALSE
                 );
             """,
-            # Add new table for the library of all possible gesture cues
             "gesture_library": """
                 CREATE TABLE IF NOT EXISTS gesture_library (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,

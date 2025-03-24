@@ -48,6 +48,16 @@ tables = {
                     last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """,
+    "access_logs": """
+                CREATE TABLE IF NOT EXISTS access_logs (
+                    log_id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    action_type TEXT NOT NULL,
+                    target_table TEXT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(user_id)
+                );
+            """,
     "skills": """
                 CREATE TABLE IF NOT EXISTS skills (
                     skill_id SERIAL PRIMARY KEY,
@@ -60,7 +70,7 @@ tables = {
             """,
     "instructions": """
                 CREATE TABLE IF NOT EXISTS instructions (
-                    id SERIAL PRIMARY KEY,
+                    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     user_id INTEGER,
                     modality TEXT CHECK(modality IN ('voice', 'gesture', 'text')),
@@ -95,12 +105,12 @@ tables = {
     "screw_op_parameters": """
                 CREATE TABLE IF NOT EXISTS screw_op_parameters (
                     sequence_id SERIAL PRIMARY KEY,
-                    operation_order INTEGER,
-                    object_id TEXT,
-                    rotation_dir BOOLEAN,
-                    number_of_rotations INTEGER,
-                    current_rotation INTEGER,
-                    operation_status BOOLEAN
+                    operation_order INTEGER NOT NULL,
+                    object_id TEXT NOT NULL,
+                    rotation_dir BOOLEAN NOT NULL,
+                    number_of_rotations INTEGER NOT NULL,
+                    current_rotation INTEGER NOT NULL,
+                    operation_status BOOLEAN NOT NULL
                 );
             """,
     "camera_vision": """
@@ -163,7 +173,7 @@ tables = {
             """,
     "unified_instructions": """
                 CREATE TABLE IF NOT EXISTS unified_instructions (
-                    id SERIAL PRIMARY KEY,
+                    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                     session_id TEXT,
                     timestamp TIMESTAMP,
                     voice_command TEXT,
@@ -171,6 +181,39 @@ tables = {
                     unified_command TEXT
                 );
             """,
+    "gesture_library": """
+                CREATE TABLE IF NOT EXISTS gesture_library (
+                    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    gesture_type TEXT UNIQUE NOT NULL,
+                    gesture_text TEXT NOT NULL,
+                    natural_description TEXT,
+                    config JSONB
+
+                );
+            """,
+    "gesture_instructions": """
+                CREATE TABLE IF NOT EXISTS gesture_instructions (
+                    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    session_id TEXT NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    gesture_text TEXT NOT NULL,
+                    natural_description TEXT,
+                    confidence REAL,
+                    hand_label TEXT,
+                    processed BOOLEAN DEFAULT FALSE
+                );
+            """,
+    "voice_instructions": """
+                CREATE TABLE IF NOT EXISTS voice_instructions (
+                id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                transcribed_text TEXT NOT NULL,
+                confidence REAL,
+                language TEXT NOT NULL,
+                processed BOOLEAN DEFAULT FALSE,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        """,
     "instruction_operation_sequence": """
                 CREATE TABLE IF NOT EXISTS instruction_operation_sequence (
                     task_id SERIAL PRIMARY KEY,
@@ -202,4 +245,6 @@ indexes = [
     "CREATE INDEX IF NOT EXISTS idx_operation_sequence_object ON instruction_operation_sequence(object_id);",
     "CREATE INDEX IF NOT EXISTS idx_camera_vision_last_detected ON camera_vision(last_detected);",
     "CREATE INDEX IF NOT EXISTS idx_user_prefs_task ON task_preferences(user_id, task_id);",
+    "CREATE INDEX IF NOT EXISTS idx_voice_session_id ON voice_instructions(session_id);",
+    "CREATE INDEX IF NOT EXISTS idx_voice_processed ON voice_instructions(processed);",
 ]

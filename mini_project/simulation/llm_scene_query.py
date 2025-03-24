@@ -1,19 +1,13 @@
 import logging
 
-import psycopg2
 import requests
 
 from config.app_config import setup_logging
 from mini_project.database.connection import get_connection
 from mini_project.modalities.voice_processor import SpeechSynthesizer, VoiceProcessor
 
-# from pathlib import Path
-
-
-
 logging.getLogger("comtypes").setLevel(logging.WARNING)
 
-# OLLAMA_MODEL = "llama3.2:latest"
 OLLAMA_MODEL = "mistral:latest"
 
 
