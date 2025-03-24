@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
+from pluggy import Result
 import pyttsx3
 import sounddevice as sd
 import webrtcvad
@@ -308,7 +309,7 @@ class Storage:
                             (session_id, transcribed_text, detected_language),
                         )
                 logger.info(
-                    "Voice instruction stored successfully in voice_instructions table."
+                    "✅ Voice instruction stored successfully in voice_instructions table."
                 )
                 return
             except psycopg2.OperationalError as e:
@@ -370,12 +371,10 @@ class VoiceProcessor:
                     else:
                         time.sleep(1)
 
-            logger.info(
-                f"📝 Transcription completed. Detected language: {language}"
-            )
-            logger.info(" 🗃️ Storing voice instruction in the database...")
+            logger.info(f"📝 Transcription completed. Detected language: {language}")
+            logger.info("🗃️ Storing voice instruction in the database...")
             self.storage.store_instruction(self.session_id, language, text)
-            logger.info("🎉 Voice instruction captured and stored successfully!")
+            logger.info("🎉-Voice instruction captured and stored successfully!")
 
         except KeyboardInterrupt:
             logger.info("Voice capture process interrupted by user.")
@@ -389,3 +388,26 @@ class VoiceProcessor:
 if __name__ == "__main__":
     vp = VoiceProcessor()
     vp.capture_voice()
+
+
+
+
+
+
+Result
+"""
+[2025-03-24 18:19:07] INFO - VoiceProcessor - 🚀 Starting voice capture process...
+[2025-03-24 18:19:07] INFO - VoiceProcessor - 🔈 Calibrating ambient noise...
+[2025-03-24 18:19:09] INFO - VoiceProcessor - ✅ Ambient noise calibration complete. Noise floor: 7.41
+[2025-03-24 18:19:09] INFO - VoiceProcessor - 🎚️ Amplitude threshold set to: 107.41 (Noise floor: 7.41 + Margin: 100)
+[2025-03-24 18:19:11] INFO - VoiceProcessor - 🗣️ Voice recording: Please speak now...
+[2025-03-24 18:19:19] INFO - VoiceProcessor - 🎤 Recording completed. Duration: 6.37 seconds
+[2025-03-24 18:19:19] INFO - VoiceProcessor - 💾 Audio saved to C:\Users\oscik559\Projects\mini_project_repo\assets\temp_audio\voice_recording.wav
+[2025-03-24 18:19:19] INFO - VoiceProcessor - 📥 Audio recording completed. Starting transcription...
+[2025-03-24 18:19:19] INFO - faster_whisper - 🧠 Processing audio with duration 00:06.330
+[2025-03-24 18:19:19] INFO - faster_whisper - 🌐 Detected language 'en' with probability 0.56
+[2025-03-24 18:19:20] INFO - VoiceProcessor - 📝 Transcription completed. Detected language: English
+[2025-03-24 18:19:20] INFO - VoiceProcessor - 🗃️ Storing voice instruction in the database...
+[2025-03-24 18:19:20] INFO - VoiceProcessor - ✅ Voice instruction stored successfully in voice_instructions table.
+[2025-03-24 18:19:20] INFO - VoiceProcessor - 🎉 Voice instruction captured and stored successfully!
+ """
