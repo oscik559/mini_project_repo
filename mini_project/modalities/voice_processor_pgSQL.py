@@ -36,6 +36,7 @@ logger = logging.getLogger("VoiceProcessor")
 
 min_duration_sec = 1.5  # Minimum duration for a valid recording
 
+
 class SpeechSynthesizer:
     _instance = None  # Singleton instance
 
@@ -115,7 +116,7 @@ class AudioRecorder:
             raise ValueError("Temp audio path must be a string.")
 
     def calibrate_noise(self) -> float:
-        logger.info("Calibrating ambient noise...")
+        logger.info("🔈 Calibrating ambient noise...")
         noise_rms_values: list[float] = []
         stream = sd.InputStream(
             samplerate=self.sampling_rate, channels=1, dtype="int16"
@@ -130,7 +131,7 @@ class AudioRecorder:
                 noise_rms_values.append(rms)
         noise_floor = np.mean(noise_rms_values)
         logger.info(
-            f"Ambient noise calibration complete. Noise floor: {noise_floor:.2f}"
+            f"✅ Ambient noise calibration complete. Noise floor: {noise_floor:.2f}"
         )
         return noise_floor
 
@@ -138,9 +139,16 @@ class AudioRecorder:
         noise_floor = self.calibrate_noise()
         amplitude_threshold = noise_floor + self.config["amplitude_margin"]
         logger.info(
-            f"Amplitude threshold set to: {amplitude_threshold:.2f} (Noise floor: {noise_floor:.2f} + Margin: {self.config['amplitude_margin']})"
+            f"🎚️ Amplitude threshold set to: {amplitude_threshold:.2f} (Noise floor: {noise_floor:.2f} + Margin: {self.config['amplitude_margin']})"
         )
-        logger.info("Voice recording: Please speak now...")
+
+        # 🗣️ Speak the instruction aloud
+        try:
+            self.synthesizer.speak("Please speak now.")
+        except Exception as e:
+            logger.warning(f"[Recorder] Failed to speak instruction: {e}")
+
+        logger.info("🗣️ Voice recording: Please speak now...")
 
         # 🔔 Play ding sound immediately after prompt
         try:
@@ -185,7 +193,7 @@ class AudioRecorder:
                     break
         audio = np.concatenate(audio, axis=0)
         duration = time.time() - start_time
-        logger.info(f"Recording completed. Duration: {duration:.2f} seconds")
+        logger.info(f"🎤 Recording completed. Duration: {duration:.2f} seconds")
         if duration < min_duration_sec:
             logger.warning(
                 f"Recording too short ({duration:.2f}s). Treating as no speech."
@@ -195,7 +203,7 @@ class AudioRecorder:
 
         try:
             write(self.temp_audio_path, self.sampling_rate, audio)
-            logger.info(f"Audio saved to {self.temp_audio_path}")
+            logger.info(f"💾 Audio saved to {self.temp_audio_path}")
         except Exception as e:
             logger.error(f"Error saving audio: {e}")
             raise
@@ -330,7 +338,7 @@ class VoiceProcessor:
 
     def capture_voice(self) -> None:
         try:
-            logger.info("Starting voice capture process...")
+            logger.info("🚀 Starting voice capture process...")
             self.recorder.record_audio()
 
             if not self.recorder.speech_detected:
@@ -344,7 +352,7 @@ class VoiceProcessor:
                     logger.error(f"Error deleting temporary audio file: {e}")
                 return
 
-            logger.info("Audio recording completed. Starting transcription...")
+            logger.info("📥 Audio recording completed. Starting transcription...")
 
             for attempt in range(MAX_TRANSCRIPTION_RETRIES):
                 try:
@@ -362,10 +370,12 @@ class VoiceProcessor:
                     else:
                         time.sleep(1)
 
-            logger.info(f"Transcription completed. Detected language: {language}")
-            logger.info("Storing voice instruction in the database...")
+            logger.info(
+                f"📝 Transcription completed. Detected language: {language}"
+            )
+            logger.info(" 🗃️ Storing voice instruction in the database...")
             self.storage.store_instruction(self.session_id, language, text)
-            logger.info("Voice instruction captured and stored successfully!")
+            logger.info("🎉 Voice instruction captured and stored successfully!")
 
         except KeyboardInterrupt:
             logger.info("Voice capture process interrupted by user.")
