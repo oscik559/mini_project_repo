@@ -11,7 +11,7 @@ import numpy as np
 
 from config.app_config import *
 from mini_project.database.db_handler_pgSQL import DatabaseHandler
-
+ 
 
 def process_image(image_path, wait_key, db_handler):
     """

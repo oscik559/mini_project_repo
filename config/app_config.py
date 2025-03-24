@@ -81,7 +81,7 @@ VOICE_PROCESSING_CONFIG = {
         "db_path": str(DB_PATH),  # Path to the SQLite database
     },
 }
-
+MAX_TRANSCRIPTION_RETRIES = 1
 
 VOICE_TTS_SETTINGS = {
     "speed": 165,

@@ -15,6 +15,8 @@ import pyttsx3
 import sounddevice as sd
 import webrtcvad
 from faster_whisper import WhisperModel
+from config.constants import WHISPER_LANGUAGE_NAMES
+
 from gtts import gTTS
 from playsound import playsound
 from scipy.io.wavfile import write
@@ -22,6 +24,7 @@ from scipy.io.wavfile import write
 from config.app_config import (
     VOICE_PROCESSING_CONFIG,
     VOICE_TTS_SETTINGS,
+    MAX_TRANSCRIPTION_RETRIES,
     setup_logging,
     logger,
 )
@@ -32,8 +35,72 @@ logging.getLogger("comtypes").setLevel(logging.WARNING)
 logger = logging.getLogger("VoiceProcessor")
 
 
+class SpeechSynthesizer:
+    _instance = None  # Singleton instance
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(SpeechSynthesizer, cls).__new__(cls)
+            cls._instance._init_engine()
+        return cls._instance
+
+    def _init_engine(self):
+        self.use_gtts = VOICE_TTS_SETTINGS["use_gtts"]
+        self.voice_speed = VOICE_TTS_SETTINGS["speed"]
+        self.ping_path = Path(VOICE_TTS_SETTINGS["ping_sound_path"]).resolve()
+        self.ding_path = Path(VOICE_TTS_SETTINGS["ding_sound_path"]).resolve()
+        self.voice_index = VOICE_TTS_SETTINGS.get("voice_index", 1)
+
+        if not self.use_gtts:
+            try:
+                self.engine = pyttsx3.init()
+                voices = self.engine.getProperty("voices")
+                self.engine.setProperty("rate", self.voice_speed)
+                self.engine.setProperty("voice", voices[self.voice_index].id)
+            except Exception as e:
+                logger.error(f"[TTS] Error initializing pyttsx3: {e}")
+
+    def play_ping(self):
+        try:
+            if not self.ping_path.exists():
+                raise FileNotFoundError(f"Ping sound file not found: {self.ping_path}")
+            playsound(str(self.ping_path))
+        except Exception as e:
+            logger.warning(f"[Ping Sound] Failed to play: {e}")
+
+    def play_ding(self):
+        try:
+            if not self.ding_path.exists():
+                raise FileNotFoundError(f"Ding sound file not found: {self.ding_path}")
+            playsound(str(self.ding_path))
+        except Exception as e:
+            logger.warning(f"[Ding Sound] Failed to play: {e}")
+
+    def speak(self, text: str):
+        if self.use_gtts:
+            try:
+                temp_path = (
+                    Path(tempfile.gettempdir()) / f"speech_{uuid.uuid4().hex}.mp3"
+                )
+                gTTS(text=text).save(temp_path)
+                playsound(str(temp_path))
+                os.remove(temp_path)
+            except Exception as e:
+                logger.error(f"[TTS:gTTS] Error: {e}")
+                print(f"[TTS Fallback] {text}")
+        else:
+            try:
+                self.engine.say(text)
+                self.engine.runAndWait()
+            except Exception as e:
+                logger.error(f"[TTS:pyttsx3] Error during speech: {e}")
+                print(f"[TTS Fallback] {text}")
+
+
 class AudioRecorder:
-    def __init__(self) -> None:
+
+    def __init__(self, synthesizer: Optional[SpeechSynthesizer] = None) -> None:
+        self.synthesizer = synthesizer or SpeechSynthesizer()
         self.config: Dict[str, Any] = VOICE_PROCESSING_CONFIG["recording"]
         self.temp_audio_path: str = self.config["temp_audio_path"]
         self.sampling_rate: int = self.config["sampling_rate"]
@@ -76,7 +143,7 @@ class AudioRecorder:
 
         # 🔔 Play ding sound immediately after prompt
         try:
-            SpeechSynthesizer().play_ding()
+            self.synthesizer.play_ding()
         except Exception as e:
             logger.warning(f"[Recorder] Failed to play ding: {e}")
 
@@ -127,6 +194,7 @@ class AudioRecorder:
 
 
 class Transcriber:
+
     def __init__(self) -> None:
         self.config: Dict[str, Any] = VOICE_PROCESSING_CONFIG["whisper"]
         self.model = WhisperModel(
@@ -135,12 +203,54 @@ class Transcriber:
             compute_type=self.config["compute_type"],
         )
 
+    # =================== only store transcribed_text and language —
+    # =================== which means you're storing Swedish text if the speaker used Swedish.
+
+    # def transcribe_audio(self, audio_path: str) -> Tuple[str, str]:
+    #     try:
+    #         segments, info = self.model.transcribe(audio_path)
+    #         original_text = " ".join([segment.text for segment in segments])
+    #         detected_language = info.language
+    #         return original_text, detected_language
+    #     except FileNotFoundError as e:
+    #         logger.error(f"Audio file not found: {audio_path}")
+    #         raise
+    #     except RuntimeError as e:
+    #         logger.error(f"Error loading Whisper model: {e}")
+    #         raise
+    #     except Exception as e:
+    #         logger.error(f"Unexpected error during transcription: {e}")
+    #         raise
+
+    # =================== Keeps info.language accurate (auto-detected language)
+    # =================== Transcribes as English, no matter the input language
+
     def transcribe_audio(self, audio_path: str) -> Tuple[str, str]:
         try:
-            segments, info = self.model.transcribe(audio_path)
-            original_text = " ".join([segment.text for segment in segments])
+            # Transcribe with forced translation to English
+            segments, info = self.model.transcribe(audio_path, beam_size=5)
             detected_language = info.language
-            return original_text, detected_language
+            language_prob = info.language_probability
+
+            if language_prob < 0.5:
+                logger.warning(
+                    f"❗ Low language detection confidence: {language_prob:.2f} for '{detected_language}'"
+                )
+                raise ValueError("Unclear speech or unsupported language.")
+
+            if detected_language != "en":
+                # Re-run with translation
+                segments, _ = self.model.transcribe(
+                    audio_path, task="translate", beam_size=5
+                )
+
+            original_text = " ".join([segment.text for segment in segments])
+            if not original_text.strip():
+                raise ValueError("No intelligible speech detected.")
+
+            language = WHISPER_LANGUAGE_NAMES.get(detected_language, detected_language)
+            return original_text, language
+
         except FileNotFoundError as e:
             logger.error(f"Audio file not found: {audio_path}")
             raise
@@ -207,11 +317,14 @@ class VoiceProcessor:
         self.transcriber = Transcriber()
         self.storage = Storage()
         self.session_id = session_id or str(uuid.uuid4())
+        self.synthesizer = SpeechSynthesizer()
+        self.recorder = AudioRecorder(self.synthesizer)
 
     def capture_voice(self) -> None:
         try:
             logger.info("Starting voice capture process...")
             self.recorder.record_audio()
+
             if not self.recorder.speech_detected:
                 logger.info("No speech detected. Skipping transcription and storage.")
                 try:
@@ -222,78 +335,37 @@ class VoiceProcessor:
                 except Exception as e:
                     logger.error(f"Error deleting temporary audio file: {e}")
                 return
+
             logger.info("Audio recording completed. Starting transcription...")
-            text, language = self.transcriber.transcribe_audio(
-                self.recorder.temp_audio_path
-            )
+
+            for attempt in range(MAX_TRANSCRIPTION_RETRIES):
+                try:
+                    text, language = self.transcriber.transcribe_audio(
+                        self.recorder.temp_audio_path
+                    )
+                    break  # success
+                except ValueError as e:
+                    logger.warning(f"Attempt {attempt+1}: {e}")
+                    if attempt == MAX_TRANSCRIPTION_RETRIES - 1:
+                        logger.info(
+                            "❌ Failed to transcribe clearly after retries. Skipping."
+                        )
+                        return
+                    else:
+                        time.sleep(1)
+
             logger.info(f"Transcription completed. Detected language: {language}")
             logger.info("Storing voice instruction in the database...")
             self.storage.store_instruction(self.session_id, language, text)
             logger.info("Voice instruction captured and stored successfully!")
+
         except KeyboardInterrupt:
             logger.info("Voice capture process interrupted by user.")
+        except ValueError as e:
+            logger.info(f"⚠️ Skipping transcription: {e}")
+            return
         except Exception as e:
             logger.error(f"Error in voice capture process: {e}")
-
-
-class SpeechSynthesizer:
-    def __init__(self):
-        self.use_gtts = VOICE_TTS_SETTINGS["use_gtts"]
-        self.voice_speed = VOICE_TTS_SETTINGS["speed"]
-        self.ping_path = Path(VOICE_TTS_SETTINGS["ping_sound_path"]).resolve()
-        self.ding_path = Path(VOICE_TTS_SETTINGS["ding_sound_path"]).resolve()
-        self.voice_index = VOICE_TTS_SETTINGS.get("voice_index", 1)
-
-        if not self.use_gtts:
-            try:
-                self.engine = pyttsx3.init()
-                voices = self.engine.getProperty("voices")
-                self.engine.setProperty("rate", self.voice_speed)
-                self.engine.setProperty("voice", voices[self.voice_index].id)
-            except IndexError:
-                logger.warning(
-                    f"[TTS] Voice index {self.voice_index} is not valid. Using default voice."
-                )
-                self.engine = pyttsx3.init()
-                self.engine.setProperty("rate", self.voice_speed)
-            except Exception as e:
-                logger.error(f"[TTS] Error initializing pyttsx3: {e}")
-
-    def play_ping(self):
-        try:
-            if not self.ping_path.exists():
-                raise FileNotFoundError(f"Ping sound file not found: {self.ping_path}")
-            playsound(str(self.ping_path))
-        except Exception as e:
-            logger.warning(f"[Ping Sound] Failed to play: {e}")
-
-    def play_ding(self):
-        try:
-            if not self.ding_path.exists():
-                raise FileNotFoundError(f"Ding sound file not found: {self.ding_path}")
-            playsound(str(self.ding_path))
-        except Exception as e:
-            logger.warning(f"[Ding Sound] Failed to play: {e}")
-
-    def speak(self, text: str):
-        if self.use_gtts:
-            try:
-                temp_path = (
-                    Path(tempfile.gettempdir()) / f"speech_{uuid.uuid4().hex}.mp3"
-                )
-                gTTS(text=text).save(temp_path)
-                playsound(str(temp_path))
-                os.remove(temp_path)
-            except Exception as e:
-                logger.error(f"[TTS:gTTS] Error: {e}")
-                print(f"[TTS Fallback] {text}")
-        else:
-            try:
-                self.engine.say(text)
-                self.engine.runAndWait()
-            except Exception as e:
-                logger.error(f"[TTS:pyttsx3] Error during speech: {e}")
-                print(f"[TTS Fallback] {text}")
 
 
 if __name__ == "__main__":
