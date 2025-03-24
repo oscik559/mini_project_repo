@@ -107,3 +107,4 @@ WHISPER_LANGUAGE_NAMES = {
     "zh-tw": "Chinese (Traditional)",
     "zu": "Zulu",
 }
+

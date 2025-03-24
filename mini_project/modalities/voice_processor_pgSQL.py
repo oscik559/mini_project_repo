@@ -34,6 +34,7 @@ import psycopg2
 logging.getLogger("comtypes").setLevel(logging.WARNING)
 logger = logging.getLogger("VoiceProcessor")
 
+min_duration_sec = 1.5  # Minimum duration for a valid recording
 
 class SpeechSynthesizer:
     _instance = None  # Singleton instance
@@ -185,6 +186,13 @@ class AudioRecorder:
         audio = np.concatenate(audio, axis=0)
         duration = time.time() - start_time
         logger.info(f"Recording completed. Duration: {duration:.2f} seconds")
+        if duration < min_duration_sec:
+            logger.warning(
+                f"Recording too short ({duration:.2f}s). Treating as no speech."
+            )
+            self.speech_detected = False  # suppress further processing
+            return
+
         try:
             write(self.temp_audio_path, self.sampling_rate, audio)
             logger.info(f"Audio saved to {self.temp_audio_path}")
