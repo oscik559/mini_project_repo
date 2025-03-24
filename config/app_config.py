@@ -15,36 +15,14 @@ from pathlib import Path
 
 import yaml
 
-
-def setup_logging(level: int = logging.INFO) -> None:
-    logging.basicConfig(
-        level=level,
-        # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        format="[%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-def load_logging_config():
-    config_path = Path(__file__).parent / "logging_config.yaml"
-    if config_path.exists():
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
-        logging.config.dictConfig(config)
-    else:
-        setup_logging()
-
-# Set up logging
-load_logging_config()
-logger = logging.getLogger("mini_project")
-
-
 # Define the base directory
-BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project/ directory path
+BASE_DIR = Path(__file__).resolve().parent.parent  # mini_project_repo/ directory path
 
 # Use network share or local database file: be aware of potential issues with file locking on a network share.
 # DB_PATH = Path(r"\\ad.liu.se\coop\i\industrialrobotsetup\sequences.db")
 DB_PATH = BASE_DIR / "assets" / "db_data" / "sequences.db"
 
+# Use postgreSQL database.
 # DB_URL = "dbname=sequences_db user=oscar password=oscik559 host=localhost"
 DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
 
@@ -66,9 +44,7 @@ AUTO_CAPTURE_FRAME_COUNT = (
 # Voice recognition parameters
 VOICE_DATA_PATH = BASE_DIR / "assets" / "voice_embeddings"
 VOICE_CAPTURE_PATH = BASE_DIR / "assets" / "voice_capture"
-TRANSCRIPTION_SENTENCE = (
-    "Artificial intelligence enables machines to recognize patterns, process language, and make decisions."
-)
+TRANSCRIPTION_SENTENCE = "Artificial intelligence enables machines to recognize patterns, process language, and make decisions."
 MAX_RETRIES = 3
 VOICE_MATCH_THRESHOLD = 0.7  # Cosine similarity threshold for identification.
 
@@ -106,6 +82,16 @@ VOICE_PROCESSING_CONFIG = {
     },
 }
 
+
+VOICE_TTS_SETTINGS = {
+    "speed": 165,
+    "use_gtts": False,
+    "ping_sound_path": str(BASE_DIR / "assets" / "sound_effects" / "ping.wav"),
+    "ding_sound_path": str(BASE_DIR / "assets" / "sound_effects" / "ding.wav"),
+    "voice_index": 2,  # 0 = Hazel, 1 = David, 2 = Zira (example for Windows)
+}
+
+
 # === Gesture Recognition Settings ===
 MIN_DETECTION_CONFIDENCE = 0.7
 MIN_TRACKING_CONFIDENCE = 0.5
@@ -116,6 +102,7 @@ FRAME_SKIP = 2
 BATCH_SIZE = int(os.getenv("BATCH_SIZE", 1000))
 LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", 3))
 LLM_MODEL = os.getenv("LLM_MODEL", "mistral:latest")
+
 UNIFY_PROMPT_TEMPLATE = (
     "Role: Command Unifier. Combine voice commands (primary) with gesture cues (supplementary).\n"
     "Rules:\n"
@@ -156,6 +143,29 @@ def validate_paths() -> None:
                 logger.error(f"Failed to create directory {path}: {e}", exc_info=True)
                 raise RuntimeError(f"Failed to create directory {path}: {e}")
 
+
+def setup_logging(level: int = logging.INFO) -> None:
+    logging.basicConfig(
+        level=level,
+        # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        format="[%(levelname)s] %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+
+def load_logging_config():
+    config_path = Path(__file__).parent / "logging_config.yaml"
+    if config_path.exists():
+        with open(config_path, "r") as f:
+            config = yaml.safe_load(f)
+        logging.config.dictConfig(config)
+    else:
+        setup_logging()
+
+
+# Set up logging
+load_logging_config()
+logger = logging.getLogger("mini_project")
 
 # Automatically validate paths when this module is imported
 validate_paths()

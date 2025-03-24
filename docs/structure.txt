@@ -1,7 +1,7 @@
 
 # Project Structure
 
-mini_project/
+mini_project_repo/
 ├── .venv/
 ├── .vscode/
     ├── launch.json
@@ -13,6 +13,8 @@ mini_project/
         └── oscik559.jpg
 	├── face_encodings/
 	├── gui_design/
+	├── sound_effects/
+		└── ping.wav
 	├── temp_audio/
         └── oscik559_voice.wav
 	├── voice_capture/
@@ -62,6 +64,8 @@ mini_project/
 		└── task_manager.py
 	└── simulation/
 		├── omniverse_connector.py
+		├── llm_scene_query_langchain.py
+		├── llm_scene_query.py
 		└── scenario_templates/
 	└── __init__.py
 	└── __main__.py             # Entry point

@@ -1,17 +1,21 @@
-import psycopg2
 import logging
+
+import psycopg2
+import requests
+
+from config.app_config import setup_logging
+from mini_project.database.connection import get_connection
+from mini_project.modalities.voice_processor import SpeechSynthesizer, VoiceProcessor
+
+# from pathlib import Path
+
+
 
 logging.getLogger("comtypes").setLevel(logging.WARNING)
 
-import requests
-import pyttsx3
-from mini_project.database.connection import get_connection
-from config.app_config import setup_logging
-from mini_project.modalities.voice_processor import VoiceProcessor
-
 # OLLAMA_MODEL = "llama3.2:latest"
-OLLAMA_MODEL = "llama3.2:1b"
-voice_speed = 165  # You can adjust speed
+OLLAMA_MODEL = "mistral:latest"
+
 
 # Minimal prompt for direct answers
 SCENE_PROMPT_TEMPLATE = """
@@ -33,31 +37,27 @@ Answer:
 """
 
 
-# Call the local Ollama server
 def call_llm(prompt: str) -> str:
     """Call the LLM using Ollama and return the response."""
     try:
         response = requests.post(
             "http://localhost:11434/api/generate",
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-            },
+            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
             timeout=60,
         )
-        return response.json().get("response", "[No response from LLM]").strip()
-    except Exception as e:
-        logging.error(f"Failed to contact LLM: {e}")
-        return "[LLM error: unable to generate response]"
+        if response.status_code != 200:
+            logging.error(f"[LLM] Bad status: {response.status_code} | {response.text}")
+            return "[LLM error: non-200 response]"
 
+        result = response.json().get("response", "").strip()
+        return result if result else "[LLM error: empty response]"
 
-def speak(text: str):
-    """Convert text to speech."""
-    engine = pyttsx3.init()
-    engine.setProperty("rate", voice_speed)  # You can adjust speed
-    engine.say(text)
-    engine.runAndWait()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"[LLM] Request failed: {e}")
+        return "[LLM error: request failed]"
+    except ValueError as e:
+        logging.error(f"[LLM] JSON decode error: {e}")
+        return "[LLM error: response parsing failed]"
 
 
 def fetch_camera_objects() -> list:
@@ -94,8 +94,11 @@ def query_scene(question: str) -> str:
 
 
 def voice_to_scene_response():
-    """Record voice input, query scene with LLM, speak result."""
     print("🎤 Speak your question about the scene...")
+
+    tts = SpeechSynthesizer()
+    tts.play_ping()  # 🔔 before recording
+
     vp = VoiceProcessor()
     vp.recorder.record_audio()
 
@@ -112,14 +115,16 @@ def voice_to_scene_response():
     print("🤖:", answer)
 
     print("🔊 Speaking response...")
-    speak(answer)
+    tts.speak(answer)
 
 
 # === CLI Entry Point ===
 if __name__ == "__main__":
     print("🔁 Voice-controlled LLM Scene Query")
+    setup_logging()
+
     while True:
-        voice_to_scene_response()
+        voice_to_scene_response()  # Will use SpeechSynthesizer inside
         again = input("Try another question? (y/n): ").strip().lower()
         if again != "y":
             break

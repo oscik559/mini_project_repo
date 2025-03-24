@@ -3,17 +3,22 @@
 import logging
 import os
 import sqlite3
+import tempfile
 import time
 import uuid
+from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
+import pyttsx3
 import sounddevice as sd
 import webrtcvad
 from faster_whisper import WhisperModel
+from gtts import gTTS
+from playsound import playsound
 from scipy.io.wavfile import write
 
-from config.app_config import VOICE_PROCESSING_CONFIG, setup_logging
+from config.app_config import VOICE_PROCESSING_CONFIG, VOICE_TTS_SETTINGS, setup_logging
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
@@ -61,6 +66,13 @@ class AudioRecorder:
             f"Amplitude threshold set to: {amplitude_threshold:.2f} (Noise floor: {noise_floor:.2f} + Margin: {self.config['amplitude_margin']})"
         )
         logger.info("Voice recording: Please speak now...")
+
+        # 🔔 Play ding sound immediately after prompt
+        try:
+            SpeechSynthesizer().play_ding()
+        except Exception as e:
+            logger.warning(f"[Recorder] Failed to play ding: {e}")
+
         audio = []
         start_time = time.time()
         silence_start: Optional[float] = None
@@ -256,6 +268,64 @@ class VoiceProcessor:
             logger.info("Voice capture process interrupted by user.")
         except Exception as e:
             logger.error(f"Error in voice capture process: {e}")
+
+
+class SpeechSynthesizer:
+    def __init__(self):
+        self.use_gtts = VOICE_TTS_SETTINGS["use_gtts"]
+        self.voice_speed = VOICE_TTS_SETTINGS["speed"]
+        self.ping_path = Path(VOICE_TTS_SETTINGS["ping_sound_path"]).resolve()
+        self.ding_path = Path(VOICE_TTS_SETTINGS["ding_sound_path"]).resolve()
+        self.voice_index = VOICE_TTS_SETTINGS.get("voice_index", 1)
+
+        if not self.use_gtts:
+            try:
+                self.engine = pyttsx3.init()
+                voices = self.engine.getProperty("voices")
+                self.engine.setProperty("rate", self.voice_speed)
+                self.engine.setProperty("voice", voices[self.voice_index].id)
+            except IndexError:
+                logger.warning(f"[TTS] Voice index {self.voice_index} is not valid. Using default voice.")
+                self.engine = pyttsx3.init()
+                self.engine.setProperty("rate", self.voice_speed)
+            except Exception as e:
+                logger.error(f"[TTS] Error initializing pyttsx3: {e}")
+
+    def play_ping(self):
+        try:
+            if not self.ping_path.exists():
+                raise FileNotFoundError(f"Ping sound file not found: {self.ping_path}")
+            playsound(str(self.ping_path))
+        except Exception as e:
+            logger.warning(f"[Ping Sound] Failed to play: {e}")
+
+    def play_ding(self):
+        try:
+            if not self.ding_path.exists():
+                raise FileNotFoundError(f"Ding sound file not found: {self.ding_path}")
+            playsound(str(self.ding_path))
+        except Exception as e:
+            logger.warning(f"[Ding Sound] Failed to play: {e}")
+
+    def speak(self, text: str):
+        if self.use_gtts:
+            try:
+                temp_path = (
+                    Path(tempfile.gettempdir()) / f"speech_{uuid.uuid4().hex}.mp3"
+                )
+                gTTS(text=text).save(temp_path)
+                playsound(str(temp_path))
+                os.remove(temp_path)
+            except Exception as e:
+                logger.error(f"[TTS:gTTS] Error: {e}")
+                print(f"[TTS Fallback] {text}")
+        else:
+            try:
+                self.engine.say(text)
+                self.engine.runAndWait()
+            except Exception as e:
+                logger.error(f"[TTS:pyttsx3] Error during speech: {e}")
+                print(f"[TTS Fallback] {text}")
 
 
 if __name__ == "__main__":

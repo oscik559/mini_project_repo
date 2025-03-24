@@ -1,16 +1,18 @@
 import logging
 import os
+import tempfile
+import uuid
+
 import pyttsx3
 from gtts import gTTS
-from playsound import playsound
-import tempfile
+from langchain.chains import LLMChain
 from langchain_community.chat_models import ChatOllama
 from langchain_core.prompts import PromptTemplate
-from langchain.chains import LLMChain
-from mini_project.database.connection import get_connection
+from playsound import playsound
+
 from config.app_config import setup_logging
+from mini_project.database.connection import get_connection
 from mini_project.modalities.voice_processor import VoiceProcessor
-import uuid
 
 logging.getLogger("comtypes").setLevel(logging.WARNING)
 
@@ -18,7 +20,7 @@ logging.getLogger("comtypes").setLevel(logging.WARNING)
 # === CONFIGURATION ===
 OLLAMA_MODEL = "mistral:latest"  # LLM model
 voice_speed = 165  # TTS speed
-use_gtts = True  # Set to True to use gTTS instead of pyttsx3
+use_gtts = False  # Set to True to use gTTS instead of pyttsx3
 
 # === LangChain LLM Wrapper ===
 llm = ChatOllama(model=OLLAMA_MODEL)
@@ -138,10 +140,10 @@ if __name__ == "__main__":
     engine = pyttsx3.init()
     voices = engine.getProperty("voices")
     # engine.setProperty("voice", voices[0].id) # Microsoft Hazel Desktop - English (Great Britain)
-    engine.setProperty(
-        "voice", voices[1].id
-    )  #  Microsoft David Desktop - English (United States
-    # engine.setProperty("voice", voices[2].id) # Microsoft Zira Desktop - English (United States)
+    # engine.setProperty(
+    #     "voice", voices[1].id
+    # )  #  Microsoft David Desktop - English (United States
+    engine.setProperty("voice", voices[2].id) # Microsoft Zira Desktop - English (United States)
 
     setup_logging()
     while True:
