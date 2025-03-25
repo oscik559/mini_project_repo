@@ -282,6 +282,35 @@ class DatabasePopulator:
         """
         self.cursor.executemany(insert_query, sort_order)
 
+    def populate_task_templates(self):
+        task_templates = [
+            (
+                "sort",
+                "Default sorting task: pick, move, drop",
+                ["pick", "travel", "drop"],
+            ),
+            (
+                "assemble",
+                "Assembly involves pick and screw",
+                ["pick", "travel", "screw", "go_home"],
+            ),
+            (
+                "inspect",
+                "Inspect task involves scan and return",
+                ["travel", "inspect", "go_home"],
+            ),
+            (
+                "cleanup",
+                "Cleanup task involves pick, rotate, drop",
+                ["pick", "rotate", "drop"],
+            ),
+        ]
+        insert_query = """
+            INSERT INTO task_templates (task_name, description, default_sequence)
+            VALUES (%s, %s, %s);
+        """
+        self.cursor.executemany(insert_query, task_templates)
+
     def populate_task_preferences(self):
         task_preferences = [
             (1, "Pick Object", '{"time": "morning", "location": "shelf"}'),

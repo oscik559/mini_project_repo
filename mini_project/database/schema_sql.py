@@ -195,6 +195,14 @@ tables = {
                     last_detected TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """,
+    "task_templates": """
+                CREATE TABLE IF NOT EXISTS task_templates (
+                    task_id SERIAL PRIMARY KEY,
+                    task_name TEXT UNIQUE NOT NULL,
+                    description TEXT,
+                    default_sequence TEXT[]
+                );
+            """,
     "sort_order": """
                 CREATE TABLE IF NOT EXISTS sort_order (
                     sequence_id SERIAL PRIMARY KEY,
@@ -242,9 +250,13 @@ tables = {
                     id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
                     session_id TEXT,
                     timestamp TIMESTAMP,
+                    liu_id TEXT,
                     voice_command TEXT,
                     gesture_command TEXT,
-                    unified_command TEXT
+                    unified_command TEXT,
+                    confidence FLOAT CHECK(confidence BETWEEN 0 AND 1),
+                    processed BOOLEAN DEFAULT FALSE,
+                    FOREIGN KEY (liu_id) REFERENCES users(liu_id) ON DELETE CASCADE
                 );
             """,
     "gesture_library": """
@@ -313,4 +325,7 @@ indexes = [
     "CREATE INDEX IF NOT EXISTS idx_user_prefs_task ON task_preferences(user_id, task_id);",
     "CREATE INDEX IF NOT EXISTS idx_voice_session_id ON voice_instructions(session_id);",
     "CREATE INDEX IF NOT EXISTS idx_voice_processed ON voice_instructions(processed);",
+    "CREATE INDEX IF NOT EXISTS idx_task_templates_name ON task_templates(task_name);",
+    "CREATE INDEX IF NOT EXISTS idx_task_templates_sequence ON task_templates(default_sequence);",
+    "CREATE INDEX IF NOT EXISTS idx_unified_instructions_session_id ON unified_instructions(session_id);",
 ]

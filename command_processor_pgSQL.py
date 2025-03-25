@@ -26,8 +26,6 @@ logger = logging.getLogger("CommandProcessor")
 
 # === CONFIGURATION ===
 OLLAMA_MODEL = "mistral:latest"
-# OLLAMA_MODEL = "llama3.2:latest"
-# OLLAMA_MODEL = "llama3.3:latest"
 
 
 class CommandProcessor:
@@ -37,70 +35,27 @@ class CommandProcessor:
 
         self.llm_model = llm_model
 
-        self.system_prompt = """
-            You are a robotic task planner. Your job is to break down natural language commands into valid low-level robot operations.
+        self.system_prompt = """You are a robot task and operation sequence planner. Analyze the instruction and break it down into sequential operations using these available sequence_names:
+        {available_sequences} and available object_names {available_objects}
 
-            ### CONTEXT:
-
-            #### 1. AVAILABLE SEQUENCES:
-            The robot can only use the following valid sequence names from the sequence_library table:
-            {available_sequences}
-
-            ⚠️ Do NOT invent or assume sequences. Only use the names provided above. Invalid examples: checkColor, rotate, scan, verify, etc.
-
-
-            #### 2. TASK TEMPLATES:
-            These are default sequences for high-level tasks like sorting, assembling, etc.
-
-            Examples:
-            {task_templates}
-
-            #### 3. OBJECT CONTEXT:
-            Here are the known objects the robot can see, with color:
-            {object_context}
-
-            #### 4. SORT ORDER:
-            When sorting by color, use this color priority (from sort_order):
-            {sort_order}
-
-            ### INSTRUCTIONS:
-            1. Determine the intended task (e.g., "sort").
-            2. Use the default task template unless user modifies the plan.
-            3. Match object names by color (e.g., "green slide").
-            4. If the user specifies steps (e.g., “rotate before drop”), update the sequence.
-            5. Apply the sequence to each object in order.
-            6. Add `"go_home"` at the end unless told otherwise.
-
-            ### RESPONSE FORMAT:
-            Example JSON array of operations:
-            [
-            {{"sequence_name": "pick", "object_name": "Slide_1"}},
-            {{"sequence_name": "travel", "object_name": "Slide_1"}},
-            {{"sequence_name": "drop", "object_name": "Slide_1"}},
-            {{"sequence_name": "go_home", "object_name": ""}}
-            ]
-
-            Return only one JSON array — NEVER return multiple arrays or repeat the plan.
-            BAD ❌:
-            [
-            {{...}}
-            ]
-            [
-            {{...}}
-            ]
-
-            GOOD ✅:
-            [
-            {{"sequence_name": "...", "object_name": "..."}},
-            ...
-            ]
-
-
-            Do NOT include extra text, markdown, or explanations.
-            Note: All generated plans will be stored step-by-step in a planning table called "operation_sequence", indexed by a group ID called "operation_id".
-            Each row in the output corresponds to one line in this table.
-
-            """
+        **Strict Output Rules**:
+        **Output Format**:
+            - The response MUST consist of ONLY one **SINGLE valid JSON array** containing all operations. Do NOT return multiple arrays.
+            - Do NOT include any text, explanations, or additional comments outside the JSON array.
+        **Required Fields**: Each operation MUST have "sequence_name" and "object_name"
+        **Valid Values**:
+            - "sequence_name" must be one of the following: {available_sequences}
+            - "object_name" must be one of the following: {available_objects} or an empty string ("") if not applicable to the corresponding sequence_name.
+        **Formatting**:
+            - Use double quotes (`"`) for all keys and string values.
+            - Ensure the JSON is valid and parsable by standard JSON parsers.
+        **IMPORTANT**: Do NOT include any explanations, instructions, or text outside the JSON array. Return ONLY the JSON array.
+        **Example Output**:
+        ```json
+        [{{"sequence_name": "pick", "object_name": "RedCube"}}]
+        [{{"sequence_name": "go_home", "object_name": ""}}]
+        ```
+        """
 
         # Cache available sequences and objects from database for validation purposes
         self.available_sequences = self.get_available_sequences()
@@ -164,20 +119,6 @@ class CommandProcessor:
             )
             raise
 
-    def get_available_objects_with_colors(self) -> List[str]:
-        self.cursor.execute("SELECT object_name, object_color FROM camera_vision")
-        return [f"{name} ({color})" for name, color in self.cursor.fetchall()]
-
-    def get_sort_order(self) -> List[str]:
-        self.cursor.execute(
-            "SELECT object_color FROM sort_order ORDER BY sequence_id ASC"
-        )
-        return [row[0] for row in self.cursor.fetchall()]
-
-    def get_task_templates(self) -> Dict[str, List[str]]:
-        self.cursor.execute("SELECT task_name, default_sequence FROM task_templates")
-        return {row[0]: row[1] for row in self.cursor.fetchall()}
-
     def validate_operation(self, operation: Dict) -> bool:
         """Validate operation structure"""
         available_sequences = self.get_available_sequences()
@@ -198,41 +139,30 @@ class CommandProcessor:
             return False
 
     def extract_json_array(self, raw_response: str) -> List[Dict]:
+        json_start = raw_response.find("[")
+        json_end = raw_response.rfind("]") + 1
+        if json_start == -1 or json_end == 0:
+            raise ValueError("JSON array not found in the response.")
+        json_str = raw_response[json_start:json_end]
         try:
-            # Use a regular expression to extract the first full JSON array
-            import re
-
-            matches = re.findall(r"\[\s*{.*?}\s*](?=\s*\[|$)", raw_response, re.DOTALL)
-            if not matches:
-                raise ValueError("No valid JSON array found in LLM response.")
-
-            return json.loads(matches[0])
-        except Exception as e:
-            logger.error(
-                "Failed to extract JSON array from LLM response: %s", e, exc_info=True
-            )
-            raise
+            return json.loads(json_str)
+        except json.JSONDecodeError:
+            json_str_fixed = "[" + json_str.replace("][", "],[") + "]"
+            return json.loads(json_str_fixed)
 
     def process_command(self, unified_command: Dict) -> bool:
         """
         Process a single unified command using LLM
         """
         try:
-            available_sequences = self.available_sequences
-            available_objects = self.available_objects
+            available_sequences = self.get_available_sequences()
+            available_objects = self.get_available_objects()
 
-            task_templates = self.get_task_templates()
-            formatted_templates = "\n".join(
-                f'- Task: "{k}" → {v}' for k, v in task_templates.items()
-            )
-
+            # Format the system prompt with available sequences and objects
             formatted_system_prompt = self.system_prompt.format(
                 available_sequences=", ".join(available_sequences),
-                task_templates=formatted_templates,
-                object_context=", ".join(self.get_available_objects_with_colors()),
-                sort_order=", ".join(self.get_sort_order()),
+                available_objects=", ".join(available_objects),
             )
-
             logger.debug(f"Formatted system prompt: {formatted_system_prompt}")
             response = ollama.chat(
                 model=self.llm_model,
@@ -289,26 +219,6 @@ class CommandProcessor:
         if valid_operations:
             try:
                 cursor = self.cursor
-                # =======================================================
-
-                # Create new operation_id (max + 1) to group this sequence
-                cursor.execute(
-                    "SELECT COALESCE(MAX(operation_id), 0) + 1 FROM operation_sequence"
-                )
-                operation_id = cursor.fetchone()[0]
-
-                # Insert into operation_sequence
-                for op in valid_operations:
-                    cursor.execute(
-                        """
-                        INSERT INTO operation_sequence (operation_id, sequence_name, object_name)
-                        VALUES (%s, %s, %s)
-                        """,
-                        (operation_id, op["sequence_name"], op["object_name"]),
-                    )
-                logger.info(f"Saved planned operation sequence with ID {operation_id}")
-
-                # =======================================================
                 for op in valid_operations:
                     # Lookup the sequence_id for the given sequence_name
                     cursor.execute(
@@ -340,23 +250,23 @@ class CommandProcessor:
                         object_id = None
 
                     logger.info("Inserting operation: %s", op)
-                    # cursor.execute(
-                    #     """
-                    #     INSERT INTO instruction_operation_sequence
-                    #     (instruction_id, sequence_id, sequence_name, object_id, object_name)
-                    #     VALUES (%s, %s, %s, %s, %s)
-                    # """,
-                    #     (
-                    #         unified_command["id"],
-                    #         sequence_id,
-                    #         op["sequence_name"],
-                    #         object_id,
-                    #         op.get("object_name", ""),
-                    #     ),
-                    # )
+                    cursor.execute(
+                        """
+                        INSERT INTO instruction_operation_sequence
+                        (instruction_id, sequence_id, sequence_name, object_id, object_name)
+                        VALUES (%s, %s, %s, %s, %s)
+                    """,
+                        (
+                            unified_command["id"],
+                            sequence_id,
+                            op["sequence_name"],
+                            object_id,
+                            op.get("object_name", ""),
+                        ),
+                    )
 
                 cursor.execute(
-                    "UPDATE unified_instructions SET processed = TRUE WHERE id = %s",
+                    "UPDATE unified_instructions SET processed = 1 WHERE id = %s",
                     (unified_command["id"],),
                 )
                 self.conn.commit()
