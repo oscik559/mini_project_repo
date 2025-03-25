@@ -1,6 +1,5 @@
 # Just a dict of table creation SQL strings
 
-
 tables = {
     "usd_data": """
                 CREATE TABLE IF NOT EXISTS usd_data (
@@ -17,6 +16,13 @@ tables = {
                     initial_pos_z FLOAT NOT NULL,
                     register_obstacle BOOLEAN NOT NULL
                 );
+            """,
+    "isaac_sim_gui": """
+                CREATE TABLE IF NOT EXISTS isaac_sim_gui (
+                sequence_id SERIAL PRIMARY KEY,
+                gui_feature TEXT NOT NULL,
+                operation_status TEXT NOT NULL
+            );
             """,
     "sequence_library": """
                 CREATE TABLE IF NOT EXISTS sequence_library (
@@ -112,6 +118,66 @@ tables = {
                     current_rotation INTEGER NOT NULL,
                     operation_status BOOLEAN NOT NULL
                 );
+            """,
+    "pick_op_parameters": """
+                CREATE TABLE IF NOT EXISTS pick_op_parameters (
+                sequence_id SERIAL PRIMARY KEY,
+                operation_order INTEGER NOT NULL,
+                object_id TEXT NOT NULL,
+                slide_state_status BOOLEAN NOT NULL,
+                slide_direction TEXT NOT NULL,
+                distance_travel FLOAT NOT NULL,
+                operation_status BOOLEAN NOT NULL
+            );
+            """,
+    "drop_op_parameters": """
+                CREATE TABLE IF NOT EXISTS drop_op_parameters (
+                sequence_id SERIAL PRIMARY KEY,
+                operation_order INTEGER NOT NULL,
+                object_id TEXT NOT NULL,
+                drop_height FLOAT NOT NULL,
+                operation_status BOOLEAN NOT NULL
+            );
+            """,
+    "travel_op_parameters": """
+            CREATE TABLE IF NOT EXISTS travel_op_parameters (
+                sequence_id SERIAL PRIMARY KEY,
+                operation_order INTEGER NOT NULL,
+                object_id TEXT NOT NULL,
+                travel_height FLOAT NOT NULL,
+                gripper_rotation TEXT NOT NULL,
+                operation_status BOOLEAN NOT NULL
+            );
+            """,
+    "lift_state_parameters": """
+            CREATE TABLE IF NOT EXISTS lift_state_parameters (
+                sequence_id SERIAL PRIMARY KEY,
+                operation_order INTEGER NOT NULL,
+                object_id TEXT NOT NULL,
+                lift_height FLOAT NOT NULL,
+                operation_status BOOLEAN NOT NULL
+            );
+            """,
+    "slide_state_parameters": """
+            CREATE TABLE IF NOT EXISTS slide_state_parameters (
+                sequence_id SERIAL PRIMARY KEY,
+                operation_order INTEGER NOT NULL,
+                object_id TEXT NOT NULL,
+                lift_distance FLOAT NOT NULL,
+                pos_x FLOAT NOT NULL,
+                pos_y FLOAT NOT NULL,
+                pos_z FLOAT NOT NULL,
+                operation_status BOOLEAN NOT NULL
+            );
+            """,
+    "rotate_state_parameters": """
+            CREATE TABLE IF NOT EXISTS rotate_state_parameters (
+                sequence_id SERIAL PRIMARY KEY,
+                operation_order INTEGER NOT NULL,
+                object_id TEXT NOT NULL,
+                rotation_angle FLOAT NOT NULL,
+                operation_status BOOLEAN NOT NULL
+            );
             """,
     "camera_vision": """
                 CREATE TABLE IF NOT EXISTS camera_vision (

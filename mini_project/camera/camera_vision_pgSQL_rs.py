@@ -99,9 +99,9 @@ def process_image(image_path, wait_key, db_handler):
                 old_holder_position = holder_rel_position
                 old_holder_angle_with_x = holder_angle_with_x
 
-            merged_data_1 = f"tray + slide location: {tray_rel_position}; {tray_angle_with_x}; {Slide_index};"
+            merged_data_1 = f"🟢 Fixture_and_slide_position: {tray_rel_position}; {tray_angle_with_x}; {Slide_index};"
             merged_data_2 = (
-                f"holder location: {holder_rel_position}; {holder_angle_with_x};"
+                f"🟢 Holder_position: {holder_rel_position}; {holder_angle_with_x};"
             )
             print(merged_data_1)
             print(merged_data_2)
@@ -630,12 +630,14 @@ def detect_screw_location(image):
         "Screw_orange": (
             # np.array([10, 45, 140]),
             # np.array([25, 160, 200]),
-            np.array([10, 90, 100]),
-            np.array([25, 255, 255]),
+            np.array([5, 50, 150]),
+            np.array([35, 200, 200]),
         ),  # Orange range for screw
         "Screw_blue": (
-            np.array([100, 110, 60]),
-            np.array([120, 185, 120]),
+            # np.array([100, 110, 60]),
+            # np.array([120, 185, 120]),
+            np.array([90, 100, 50]),
+            np.array([120, 220, 110]),
         ),  # Blue range for screw
     }
     detected_screw = {}
@@ -656,7 +658,7 @@ def detect_screw_location(image):
 
         for contour in contours:
             # =============== AMEND AREA TO SUIT PURPOSE ===============
-            if 50 < cv2.contourArea(contour) < 100:  # Filter by area
+            if 50 < cv2.contourArea(contour) < 150:  # Filter by area
                 # Get the bounding box and centroid
                 x_contour, y_contour, w_contour, h_contour = cv2.boundingRect(contour)
 
@@ -794,7 +796,7 @@ def update_camera_vision_database(
     DEFAULT_BLACK_CODE = [0.0, 0.0, 0.0]
     # --- Update the Tray record ---
     tray_data = {
-        "object_name": "tray",
+        "object_name": "Fixture",
         "object_color": "black",  # default color name
         "color_code": DEFAULT_BLACK_CODE,  # black in normalized RGB
         "pos_x": tray_position[0],
@@ -802,15 +804,15 @@ def update_camera_vision_database(
         "pos_z": tray_position[2],
         "rot_x": 0.0,
         "rot_y": 0.0,
-        "rot_z": tray_orientation,
-        "usd_name": "tray.usd",
+        "rot_z": 90 - tray_orientation,
+        "usd_name": "Fixture.usd",
     }
     upsert_camera_vision_record(db_handler, **tray_data)
     active_names.append(tray_data["object_name"])
 
     # --- Update the Holder record ---
     holder_data = {
-        "object_name": "holder",
+        "object_name": "Holder",
         "object_color": "black",
         "color_code": DEFAULT_BLACK_CODE,  # default color for holder
         "pos_x": holder_position[0],
@@ -819,14 +821,14 @@ def update_camera_vision_database(
         "rot_x": 0.0,
         "rot_y": 0.0,
         "rot_z": holder_orientation,
-        "usd_name": "holder.usd",
+        "usd_name": "Slide_Holder.usd",
     }
     upsert_camera_vision_record(db_handler, **holder_data)
     active_names.append(holder_data["object_name"])
 
     # --- Update the Slide records ---
     for index, detection in enumerate(slide_detections, start=1):
-        slide_name = f"slide {index}"
+        slide_name = f"Slide_{index}"
         slide_color = detection.get("object_color", "Black")
         # Calculate slide position relative to the tray (example offsets)
         slide_pos_x = tray_position[0] + 10 * index
@@ -840,11 +842,11 @@ def update_camera_vision_database(
             "color_code": slide_color_code,
             "pos_x": slide_pos_x,
             "pos_y": slide_pos_y,
-            "pos_z": slide_pos_z,
+            "pos_z": slide_pos_z - 19.0,  # 19mm above the tray
             "rot_x": 0.0,
             "rot_y": 0.0,
-            "rot_z": tray_orientation,
-            "usd_name": "slide.usd",
+            "rot_z": 90 - tray_orientation,
+            "usd_name": "Slide.usd",
         }
         upsert_camera_vision_record(db_handler, **slide_data)
         active_names.append(slide_name)

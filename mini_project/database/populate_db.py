@@ -65,7 +65,6 @@ class DatabasePopulator:
         """
         self.cursor.executemany(insert_query, sequence_library)
 
-    # Populate usd_data
     def populate_usd_data(self):
         """
         Populate usd_data table with provided data.
@@ -254,26 +253,16 @@ class DatabasePopulator:
 
     def populate_operation_sequence(self):
         operation_sequence = [
-            (1, "travel", ""),
-            (1, "pick", "BlueCube"),
-            (1, "travel", ""),
-            (1, "screw", "BlueCube"),
-            (1, "drop", ""),
-            (2, "travel", ""),
-            (2, "pick", "YellowCube"),
-            (2, "travel", ""),
-            (2, "screw", "YellowCube"),
-            (2, "drop", ""),
-            (3, "travel", ""),
-            (3, "pick", "GreenCube"),
-            (3, "travel", ""),
-            (3, "screw", "GreenCube"),
-            (3, "drop", ""),
-            (4, "travel", ""),
-            (4, "pick", "RedCube"),
-            (4, "travel", ""),
-            (4, "screw", "RedCube"),
-            (4, "drop", ""),
+            (1, "pick", "Slide_1"),
+            (1, "travel", "Slide_1"),
+            (1, "drop", "Slide_1"),
+            (2, "pick", "Slide_2"),
+            (2, "travel", "Slide_2"),
+            (2, "drop", "Slide_2"),
+            (3, "pick", "Slide_3"),
+            (3, "travel", "Slide_3"),
+            (3, "drop", "Slide_3"),
+            (4, "go_home", ""),
         ]
         insert_query = """
             INSERT INTO operation_sequence (operation_id, sequence_name, object_name)
@@ -283,9 +272,9 @@ class DatabasePopulator:
 
     def populate_sort_order(self):
         sort_order = [
-            ("RedCube", "Red"),
-            ("BlueCube", "Blue"),
-            ("YellowCube", "Yellow"),
+            ("Slide_1", "Green"),
+            ("Slide_2", "Orange"),
+            ("Slide_3", "Pink"),
         ]
         insert_query = """
             INSERT INTO sort_order (object_name, object_color)
@@ -348,3 +337,97 @@ class DatabasePopulator:
             VALUES (%s, %s, %s, %s);
         """
         self.cursor.executemany(insert_query, results)
+
+    def populate_manual_operations(self):
+        # -- Screw Operation Parameters
+        self.cursor.execute(
+            "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
+        )
+        screw_data = self.cursor.fetchall()
+        screw_op_parameters = [
+            (i + 1, seq_id, obj_name, i % 2 == 0, 3, 0, False)
+            for i, (seq_id, obj_name) in enumerate(screw_data)
+        ]
+        self.cursor.executemany(
+            """
+            INSERT INTO screw_op_parameters (
+                operation_order, sequence_id, object_id,
+                rotation_dir, number_of_rotations,
+                current_rotation, operation_status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            screw_op_parameters,
+        )
+
+        # -- Rotate State Parameters
+        self.cursor.execute(
+            "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
+        )
+        rotate_data = self.cursor.fetchall()
+        rotate_state_parameters = [
+            (seq_id, operation_order, obj_id, 90, False)
+            for (seq_id, operation_order, obj_id) in rotate_data
+        ]
+        self.cursor.executemany(
+            """
+            INSERT INTO rotate_state_parameters (
+                sequence_id, operation_order, object_id,
+                rotation_angle, operation_status
+            )
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            rotate_state_parameters,
+        )
+
+        # -- Pick Operation Parameters
+        self.cursor.execute(
+            "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'pick'"
+        )
+        pick_data = self.cursor.fetchall()
+        pick_op_parameters = [
+            (seq_id, i + 1, obj_name, False, "y", 0.01, False)
+            for i, (seq_id, obj_name) in enumerate(pick_data)
+        ]
+        self.cursor.executemany(
+            """
+            INSERT INTO pick_op_parameters (
+                sequence_id, operation_order, object_id,
+                slide_state_status, slide_direction,
+                distance_travel, operation_status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            pick_op_parameters,
+        )
+
+        # -- Travel Operation Parameters
+        self.cursor.execute(
+            "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'travel'"
+        )
+        travel_data = self.cursor.fetchall()
+        travel_op_parameters = [
+            (seq_id, i + 1, obj_name, 0.085, "z-axis", False)
+            for i, (seq_id, obj_name) in enumerate(travel_data)
+        ]
+        self.cursor.executemany(
+            """
+            INSERT INTO travel_op_parameters (
+                sequence_id, operation_order, object_id,
+                travel_height, gripper_rotation,
+                operation_status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            """,
+            travel_op_parameters,
+        )
+
+        # -- Isaac GUI Features
+        isaac_sim_gui = [("Start", False), ("Reset", False), ("Load", False)]
+        self.cursor.executemany(
+            """
+            INSERT INTO isaac_sim_gui (gui_feature, operation_status)
+            VALUES (%s, %s)
+            """,
+            isaac_sim_gui,
+        )

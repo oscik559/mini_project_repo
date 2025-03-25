@@ -140,6 +140,8 @@ class DatabaseHandler:
             populator.populate_interaction_memory()
             populator.populate_simulation_results()
 
+            populator.populate_manual_operations()
+
             self.conn.commit()
             logger.info("Database populated successfully.")
         except Psycopg2Error as e:

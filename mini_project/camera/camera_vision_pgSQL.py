@@ -86,10 +86,8 @@ def process_image(image_path, wait_key, db_handler):
                 old_vector_holder = holder_relative_position
                 old_angle_with_x_holder = angle_with_x_holder
 
-            merged_data = f"tray_and_slide_position: {tray_relative_position}; {angle_with_x}; {Slide_index};"
-            merged_data_2 = (
-                f"holder_position: {holder_relative_position}; {angle_with_x_holder};"
-            )
+            merged_data = f"🟢 Fixture_and_slide_position: {tray_relative_position}; {angle_with_x}; {Slide_index};"
+            merged_data_2 = f"🟢 Holder_position: {holder_relative_position}; {angle_with_x_holder};"
             print(merged_data)  # Print for debugging
             print(merged_data_2)  # Print for debugging
 
@@ -118,7 +116,7 @@ def update_camera_vision_database(
     DEFAULT_BLACK_CODE = [0.0, 0.0, 0.0]
     # --- Update the Tray record ---
     tray_data = {
-        "object_name": "tray",
+        "object_name": "Fixture",
         "object_color": "black",  # default color name
         "color_code": DEFAULT_BLACK_CODE,  # black in normalized RGB
         "pos_x": tray_vector[0],
@@ -134,7 +132,7 @@ def update_camera_vision_database(
 
     # --- Update the Holder record ---
     holder_data = {
-        "object_name": "holder",
+        "object_name": "Holder",
         "object_color": "black",
         "color_code": DEFAULT_BLACK_CODE,  # default color for holder
         "pos_x": holder_vector[0],
@@ -150,7 +148,7 @@ def update_camera_vision_database(
 
     # --- Update the Slide records ---
     for index, detection in enumerate(slide_detections, start=1):
-        slide_name = f"slide {index}"
+        slide_name = f"Slide_{index}"
         slide_color = detection.get("object_color", "Black")
         # Calculate slide position relative to the tray (example offsets)
         slide_pos_x = tray_vector[0] + 10 * index
