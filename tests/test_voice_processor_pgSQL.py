@@ -1,12 +1,19 @@
+from unittest.mock import patch
 
 import pytest
-from mini_project.modalities.voice_processor_pgSQL import VoiceProcessor, SpeechSynthesizer, Storage
-from unittest.mock import patch
+
+from mini_project.modalities.voice_processor_pgSQL import (
+    SpeechSynthesizer,
+    Storage,
+    VoiceProcessor,
+)
+
 
 def test_singleton_synthesizer():
     s1 = SpeechSynthesizer()
     s2 = SpeechSynthesizer()
     assert s1 is s2, "SpeechSynthesizer is not a singleton"
+
 
 def test_voice_processor_init():
     vp = VoiceProcessor()
@@ -15,10 +22,12 @@ def test_voice_processor_init():
     assert vp.storage is not None
     assert vp.session_id is not None
 
+
 @patch("mini_project.modalities.voice_processor_pgSQL.get_connection")
 def test_store_instruction_mocked_db(mock_get_conn):
-    import psycopg2
     from unittest.mock import MagicMock
+
+    import psycopg2
 
     # Create a fake connection and cursor
     mock_conn = MagicMock()

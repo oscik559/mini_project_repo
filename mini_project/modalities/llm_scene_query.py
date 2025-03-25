@@ -1,6 +1,5 @@
 import logging
 
-
 import requests
 
 from config.app_config import setup_logging

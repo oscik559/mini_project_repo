@@ -285,7 +285,9 @@ class SpeechSynthesizer:
                 self.engine.setProperty("rate", self.voice_speed)
                 self.engine.setProperty("voice", voices[self.voice_index].id)
             except IndexError:
-                logger.warning(f"[TTS] Voice index {self.voice_index} is not valid. Using default voice.")
+                logger.warning(
+                    f"[TTS] Voice index {self.voice_index} is not valid. Using default voice."
+                )
                 self.engine = pyttsx3.init()
                 self.engine.setProperty("rate", self.voice_speed)
             except Exception as e:

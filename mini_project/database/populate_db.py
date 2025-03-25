@@ -1,11 +1,6 @@
-
-
-
-
 class DatabasePopulator:
     def __init__(self, cursor):
         self.cursor = cursor
-
 
     def populate_sequence_library(self):
         """
@@ -156,7 +151,6 @@ class DatabasePopulator:
         """
         self.cursor.executemany(insert_query, usd_data)
 
-
     def populate_users(self):
         users = [
             (
@@ -202,7 +196,6 @@ class DatabasePopulator:
         """
         self.cursor.executemany(insert_query, users)
 
-
     def populate_skills(self):
         skills = [
             (
@@ -220,7 +213,6 @@ class DatabasePopulator:
         """
         self.cursor.executemany(insert_query, skills)
 
-
     def populate_instructions(self):
         """
         Populate instructions table with provided data.
@@ -236,7 +228,6 @@ class DatabasePopulator:
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
         """
         self.cursor.executemany(insert_query, instructions)
-
 
     def populate_states(self):
         states = [
@@ -260,7 +251,6 @@ class DatabasePopulator:
             VALUES (%s, %s, %s, %s, %s);
         """
         self.cursor.executemany(insert_query, states)
-
 
     def populate_operation_sequence(self):
         operation_sequence = [
@@ -291,7 +281,6 @@ class DatabasePopulator:
         """
         self.cursor.executemany(insert_query, operation_sequence)
 
-
     def populate_sort_order(self):
         sort_order = [
             ("RedCube", "Red"),
@@ -304,7 +293,6 @@ class DatabasePopulator:
         """
         self.cursor.executemany(insert_query, sort_order)
 
-
     def populate_task_preferences(self):
         task_preferences = [
             (1, "Pick Object", '{"time": "morning", "location": "shelf"}'),
@@ -316,7 +304,6 @@ class DatabasePopulator:
             VALUES (%s, %s, %s);
         """
         self.cursor.executemany(insert_query, task_preferences)
-
 
     def populate_interaction_memory(self):
         interactions = [
@@ -350,7 +337,6 @@ class DatabasePopulator:
             VALUES (%s, %s, %s, %s, %s, %s);
         """
         self.cursor.executemany(insert_query, interactions)
-
 
     def populate_simulation_results(self):
         results = [

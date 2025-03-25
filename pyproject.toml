@@ -35,7 +35,7 @@ mini-gui = "mini_project.__main__:main"
 [tool.black]
 line-length = 88
 target-version = ["py38"]
-include = '\\.pyi?$'
+include = '\.py$'
 exclude = '''
 /(
     \.eggs

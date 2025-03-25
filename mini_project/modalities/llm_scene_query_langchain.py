@@ -143,7 +143,9 @@ if __name__ == "__main__":
     # engine.setProperty(
     #     "voice", voices[1].id
     # )  #  Microsoft David Desktop - English (United States
-    engine.setProperty("voice", voices[2].id) # Microsoft Zira Desktop - English (United States)
+    engine.setProperty(
+        "voice", voices[2].id
+    )  # Microsoft Zira Desktop - English (United States)
 
     setup_logging()
     while True:

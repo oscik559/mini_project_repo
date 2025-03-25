@@ -342,9 +342,7 @@ class VoiceAuth:
             logging.error("Voice registration for user failed: %s", e)
             raise
 
-    def verify_user_by_voice(
-        self, liu_id: str, audio_path: str
-    ) -> bool:
+    def verify_user_by_voice(self, liu_id: str, audio_path: str) -> bool:
         """
         Verifies whether the voice in the provided audio matches the registered user's embedding.
 

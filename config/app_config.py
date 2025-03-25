@@ -82,7 +82,7 @@ VOICE_PROCESSING_CONFIG = {
     },
 }
 MAX_TRANSCRIPTION_RETRIES = 1
-
+MIN_DURATION_SEC = 1.5
 VOICE_TTS_SETTINGS = {
     "speed": 165,
     "use_gtts": False,
@@ -149,7 +149,8 @@ def setup_logging(level: int = logging.INFO) -> None:
         level=level,
         # format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         format="[%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        # datefmt="%Y-%m-%d %H:%M:%S",
+        datefmt="%H:%M:%S",
     )
 
 

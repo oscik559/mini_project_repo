@@ -11,7 +11,7 @@ import numpy as np
 
 from config.app_config import *
 from mini_project.database.db_handler_pgSQL import DatabaseHandler
- 
+
 
 def process_image(image_path, wait_key, db_handler):
     """
@@ -106,7 +106,6 @@ def process_image(image_path, wait_key, db_handler):
         print("[INFO] Script ending. Clearing camera_vision table...")
         db_handler.clear_camera_vision()
         db_handler.close()
-
 
 
 def update_camera_vision_database(

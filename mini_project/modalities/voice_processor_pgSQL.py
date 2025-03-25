@@ -11,31 +11,27 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
-from pluggy import Result
+import psycopg2
 import pyttsx3
 import sounddevice as sd
 import webrtcvad
 from faster_whisper import WhisperModel
-from config.constants import WHISPER_LANGUAGE_NAMES
-
 from gtts import gTTS
 from playsound import playsound
+from pluggy import Result
 from scipy.io.wavfile import write
 
 from config.app_config import (
+    MAX_TRANSCRIPTION_RETRIES,
+    MIN_DURATION_SEC,
     VOICE_PROCESSING_CONFIG,
     VOICE_TTS_SETTINGS,
-    MAX_TRANSCRIPTION_RETRIES,
-    setup_logging,
-    logger,
 )
+from config.constants import WHISPER_LANGUAGE_NAMES
 from mini_project.database.connection import get_connection
-import psycopg2
 
 logging.getLogger("comtypes").setLevel(logging.WARNING)
 logger = logging.getLogger("VoiceProcessor")
-
-min_duration_sec = 1.5  # Minimum duration for a valid recording
 
 
 class SpeechSynthesizer:
@@ -195,7 +191,7 @@ class AudioRecorder:
         audio = np.concatenate(audio, axis=0)
         duration = time.time() - start_time
         logger.info(f"🎤 Recording completed. Duration: {duration:.2f} seconds")
-        if duration < min_duration_sec:
+        if duration < MIN_DURATION_SEC:
             logger.warning(
                 f"Recording too short ({duration:.2f}s). Treating as no speech."
             )
@@ -388,5 +384,3 @@ class VoiceProcessor:
 if __name__ == "__main__":
     vp = VoiceProcessor()
     vp.capture_voice()
-
-

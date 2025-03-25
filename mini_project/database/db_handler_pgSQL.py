@@ -8,21 +8,17 @@ from datetime import datetime
 from typing import Dict, List, Optional, Self, Tuple
 
 from dotenv import load_dotenv
-
-# from matplotlib import table
 from psycopg2 import Error as Psycopg2Error
 
-from config.app_config import (
-    setup_logging,
-)
+from config.app_config import setup_logging
 from mini_project.database import populate_db, schema_sql
 from mini_project.database.connection import get_connection
 
 # Load .env variables
 load_dotenv()
-log_level = os.getenv("LOG_LEVEL", "WARNING").upper()
-logging.basicConfig(level=getattr(logging, log_level))
-logger = logging.getLogger("dbHandler")
+# log_level = os.getenv("LOG_LEVEL", "WARNING").upper()
+# logging.basicConfig(level=getattr(logging, log_level))
+# logger = logging.getLogger("dbHandler")
 
 
 # Access your variables

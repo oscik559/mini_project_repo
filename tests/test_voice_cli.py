@@ -14,13 +14,14 @@ python test_voice_cli.py --mode tts --text "Hello robot"
 """
 
 import argparse
+import os
+
 from mini_project.modalities.voice_processor_pgSQL import (
-    VoiceProcessor,
-    Transcriber,
     AudioRecorder,
     SpeechSynthesizer,
+    Transcriber,
+    VoiceProcessor,
 )
-import os
 
 
 def run_capture_voice():
