@@ -3,17 +3,14 @@
 import argparse
 import logging
 import os
-import sys
-
 import subprocess
-
-
+import sys
 from datetime import datetime
 
 from dotenv import load_dotenv
 from psycopg2 import Error as Psycopg2Error
 
-from config.app_config import setup_logging, DB_BACKUP_PATH
+from config.app_config import DB_BACKUP_PATH, setup_logging
 from mini_project.database import populate_db, schema_sql
 from mini_project.database.connection import get_connection
 
@@ -164,7 +161,7 @@ class DatabaseHandler:
             populator.populate_skills()
             populator.populate_instructions()
             populator.populate_states()
-            populator.populate_operation_sequence()
+            # populator.populate_operation_sequence()
             populator.populate_sort_order()
             populator.populate_task_preferences()
             populator.populate_interaction_memory()
@@ -230,7 +227,7 @@ def main_cli():
             db.create_indexes()
             db.populate_database()
             db.print_status()
-
+            print("✅  ALL GOOD!.")
         else:
             if args.backup:
                 print("Backing up database...")

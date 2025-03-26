@@ -69,7 +69,7 @@ class CommandProcessor:
             3. Match object names by color (e.g., "green slide").
             4. If the user specifies steps (e.g., “rotate before drop”), update the sequence.
             5. Apply the sequence to each object in order.
-            6. Add `"go_home"` at the end unless told otherwise.
+            6. Must always Add `"go_home"` at the end unless told otherwise.
 
             ### RESPONSE FORMAT:
             Example JSON array of operations:
