@@ -85,10 +85,10 @@ MAX_TRANSCRIPTION_RETRIES = 1
 MIN_DURATION_SEC = 1.5
 VOICE_TTS_SETTINGS = {
     "speed": 165,
-    "use_gtts": False,
+    "use_gtts": True,
     "ping_sound_path": str(BASE_DIR / "assets" / "sound_effects" / "ping.wav"),
     "ding_sound_path": str(BASE_DIR / "assets" / "sound_effects" / "ding.wav"),
-    "voice_index": 2,  # 0 = Hazel, 1 = David, 2 = Zira (example for Windows)
+    "voice_index": 1,  # 0 = Hazel, 1 = David, 2 = Zira (example for Windows)
 }
 
 

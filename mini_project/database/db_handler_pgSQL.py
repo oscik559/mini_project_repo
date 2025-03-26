@@ -94,6 +94,7 @@ class DatabaseHandler:
 
     def drop_all_tables(self):
         try:
+
             self.cursor.execute(
                 """
                 DO $$ DECLARE
@@ -135,7 +136,7 @@ class DatabaseHandler:
             populator.populate_skills()
             populator.populate_instructions()
             populator.populate_states()
-            # populator.populate_operation_sequence()
+            populator.populate_operation_sequence()
             populator.populate_sort_order()
             populator.populate_task_preferences()
             populator.populate_interaction_memory()
@@ -187,6 +188,7 @@ def main_cli():
         if args.reset:
             print("Resetting the database (drop, create, populate)...")
             db.drop_all_tables()
+
             db.create_tables()
             db.create_indexes()
             db.populate_database()

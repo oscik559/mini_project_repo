@@ -6,8 +6,7 @@ import json
 import logging
 import os
 import time
-from typing import Dict, List
-
+from typing import List, Dict, Tuple
 import ollama
 import psycopg2
 from psycopg2 import Error as Psycopg2Error
@@ -95,6 +94,7 @@ class CommandProcessor:
             ...
             ]
 
+            🚫 DO NOT include explanations like "Here's the plan:" or "In reverse order:" — only return ONE JSON array.
 
             Do NOT include extra text, markdown, or explanations.
             Note: All generated plans will be stored step-by-step in a planning table called "operation_sequence", indexed by a group ID called "operation_id".
@@ -120,6 +120,17 @@ class CommandProcessor:
             logger.error(
                 "Database error in get_available_sequences: %s", str(e), exc_info=True
             )
+            raise
+
+    def fetch_column(self, table: str, column: str) -> list:
+        try:
+            query = sql.SQL("SELECT {field} FROM {tbl}").format(
+                field=sql.Identifier(column), tbl=sql.Identifier(table)
+            )
+            self.cursor.execute(query)
+            return [row[0] for row in self.cursor.fetchall()]
+        except Psycopg2Error as e:
+            logger.error("Database error in fetch_column: %s", str(e), exc_info=True)
             raise
 
     def get_available_objects(self) -> List[str]:
@@ -180,7 +191,7 @@ class CommandProcessor:
 
     def validate_operation(self, operation: Dict) -> bool:
         """Validate operation structure"""
-        available_sequences = self.get_available_sequences()
+        available_sequences = self.available_sequences
         if operation["sequence_name"] not in available_sequences:
             logger.error(f"Invalid sequence name: {operation['sequence_name']}")
             return False
@@ -190,7 +201,7 @@ class CommandProcessor:
             return True
 
         # Validate object if specified by comparing with available objects
-        available_objects = self.get_available_objects()
+        available_objects = self.available_objects
         if operation["object_name"] in available_objects:
             return True
         else:
@@ -198,42 +209,40 @@ class CommandProcessor:
             return False
 
     def extract_json_array(self, raw_response: str) -> List[Dict]:
-        try:
-            # Use a regular expression to extract the first full JSON array
-            import re
+        import re
 
-            matches = re.findall(r"\[\s*{.*?}\s*](?=\s*\[|$)", raw_response, re.DOTALL)
-            if not matches:
+        try:
+            # Match the first complete JSON array only
+            match = re.search(r"\[\s*{[\s\S]*?}\s*]", raw_response)
+            if not match:
                 raise ValueError("No valid JSON array found in LLM response.")
 
-            return json.loads(matches[0])
+            json_str = match.group(0)
+            return json.loads(json_str)
+
         except Exception as e:
             logger.error(
                 "Failed to extract JSON array from LLM response: %s", e, exc_info=True
             )
             raise
 
-    def process_command(self, unified_command: Dict) -> bool:
+    def process_command(self, unified_command: Dict) -> Tuple[bool, List[Dict]]:
         """
-        Process a single unified command using LLM
+        Process a single unified command using LLM and return success + valid operations.
         """
         try:
-            available_sequences = self.available_sequences
-            available_objects = self.available_objects
-
             task_templates = self.get_task_templates()
             formatted_templates = "\n".join(
                 f'- Task: "{k}" → {v}' for k, v in task_templates.items()
             )
 
             formatted_system_prompt = self.system_prompt.format(
-                available_sequences=", ".join(available_sequences),
+                available_sequences=", ".join(self.available_sequences),
                 task_templates=formatted_templates,
                 object_context=", ".join(self.get_available_objects_with_colors()),
                 sort_order=", ".join(self.get_sort_order()),
             )
 
-            logger.debug(f"Formatted system prompt: {formatted_system_prompt}")
             response = ollama.chat(
                 model=self.llm_model,
                 messages=[
@@ -241,135 +250,165 @@ class CommandProcessor:
                     {"role": "user", "content": unified_command["unified_command"]},
                 ],
             )
-
-        except psycopg2.Error as db_err:
-            logger.error(
-                "Database error while preparing prompt: %s", db_err, exc_info=True
-            )
-            return False
         except Exception as e:
-            logger.error(
-                "Unexpected error during prompt formation: %s", e, exc_info=True
-            )
-            return False
+            ...  # logging
+            return False, []
 
-            # Extract the raw response content
         try:
             raw_response = response["message"]["content"]
             logger.info("Raw LLM Response: %s", raw_response)
-        except KeyError as key_err:
-            logger.error(
-                "LLM response structure is unexpected: %s", key_err, exc_info=True
-            )
-            return False
-
-        try:
             operations = self.extract_json_array(raw_response)
-        except (ValueError, json.JSONDecodeError) as json_err:
-            logger.error("JSON extraction/parsing error: %s", json_err, exc_info=True)
-            return False
+        except Exception as e:
+            logger.error("JSON parsing error: %s", e, exc_info=True)
+            return False, []
 
-        # Ensure each operation has an "object_name" key (default to empty string if missing)
-        for op in operations:
-            if "object_name" not in op:
-                op["object_name"] = ""
-
-        # Validate operation structure
         valid_operations = []
         for op in operations:
-            if not all(key in op for key in ["sequence_name", "object_name"]):
-                logger.error("Invalid operation missing keys: %s", op)
-                continue
-
-            if self.validate_operation(op):
+            op.setdefault("object_name", "")
+            if all(
+                k in op for k in ["sequence_name", "object_name"]
+            ) and self.validate_operation(op):
                 valid_operations.append(op)
-            else:
-                logger.error("Operation failed validation: %s", op)
 
         if valid_operations:
             try:
                 cursor = self.cursor
-                # =======================================================
-
-                # Create new operation_id (max + 1) to group this sequence
+                cursor.execute(
+                    "UPDATE operation_sequence SET processed = TRUE WHERE processed = FALSE"
+                )
                 cursor.execute(
                     "SELECT COALESCE(MAX(operation_id), 0) + 1 FROM operation_sequence"
                 )
                 operation_id = cursor.fetchone()[0]
 
-                # Insert into operation_sequence
-                for op in valid_operations:
-                    cursor.execute(
-                        """
-                        INSERT INTO operation_sequence (operation_id, sequence_name, object_name)
-                        VALUES (%s, %s, %s)
-                        """,
-                        (operation_id, op["sequence_name"], op["object_name"]),
-                    )
-                logger.info(f"Saved planned operation sequence with ID {operation_id}")
-
-                # =======================================================
-                for op in valid_operations:
-                    # Lookup the sequence_id for the given sequence_name
+                for idx, op in enumerate(valid_operations):
                     cursor.execute(
                         "SELECT sequence_id FROM sequence_library WHERE sequence_name = %s",
                         (op["sequence_name"],),
                     )
                     seq_result = cursor.fetchone()
                     if not seq_result:
-                        logger.error(
-                            "No matching sequence found for: %s", op["sequence_name"]
-                        )
-                        continue  # Skip this operation if no valid sequence_id is found
-                    sequence_id = seq_result[0]
+                        continue
 
-                    # If object_name is provided, look up the corresponding object_id
-                    if op["object_name"]:
-                        cursor.execute(
-                            "SELECT object_id FROM camera_vision WHERE object_name = %s",
-                            (op["object_name"],),
-                        )
-                        obj_result = cursor.fetchone()
-                        if not obj_result:
-                            logger.error(
-                                "No matching object found for: %s", op["object_name"]
-                            )
-                            continue  # Skip this operation if no valid object_id is found
-                        object_id = obj_result[0]
-                    else:
-                        object_id = None
-
-                    logger.info("Inserting operation: %s", op)
-                    # cursor.execute(
-                    #     """
-                    #     INSERT INTO instruction_operation_sequence
-                    #     (instruction_id, sequence_id, sequence_name, object_id, object_name)
-                    #     VALUES (%s, %s, %s, %s, %s)
-                    # """,
-                    #     (
-                    #         unified_command["id"],
-                    #         sequence_id,
-                    #         op["sequence_name"],
-                    #         object_id,
-                    #         op.get("object_name", ""),
-                    #     ),
-                    # )
+                    cursor.execute(
+                        """
+                        INSERT INTO operation_sequence
+                        (operation_id, sequence_id, sequence_name, object_name, command_id)
+                        VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (
+                            idx + 1,
+                            seq_result[0],
+                            op["sequence_name"],
+                            op["object_name"],
+                            unified_command["id"],
+                        ),
+                    )
 
                 cursor.execute(
                     "UPDATE unified_instructions SET processed = TRUE WHERE id = %s",
                     (unified_command["id"],),
                 )
+                self.populate_operation_parameters()
                 self.conn.commit()
-                return True
-            except psycopg2.Error as db_err:
-                logger.error(
-                    "Database error while inserting operations: %s",
-                    db_err,
-                    exc_info=True,
+                return True, valid_operations
+            except Exception as e:
+                logger.error("Failed to insert plan: %s", e, exc_info=True)
+                return False, []
+        return False, []
+
+    def populate_operation_parameters(self):
+        logger.info("Populating operation-specific parameters...")
+
+        # Step 1: Get all unique sequence types planned
+        self.cursor.execute("SELECT DISTINCT sequence_name FROM operation_sequence")
+        sequence_types = [row[0] for row in self.cursor.fetchall()]
+
+        if "pick" in sequence_types:
+            self.cursor.execute("DELETE FROM pick_op_parameters")
+            self.cursor.execute(
+                "SELECT object_name FROM operation_sequence WHERE sequence_name = 'pick'"
+            )
+            pick_data = self.cursor.fetchall()
+            for i, (obj,) in enumerate(pick_data):
+                self.cursor.execute(
+                    """
+                    INSERT INTO pick_op_parameters (
+                        operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (i + 1, obj, False, "y", 0.01, False),
                 )
-                return False
-        else:
-            return False
+
+        if "travel" in sequence_types:
+            self.cursor.execute("DELETE FROM travel_op_parameters")
+            self.cursor.execute(
+                "SELECT object_name FROM operation_sequence WHERE sequence_name = 'travel'"
+            )
+            travel_data = self.cursor.fetchall()
+            for i, (obj,) in enumerate(travel_data):
+                self.cursor.execute(
+                    """
+                    INSERT INTO travel_op_parameters (
+                        operation_order, object_id, travel_height, gripper_rotation, operation_status
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (i + 1, obj, 0.085, "z-axis", False),
+                )
+
+        if "drop" in sequence_types:
+            self.cursor.execute("DELETE FROM drop_op_parameters")
+            self.cursor.execute(
+                "SELECT object_name FROM operation_sequence WHERE sequence_name = 'drop'"
+            )
+            drop_data = self.cursor.fetchall()
+            for i, (obj,) in enumerate(drop_data):
+                self.cursor.execute(
+                    """
+                    INSERT INTO drop_op_parameters (
+                        operation_order, object_id, drop_height, operation_status
+                    ) VALUES (%s, %s, %s, %s)
+                    """,
+                    (i + 1, obj, 0.0, False),
+                )
+
+        if "screw" in sequence_types:
+            self.cursor.execute("DELETE FROM screw_op_parameters")
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
+            )
+            screw_data = self.cursor.fetchall()
+            for i, (seq_id, obj) in enumerate(screw_data):
+                self.cursor.execute(
+                    """
+                    INSERT INTO screw_op_parameters (
+                        operation_order, sequence_id, object_id,
+                        rotation_dir, number_of_rotations,
+                        current_rotation, operation_status
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (i + 1, seq_id, obj, i % 2 == 0, 3, 0, False),
+                )
+
+        if "screw" in sequence_types:
+            self.cursor.execute("DELETE FROM rotate_state_parameters")
+            self.cursor.execute(
+                "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
+            )
+            rotate_data = self.cursor.fetchall()
+            for seq_id, op_order, obj in rotate_data:
+                self.cursor.execute(
+                    """
+                    INSERT INTO rotate_state_parameters (
+                        sequence_id, operation_order, object_id,
+                        rotation_angle, operation_status
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    """,
+                    (seq_id, op_order, obj, 90, False),
+                )
+
+        self.conn.commit()
+        logger.info("Operation-specific parameter tables updated.")
 
     def run_processing_cycle(self):
         """
@@ -397,17 +436,6 @@ class CommandProcessor:
             self.conn.close()
             self.conn = None
             logger.info("Database connection closed.")
-
-    def fetch_column(self, table: str, column: str) -> list:
-        try:
-            query = sql.SQL("SELECT {field} FROM {tbl}").format(
-                field=sql.Identifier(column), tbl=sql.Identifier(table)
-            )
-            self.cursor.execute(query)
-            return [row[0] for row in self.cursor.fetchall()]
-        except Psycopg2Error as e:
-            logger.error("Database error in fetch_column: %s", str(e), exc_info=True)
-            raise
 
 
 if __name__ == "__main__":

@@ -48,6 +48,16 @@ class DatabasePopulator:
                 True,
             ),
             (
+                "rotate",
+                "RotateRd",
+                "Rotate the object once",
+                "task complete",
+                "robot at home position",
+                1,
+                "thresh_met and self.context.gripper_has_block",
+                True,
+            ),
+            (
                 "go_home",
                 "GoHome",
                 "Return to the home position",
@@ -89,13 +99,13 @@ class DatabasePopulator:
                 "Slide_Holder.usd",
                 "GeometryPrim",
                 "/fixture_description/Slide_Holder.usd",
-                0.001,
-                0.001,
-                0.001,
-                "/World",
-                0.47,
-                0.05,
-                0.180,
+                0.1,
+                0.1,
+                0.1,
+                "/World/fixtureprim",
+                40,
+                17,
+                8,
                 False,
             ),
             (
@@ -253,20 +263,37 @@ class DatabasePopulator:
 
     def populate_operation_sequence(self):
         operation_sequence = [
-            (1, "pick", "Slide_1"),
-            (1, "travel", "Slide_1"),
-            (1, "drop", "Slide_1"),
-            (2, "pick", "Slide_2"),
-            (2, "travel", "Slide_2"),
-            (2, "drop", "Slide_2"),
-            (3, "pick", "Slide_3"),
-            (3, "travel", "Slide_3"),
-            (3, "drop", "Slide_3"),
-            (4, "go_home", ""),
+            (1, 1, "pick", "Slide_1"),
+            (2, 2, "travel", "Slide_1"),
+            (3, 3, "drop", "Slide_1"),
+            (4, 1, "pick", "Slide_2"),
+            (5, 2, "travel", "Slide_2"),
+            (6, 3, "drop", "Slide_2"),
+            (7, 1, "pick", "Slide_3"),
+            (8, 2, "travel", "Slide_3"),
+            (9, 3, "drop", "Slide_3"),
+            (10, 6, "go_home", ""),
         ]
+        # for operation_id, sequence_name, object_name in operation_sequence:
+        #     self.cursor.execute(
+        #         "SELECT sequence_id FROM sequence_library WHERE sequence_name = %s",
+        #         (sequence_name,),
+        #     )
+        #     result = self.cursor.fetchone()
+        #     if result:
+        #         sequence_id = result[0]
+        #         self.cursor.execute(
+        #             """
+        #             INSERT INTO operation_sequence (
+        #                 operation_id, sequence_id, sequence_name, object_name
+        #             ) VALUES (%s, %s, %s, %s)
+        #             """,
+        #             (operation_id, sequence_id, sequence_name, object_name),
+        #         )
         insert_query = """
-            INSERT INTO operation_sequence (operation_id, sequence_name, object_name)
-            VALUES (%s, %s, %s);
+            INSERT INTO operation_sequence (
+                operation_id, sequence_id, sequence_name, object_name
+            ) VALUES (%s, %s, %s, %s)
         """
         self.cursor.executemany(insert_query, operation_sequence)
 
@@ -415,17 +442,16 @@ class DatabasePopulator:
         )
         pick_data = self.cursor.fetchall()
         pick_op_parameters = [
-            (seq_id, i + 1, obj_name, False, "y", 0.01, False)
+            (i + 1, obj_name, False, "y", 0.01, False)
             for i, (seq_id, obj_name) in enumerate(pick_data)
         ]
         self.cursor.executemany(
             """
             INSERT INTO pick_op_parameters (
-                sequence_id, operation_order, object_id,
-                slide_state_status, slide_direction,
-                distance_travel, operation_status
+                operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s)
+
             """,
             pick_op_parameters,
         )
@@ -436,19 +462,38 @@ class DatabasePopulator:
         )
         travel_data = self.cursor.fetchall()
         travel_op_parameters = [
-            (seq_id, i + 1, obj_name, 0.085, "z-axis", False)
-            for i, (seq_id, obj_name) in enumerate(travel_data)
+            (i + 1, obj_name, 0.085, "z-axis", False)
+            for i, (_, obj_name) in enumerate(travel_data)
         ]
+
         self.cursor.executemany(
             """
             INSERT INTO travel_op_parameters (
-                sequence_id, operation_order, object_id,
-                travel_height, gripper_rotation,
-                operation_status
+                operation_order, object_id, travel_height, gripper_rotation, operation_status
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s)
             """,
             travel_op_parameters,
+        )
+
+        # -- Drop Operation Parameters
+        self.cursor.execute(
+            "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'drop'"
+        )
+        drop_data = self.cursor.fetchall()
+
+        drop_op_parameters = [
+            (i + 1, obj_name, 0.0, False) for i, (_, obj_name) in enumerate(drop_data)
+        ]
+
+        self.cursor.executemany(
+            """
+            INSERT INTO drop_op_parameters (
+                operation_order, object_id, drop_height, operation_status
+            )
+            VALUES (%s, %s, %s, %s)
+            """,
+            drop_op_parameters,
         )
 
         # -- Isaac GUI Features
