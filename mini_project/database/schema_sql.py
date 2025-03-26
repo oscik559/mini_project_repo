@@ -331,6 +331,7 @@ tables = OrderedDict(
                 object_name TEXT,
                 command_id INTEGER,                    -- FK to unified_instructions(id)
                 processed BOOLEAN DEFAULT FALSE,       -- ✅ track if step is completed
+                execution_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
                 FOREIGN KEY (sequence_id) REFERENCES sequence_library(sequence_id),
                 FOREIGN KEY (command_id) REFERENCES unified_instructions(id)
@@ -397,6 +398,17 @@ tables = OrderedDict(
                 FOREIGN KEY (skill_id) REFERENCES skills(skill_id),
                 FOREIGN KEY (sequence_id) REFERENCES sequence_library(sequence_id),
                 FOREIGN KEY (object_id) REFERENCES camera_vision(object_id)
+            );
+        """,
+        ),
+        (
+            "task_history",
+            """
+            CREATE TABLE IF NOT EXISTS task_history (
+                id SERIAL PRIMARY KEY,
+                command_text TEXT,
+                generated_plan JSONB,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         """,
         ),

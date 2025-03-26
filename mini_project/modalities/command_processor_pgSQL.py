@@ -309,7 +309,16 @@ class CommandProcessor:
                     "UPDATE unified_instructions SET processed = TRUE WHERE id = %s",
                     (unified_command["id"],),
                 )
+
+                # Auto-populate operation parameter tables
                 self.populate_operation_parameters()
+
+                # ✅ Log to task_history
+                self.cursor.execute(
+                    "INSERT INTO task_history (command_text, generated_plan) VALUES (%s, %s)",
+                    (unified_command["unified_command"], json.dumps(valid_operations)),
+                )
+
                 self.conn.commit()
                 return True, valid_operations
             except Exception as e:
@@ -323,6 +332,8 @@ class CommandProcessor:
         # Step 1: Get all unique sequence types planned
         self.cursor.execute("SELECT DISTINCT sequence_name FROM operation_sequence")
         sequence_types = [row[0] for row in self.cursor.fetchall()]
+
+        insert_count = 0
 
         if "pick" in sequence_types:
             self.cursor.execute("DELETE FROM pick_op_parameters")
@@ -339,6 +350,8 @@ class CommandProcessor:
                     """,
                     (i + 1, obj, False, "y", 0.01, False),
                 )
+                insert_count += 1
+            logger.info(f"Inserted {insert_count} rows into pick_op_parameters.")
 
         if "travel" in sequence_types:
             self.cursor.execute("DELETE FROM travel_op_parameters")
@@ -355,6 +368,8 @@ class CommandProcessor:
                     """,
                     (i + 1, obj, 0.085, "z-axis", False),
                 )
+                insert_count += 1
+            logger.info(f"Inserted {insert_count} rows into travel_op_parameters.")
 
         if "drop" in sequence_types:
             self.cursor.execute("DELETE FROM drop_op_parameters")
@@ -371,6 +386,8 @@ class CommandProcessor:
                     """,
                     (i + 1, obj, 0.0, False),
                 )
+                insert_count += 1
+            logger.info(f"Inserted {insert_count} rows into drop_op_parameters.")
 
         if "screw" in sequence_types:
             self.cursor.execute("DELETE FROM screw_op_parameters")
@@ -389,6 +406,8 @@ class CommandProcessor:
                     """,
                     (i + 1, seq_id, obj, i % 2 == 0, 3, 0, False),
                 )
+                insert_count += 1
+            logger.info(f"Inserted {insert_count} rows into screw_op_parameters.")
 
         if "screw" in sequence_types:
             self.cursor.execute("DELETE FROM rotate_state_parameters")
@@ -406,6 +425,8 @@ class CommandProcessor:
                     """,
                     (seq_id, op_order, obj, 90, False),
                 )
+                insert_count += 1
+            logger.info(f"Inserted {insert_count} rows into rotate_state_parameters.")
 
         self.conn.commit()
         logger.info("Operation-specific parameter tables updated.")
