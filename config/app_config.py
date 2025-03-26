@@ -26,6 +26,8 @@ DB_PATH = BASE_DIR / "assets" / "db_data" / "sequences.db"
 # DB_URL = "dbname=sequences_db user=oscar password=oscik559 host=localhost"
 DB_URL = "postgresql://oscar:oscik559@localhost:5432/sequences_db"
 
+DB_BACKUP_PATH = BASE_DIR / "assets" / "db_backups"
+
 # Face recognition utilities
 FACIAL_DATA_PATH = BASE_DIR / "assets" / "face_encodings"
 FACE_CAPTURE_PATH = BASE_DIR / "assets" / "face_capture"

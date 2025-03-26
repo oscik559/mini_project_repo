@@ -462,7 +462,7 @@ class DatabasePopulator:
         )
         travel_data = self.cursor.fetchall()
         travel_op_parameters = [
-            (i + 1, obj_name, 0.085, "z-axis", False)
+            (i + 1, obj_name, 0.085, "y-axis", False)
             for i, (_, obj_name) in enumerate(travel_data)
         ]
 
@@ -483,7 +483,8 @@ class DatabasePopulator:
         drop_data = self.cursor.fetchall()
 
         drop_op_parameters = [
-            (i + 1, obj_name, 0.0, False) for i, (_, obj_name) in enumerate(drop_data)
+            (i + 1, obj_name, -0.003, False)
+            for i, (_, obj_name) in enumerate(drop_data)
         ]
 
         self.cursor.executemany(

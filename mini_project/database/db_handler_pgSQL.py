@@ -4,29 +4,21 @@ import argparse
 import logging
 import os
 import sys
+
+import subprocess
+
+
 from datetime import datetime
-from typing import Dict, List, Optional, Self, Tuple
 
 from dotenv import load_dotenv
 from psycopg2 import Error as Psycopg2Error
 
-from config.app_config import setup_logging
+from config.app_config import setup_logging, DB_BACKUP_PATH
 from mini_project.database import populate_db, schema_sql
 from mini_project.database.connection import get_connection
 
 # Load .env variables
 load_dotenv()
-# log_level = os.getenv("LOG_LEVEL", "WARNING").upper()
-# logging.basicConfig(level=getattr(logging, log_level))
-# logger = logging.getLogger("dbHandler")
-
-
-# Access your variables
-DB_URL = os.getenv("DATABASE_URL")
-if DB_URL:
-    print("Using DB:", DB_URL)
-else:
-    raise EnvironmentError("DATABASE_URL not found in .env file")
 
 
 # Initialize logging with desired level (optional)
@@ -48,12 +40,48 @@ class DatabaseHandler:
             logger.error(f"Error connecting to PostgreSQL database: {e}")
             raise
 
+    def backup_database(self, backup_dir=DB_BACKUP_PATH):
+
+        os.makedirs(backup_dir, exist_ok=True)
+        timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+        backup_file = os.path.join(backup_dir, f"backup_{timestamp}.sql")
+
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            logger.error("DATABASE_URL not set in environment.")
+            return
+
+        try:
+            logger.info(f"🗃️  Backing up database to {backup_file}...")
+            subprocess.run(["pg_dump", db_url, "-f", backup_file], check=True)
+            logger.info("✅ Backup completed successfully.")
+        except Exception as e:
+            logger.error("Database backup failed: %s", e, exc_info=True)
+
+    def print_status(self):
+        logger.info("🧪 Checking database table status...")
+
+        self.cursor.execute(
+            """
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+        """
+        )
+        tables = [row[0] for row in self.cursor.fetchall()]
+
+        for table in tables:
+            self.cursor.execute(f"SELECT COUNT(*) FROM {table}")
+            count = self.cursor.fetchone()[0]
+            logger.info(f"💡 {table}: {count} rows")
+
     def create_tables(self):
         try:
             for create_sql in schema_sql.tables.values():
                 self.cursor.execute(create_sql)
             self.conn.commit()
-            logger.info("All tables created successfully.")
+            logger.info("✅ All tables created successfully.")
         except Psycopg2Error as e:
             logger.error(f"Error creating tables: {e}")
             self.conn.rollback()
@@ -86,7 +114,7 @@ class DatabaseHandler:
             )
             self.cursor.execute(truncate_query)
             self.conn.commit()
-            logger.info("All tables cleared successfully.")
+            logger.info("✅ All tables cleared successfully.")
         except Psycopg2Error as e:
             logger.error(f"Error clearing tables: {e}")
             self.conn.rollback()
@@ -107,7 +135,7 @@ class DatabaseHandler:
             """
             )
             self.conn.commit()
-            logger.info("All tables dropped successfully.")
+            logger.info("✅ All tables dropped successfully.")
         except Psycopg2Error as e:
             logger.error(f"Error dropping tables: {e}")
             self.conn.rollback()
@@ -118,7 +146,7 @@ class DatabaseHandler:
             # Delete all rows from the camera_vision table
             self.cursor.execute("DELETE FROM camera_vision;")
             self.conn.commit()
-            logger.info("[DB] Cleared camera_vision table.")
+            logger.info("✅ [DB] Cleared camera_vision table.")
         except Exception as e:
             logger.error(f"Error clearing camera_vision table: {e}")
             self.conn.rollback()
@@ -145,7 +173,7 @@ class DatabaseHandler:
             populator.populate_manual_operations()
 
             self.conn.commit()
-            logger.info("Database populated successfully.")
+            logger.info("✅ Database populated successfully.")
         except Psycopg2Error as e:
             logger.error(f"Database population failed: {e}")
             self.conn.rollback()
@@ -173,6 +201,15 @@ def main_cli():
         action="store_true",
         help="Drop, create, and populate all tables.",
     )
+    parser.add_argument(
+        "--backup",
+        action="store_true",
+        help="Backup the database before making changes.",
+    )
+
+    parser.add_argument(
+        "--status", action="store_true", help="Show table row counts and status."
+    )
 
     args = parser.parse_args()
 
@@ -186,13 +223,22 @@ def main_cli():
         db = DatabaseHandler()
 
         if args.reset:
-            print("Resetting the database (drop, create, populate)...")
+            print("🧠 Resetting the database (backup, drop, create, populate)...")
+            db.backup_database()
             db.drop_all_tables()
-
             db.create_tables()
             db.create_indexes()
             db.populate_database()
+            db.print_status()
+
         else:
+            if args.backup:
+                print("Backing up database...")
+                db.backup_database()
+            if args.status:
+                db.print_status()
+                return
+
             if args.drop:
                 print("Dropping all tables...")
                 db.drop_all_tables()
@@ -217,10 +263,3 @@ def main_cli():
 
 if __name__ == "__main__":
     main_cli()
-
-    # db = DatabaseHandler()
-    # db.drop_all_tables()
-    # db.create_tables()
-    # db.create_indexes()
-    # db.populate_database()
-    # atexit.register(db.close)

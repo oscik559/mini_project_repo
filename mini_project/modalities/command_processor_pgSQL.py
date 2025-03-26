@@ -6,7 +6,8 @@ import json
 import logging
 import os
 import time
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
+
 import ollama
 import psycopg2
 from psycopg2 import Error as Psycopg2Error
@@ -366,7 +367,7 @@ class CommandProcessor:
                         operation_order, object_id, travel_height, gripper_rotation, operation_status
                     ) VALUES (%s, %s, %s, %s, %s)
                     """,
-                    (i + 1, obj, 0.085, "z-axis", False),
+                    (i + 1, obj, 0.085, "y-axis", False),
                 )
                 insert_count += 1
             logger.info(f"Inserted {insert_count} rows into travel_op_parameters.")

@@ -11,6 +11,15 @@
             "database": "sequences_db",
             "username": "oscar",
             "password": "oscik559"
+        },
+        {
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "TestSetup",
+            "database": "sequences_test_db",
+            "username": "oscar"
         }
     ]
 }

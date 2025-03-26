@@ -3,14 +3,14 @@
 import logging
 import time
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
 
-from mini_project.modalities.voice_processor_pgSQL import (
-    VoiceProcessor,
-    SpeechSynthesizer,
-)
-from mini_project.modalities.command_processor_pgSQL import CommandProcessor
 from mini_project.database.connection import get_connection
+from mini_project.modalities.command_processor_pgSQL import CommandProcessor
+from mini_project.modalities.voice_processor_pgSQL import (
+    SpeechSynthesizer,
+    VoiceProcessor,
+)
 
 logger = logging.getLogger("VoiceCommandRunner")
 
