@@ -5,7 +5,7 @@ import atexit
 import json
 import logging
 import os
-import time
+from collections import defaultdict, deque
 from typing import Dict, List, Tuple
 
 import ollama
@@ -14,30 +14,33 @@ from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 from psycopg2.extras import DictCursor
 
-from config.app_config import DB_PATH, setup_logging
+from config.app_config import setup_logging
 from mini_project.database.connection import get_connection
 
 # === Logging Setup ===
 debug_mode = os.getenv("DEBUG", "0") in ["1", "true", "True"]
 log_level = os.getenv("LOG_LEVEL", "DEBUG" if debug_mode else "INFO").upper()
-
 setup_logging(level=getattr(logging, log_level))
 logger = logging.getLogger("CommandProcessor")
 
-# === CONFIGURATION ===
+# models: "llama3.2:1b", "deepseek-r1:1.5b", "mistral:latest", "deepseek-r1:32b"
 OLLAMA_MODEL = "mistral:latest"
-# OLLAMA_MODEL = "llama3.2:latest"
-# OLLAMA_MODEL = "llama3.3:latest"
 
 
 class CommandProcessor:
     def __init__(self, llm_model: str = OLLAMA_MODEL):
         self.conn = get_connection()
         self.cursor = self.conn.cursor(cursor_factory=DictCursor)
-
+        self.logger = logger
         self.llm_model = llm_model
 
-        self.system_prompt = """
+        # Cache available sequences and objects from database for validation purposes
+        self.available_sequences = self.get_available_sequences()
+        self.available_objects = self.get_available_objects()
+        self.system_prompt = self._build_system_prompt()
+
+    def _build_system_prompt(self):
+        return """
             You are a robotic task planner. Your job is to break down natural language commands into valid low-level robot operations.
 
             ### CONTEXT:
@@ -60,8 +63,12 @@ class CommandProcessor:
             {object_context}
 
             #### 4. SORT ORDER:
-            When sorting by color, use this color priority (from sort_order):
-            {sort_order}
+            Extract and return the desired sort order mentioned in the instruction as an array of objects, each with object_name and/or object_color.
+            This list must reflect the exact intended sort order if mentioned (e.g. "green then pink then orange").
+            If the user says to sort "all slides by color", you must extract multiple entries for the same color.
+            List each object_color for each object you expect to sort based on the scene (e.g. two pink slides = two entries).
+            Only include colors that are known from the camera_vision.
+            After sorting by color, add sort order to sort_order here: {sort_order}
 
             ### INSTRUCTIONS:
             1. Determine the intended task (e.g., "sort").
@@ -103,25 +110,31 @@ class CommandProcessor:
 
             """
 
-        # Cache available sequences and objects from database for validation purposes
-        self.available_sequences = self.get_available_sequences()
-        self.available_objects = self.get_available_objects()
+    def _build_sort_order_prompt(self, command_text: str) -> str:
+        return f"""
+        Given the following user instruction:
+        \"{command_text}\"
+
+        Extract the desired sort order as a JSON array of objects.
+        Each item should include:
+        - object_name (if mentioned)
+        - object_color (if used for sorting)
+
+        Respond only with a clean JSON array.
+        """
+    def _sort_order_system_msg(self) -> Dict:
+        return {
+            "role": "system",
+            "content": "You are a planner that helps extract object sorting order from commands."
+        }
+
 
     def get_available_sequences(self) -> List[str]:
         """Fetch available sequence names from sequence_library in database"""
-        try:
-
-            cursor = self.cursor
-            cursor.execute("SELECT sequence_name FROM sequence_library")
-            logger.info("Fetching available sequences...")  # Debugging
-            available_sequences = [row[0] for row in cursor.fetchall()]
-            logger.info(f"Available sequences: {available_sequences}")
-            return available_sequences
-        except Psycopg2Error as e:
-            logger.error(
-                "Database error in get_available_sequences: %s", str(e), exc_info=True
-            )
-            raise
+        self.cursor.execute("SELECT sequence_name FROM sequence_library")
+        available_sequences = [row[0] for row in self.cursor.fetchall()]
+        logger.info(f"Available sequences: {available_sequences}")
+        return available_sequences
 
     def fetch_column(self, table: str, column: str) -> list:
         try:
@@ -135,46 +148,24 @@ class CommandProcessor:
             raise
 
     def get_available_objects(self) -> List[str]:
-        """Fetch available object names from camera_vision in database"""
-        try:
-
-            cursor = self.cursor
-            cursor.execute("SELECT object_name FROM camera_vision")
-            logger.info("Fetching available objects...")  # Debugging
-            available_objects = [row[0] for row in cursor.fetchall()]
-            logger.info(f"Available objects: {available_objects}")
-            return available_objects
-        except Psycopg2Error as e:
-            logger.error(
-                "Database error in get_available_objects: %s", str(e), exc_info=True
-            )
-            raise
+        self.cursor.execute("SELECT object_name FROM camera_vision")
+        available_objects = [row[0] for row in self.cursor.fetchall()]
+        logger.info(f"Available objects: {available_objects}")
+        return available_objects
 
     def get_unprocessed_unified_command(self) -> Dict:
-        try:
-            cursor = self.cursor
-            cursor.execute(
-                """
-                SELECT id, unified_command
-                FROM unified_instructions
-                WHERE processed = FALSE
-                ORDER BY id DESC
-                LIMIT 1
-                """
-            )
-            result = cursor.fetchone()
-            return (
-                {"id": result["id"], "unified_command": result["unified_command"]}
-                if result
-                else None
-            )
-        except Psycopg2Error as e:
-            logger.error(
-                "Database error in get_latest_unprocessed_instruction: %s",
-                str(e),
-                exc_info=True,
-            )
-            raise
+        self.cursor.execute(
+            """
+            SELECT id, unified_command FROM unified_instructions
+            WHERE processed = FALSE ORDER BY id DESC LIMIT 1
+        """
+        )
+        result = self.cursor.fetchone()
+        return (
+            {"id": result["id"], "unified_command": result["unified_command"]}
+            if result
+            else None
+        )
 
     def get_available_objects_with_colors(self) -> List[str]:
         self.cursor.execute("SELECT object_name, object_color FROM camera_vision")
@@ -182,9 +173,9 @@ class CommandProcessor:
 
     def get_sort_order(self) -> List[str]:
         self.cursor.execute(
-            "SELECT object_color FROM sort_order ORDER BY sequence_id ASC"
+            "SELECT object_name, object_color FROM sort_order ORDER BY order_id ASC"
         )
-        return [row[0] for row in self.cursor.fetchall()]
+        return [f"{name} ({color})" for name, color in self.cursor.fetchall()]
 
     def get_task_templates(self) -> Dict[str, List[str]]:
         self.cursor.execute("SELECT task_name, default_sequence FROM task_templates")
@@ -192,8 +183,7 @@ class CommandProcessor:
 
     def validate_operation(self, operation: Dict) -> bool:
         """Validate operation structure"""
-        available_sequences = self.available_sequences
-        if operation["sequence_name"] not in available_sequences:
+        if operation["sequence_name"] not in self.available_sequences:
             logger.error(f"Invalid sequence name: {operation['sequence_name']}")
             return False
 
@@ -201,9 +191,7 @@ class CommandProcessor:
         if not operation.get("object_name", ""):
             return True
 
-        # Validate object if specified by comparing with available objects
-        available_objects = self.available_objects
-        if operation["object_name"] in available_objects:
+        if operation["object_name"] in self.available_objects:
             return True
         else:
             logger.error(f"Invalid object name: {operation['object_name']}")
@@ -236,6 +224,9 @@ class CommandProcessor:
             formatted_templates = "\n".join(
                 f'- Task: "{k}" → {v}' for k, v in task_templates.items()
             )
+
+            # Step: Extract sort preference and populate sort_order before planning
+            self.populate_sort_order_from_llm(unified_command["unified_command"])
 
             formatted_system_prompt = self.system_prompt.format(
                 available_sequences=", ".join(self.available_sequences),
@@ -271,6 +262,56 @@ class CommandProcessor:
             ) and self.validate_operation(op):
                 valid_operations.append(op)
 
+        # ✅ 1. Fetch color-ordered object names from sort_order
+        self.cursor.execute(
+            "SELECT object_name, object_color FROM sort_order ORDER BY order_id"
+        )
+        sort_order_rows = self.cursor.fetchall()
+
+        # ✅ 2. Build a mapping: color → queue of object_names (preserves sort order)
+        from collections import defaultdict, deque
+
+        color_to_objects = defaultdict(deque)
+        for obj_name, color in sort_order_rows:
+            color_to_objects[color.strip().lower()].append(obj_name)
+
+        # ✅ 3. Resolve placeholder object names in the plan
+        resolved_operations = []
+        for op in valid_operations:
+            obj_raw = op.get("object_name", "").lower()
+
+            # Try to extract color keyword from object name
+            extracted_color = None
+            for known_color in color_to_objects:
+                if known_color in obj_raw:
+                    extracted_color = known_color
+                    break
+
+            # Replace with object name from sort_order
+            if extracted_color and op["sequence_name"] in [
+                "pick",
+                "travel",
+                "drop",
+            ]:
+                if color_to_objects[extracted_color]:
+                    op["object_name"] = color_to_objects[extracted_color].popleft()
+
+            resolved_operations.append(op)
+
+        # 👉 Ensure resolved_operations are ordered based on sort_order.order_id
+        self.cursor.execute("SELECT object_name FROM sort_order ORDER BY order_id")
+        ordered_object_names = [row[0] for row in self.cursor.fetchall()]
+
+        def sort_key(op):
+            obj = op.get("object_name", "")
+            return (
+                ordered_object_names.index(obj)
+                if obj in ordered_object_names
+                else float("inf")
+            )
+
+        sorted_resolved_ops = sorted(resolved_operations, key=sort_key)
+
         if valid_operations:
             try:
                 cursor = self.cursor
@@ -282,7 +323,8 @@ class CommandProcessor:
                 )
                 operation_id = cursor.fetchone()[0]
 
-                for idx, op in enumerate(valid_operations):
+                for idx, op in enumerate(sorted_resolved_ops):
+
                     cursor.execute(
                         "SELECT sequence_id FROM sequence_library WHERE sequence_name = %s",
                         (op["sequence_name"],),
@@ -317,11 +359,15 @@ class CommandProcessor:
                 # ✅ Log to task_history
                 self.cursor.execute(
                     "INSERT INTO task_history (command_text, generated_plan) VALUES (%s, %s)",
-                    (unified_command["unified_command"], json.dumps(valid_operations)),
+                    (
+                        unified_command["unified_command"],
+                        json.dumps(sorted_resolved_ops),
+                    ),
                 )
 
                 self.conn.commit()
                 return True, valid_operations
+
             except Exception as e:
                 logger.error("Failed to insert plan: %s", e, exc_info=True)
                 return False, []
@@ -432,6 +478,79 @@ class CommandProcessor:
         self.conn.commit()
         logger.info("Operation-specific parameter tables updated.")
 
+    def extract_sort_order_from_llm(self, command_text: str) -> List[Tuple[str, str]]:
+        try:
+            logger.info("🧠 Extracting sort order using LLM...")
+            prompt = self._build_sort_order_prompt(command_text)
+            response = ollama.chat(
+                model=self.llm_model,
+                messages=[
+                    self._sort_order_system_msg(),
+                    {"role": "user", "content": prompt},
+                ],
+            )
+
+            parsed = self.extract_json_array(response["message"]["content"])
+            if not isinstance(parsed, list):
+                logger.warning("⚠️ Unexpected format from LLM sort extraction.")
+                return []
+
+            results = []
+            for item in parsed:
+                object_name = item.get("object_name", "").strip()
+                object_color = item.get("object_color", "").strip()
+                results.append((object_name, object_color))
+
+            logger.info(f"✅ Extracted sort order: {results}")
+            return results
+
+        except Exception as e:
+            logger.error(
+                "❌ Failed to extract sort order using LLM: %s", str(e), exc_info=True
+            )
+            return []
+
+    def populate_sort_order_from_llm(self, command_text: str) -> None:
+        try:
+            logger.info("🧠 Asking LLM to extract sort order...")
+
+            extracted = self.extract_sort_order_from_llm(command_text)
+
+            if not extracted:
+                logger.warning("⚠️ No sort order to insert.")
+                return
+
+            # Clear previous sort_order
+            self.cursor.execute("DELETE FROM sort_order")
+
+            # Fetch color-to-object_name mapping from camera_vision
+            self.cursor.execute("SELECT object_name, object_color FROM camera_vision")
+            camera_color_map = self.cursor.fetchall()
+            color_to_names = {}
+            for name, color in camera_color_map:
+                color_to_names.setdefault(color.lower(), []).append(name)
+
+            inserted = []
+            for item in extracted:
+                color = item[1].lower()
+                name_list = color_to_names.get(color, [])
+                if not name_list:
+                    logger.warning(f"⚠️ No match in camera_vision for color: {color}")
+                    continue
+                obj_name = name_list.pop(0)  # Use and remove to avoid duplicates
+                self.cursor.execute(
+                    "INSERT INTO sort_order (object_name, object_color) VALUES (%s, %s)",
+                    (obj_name, color),
+                )
+                inserted.append((obj_name, color))
+
+            logger.info(f"✅ sort_order table populated: {inserted}")
+
+        except Exception as e:
+            logger.error(
+                "❌ Failed to populate sort_order table: %s", str(e), exc_info=True
+            )
+
     def run_processing_cycle(self):
         """
         Process the latest unprocessed unified command
@@ -461,9 +580,6 @@ class CommandProcessor:
 
 
 if __name__ == "__main__":
-
-    # models: "llama3.2:1b", "deepseek-r1:1.5b", "mistral:latest", "deepseek-r1:32b"
-
     processor = CommandProcessor(llm_model="mistral:latest")
     # Register the close method so it gets called when the program exits
     atexit.register(processor.close)

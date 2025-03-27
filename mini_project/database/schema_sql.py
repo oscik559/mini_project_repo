@@ -253,9 +253,9 @@ tables = OrderedDict(
             "sort_order",
             """
             CREATE TABLE IF NOT EXISTS sort_order (
-                sequence_id SERIAL PRIMARY KEY,
-                object_name TEXT NOT NULL,
-                object_color TEXT NOT NULL
+                order_id SERIAL PRIMARY KEY,
+                object_name TEXT,
+                object_color TEXT
             );
     """,
         ),

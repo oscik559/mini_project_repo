@@ -42,3 +42,68 @@ To run tests:
 # [2025-03-24 18:19:20] INFO - VoiceProcessor - 🗃️ Storing voice instruction in the database...
 # [2025-03-24 18:19:20] INFO - VoiceProcessor - ✅ Voice instruction stored successfully in voice_instructions table.
 # [2025-03-24 18:19:20] INFO - VoiceProcessor - 🎉 Voice instruction captured and stored successfully!
+
+
+
+✅ General Status
+    Emoji	Meaning
+    ✅	Success, task completed
+    ❌	Error or failure
+    ⏳	Task in progress
+    🔄	Processing or updating
+    📦	Packaging or setup
+    ⚙️	Configuration or system settings
+    🔧	Fixing or modifying
+    📋	Loaded config or parameters
+
+💾 Database Operations
+    Emoji	Use Case
+    🧠	Smart reset or intelligent logic
+    💾	Database saved or backup completed
+    🔃	Refreshing / resyncing
+    🧹	Clearing or cleanup
+    🚮	Dropping tables or removing data
+    🧱	Creating tables or structures
+    🧾	Populating data
+    🔍	Inspecting status (--status)
+
+📢 User Feedback
+    Emoji	Use Case
+    📣	Important info or broadcast
+    📝	Command parsed or saved
+    🗣️	Voice recognized or prompt accepted
+    🧭	Navigation or plan generated
+    🧠	LLM processing or smart planning
+    🎯	Target task detected or matched
+    🗂️	Logging or archiving (e.g., task history)
+
+⚠️ Warnings and Errors
+    Emoji	Use Case
+    ⚠️	Warning, edge case, or limitation
+    ❗	Important action needed
+    ❓	Help / unknown input
+    🚫	Unauthorized or invalid
+    🔐	Security or credentials issue
+    🧨	Fatal crash or rollback triggered
+
+🔁 Workflow & Flow Indicators
+    Emoji	Use Case
+    🟢	Started or initialized
+    🟡	In progress
+    🔴	Failed or halted
+    🔚	Finished or completed
+    ➕	Add / insert
+    ➖	Remove / drop
+    ➡️	Next step / processing flow
+    🧭	Decision-making (e.g., LLM branch)
+
+🧪 Example Usage in CLI
+    python
+    Copy
+    Edit
+    print("🧠 Resetting the database (drop, create, populate)...")
+    print("💾 Backing up to backups/db_20240327.sql")
+    print("✅ Tables created successfully!")
+    print("📊 sequence_library: 6 rows")
+    print("🧾 operation_sequence: 12 planned steps")
+    print("🧠 Task plan saved to history. Done!")

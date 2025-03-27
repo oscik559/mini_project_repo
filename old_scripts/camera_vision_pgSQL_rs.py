@@ -108,16 +108,16 @@ def process_image(image_path, wait_key, db_handler):
 
             # Check if tray_rel_position is empty and decide what to do:
             if not tray_rel_position:
-
-                print("🟡 No Tray position detected, using default values.")
+                print("Warning: Tray relative position is empty, using default values.")
                 tray_rel_position = [50.0, 150.0, 10.0]
                 tray_angle_with_x = 90.0
 
             if not holder_rel_position:
-
-                print("🟡 No Holder position detected, using default values.")
-                holder_rel_position = [170.0, 420.0, 0.0]
-                holder_angle_with_x = 90.0
+                print(
+                    "Warning: Holder relative position is empty, using default values."
+                )
+                holder_rel_position = [30.0, 150.0, 10.0]
+                holder_angle_with_x = 45.0
 
             # --- Update the database ---
             update_camera_vision_database(
@@ -406,147 +406,65 @@ def color_image_process(image, wait_key, depth_frame, intrinsics):
 
         # For the slide holder
         if 5000 < cv2.contourArea(contour) < 17000:
-            rect_ = cv2.minAreaRect(contour)
-            box_ = cv2.boxPoints(rect_).astype(np.int64)
+            rect = cv2.minAreaRect(contour)
+            box = cv2.boxPoints(rect).astype(np.int64)
 
             # Draw the tray bounding box in blue
-            cv2.polylines(image, [box_], isClosed=True, color=(255, 0, 0), thickness=2)
+            cv2.polylines(image, [box], isClosed=True, color=(255, 0, 0), thickness=2)
 
-            # Detect red regions within the bounding box
-            x_, y_, w_, h_ = cv2.boundingRect(contour)
-            hsv_roi_ = cv2.cvtColor(
-                image[y_ : y_ + h_, x_ : x_ + w_], cv2.COLOR_BGR2HSV
+            # Determine tray points
+            tray_points = [box[0], box[1], box[2], box[3]]
+            for i, pt in enumerate(tray_points):
+                cv2.circle(image, tuple(pt), 3, (255, 0, 0), -1)
+                cv2.putText(
+                    image,
+                    f"p{i}",
+                    tuple(pt),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.4,
+                    (0, 255, 0),
+                    2,
+                )
+
+            # Find the angle between 'POINT 0' and 'POINT 1' with respect to the x-axis
+            point0 = tray_points[0]
+            point1 = tray_points[1]
+            dx, dy = point1[0] - point0[0], point1[1] - point0[1]
+            holder_angle_with_x_axis = math.degrees(math.atan2(dy, dx))
+
+            # ============== Draw the angle value next to 'POINT 0' ==============
+            angle_text = f"Angle: {holder_angle_with_x_axis:.2f} deg"
+            cv2.putText(
+                image,
+                angle_text,
+                (point0[0] + 50, point0[1]),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.4,
+                (0, 255, 0),
+                2,
             )
-            red_mask_ = cv2.inRange(
-                hsv_roi_, np.array([0, 70, 50]), np.array([10, 255, 255])
-            ) + cv2.inRange(
-                hsv_roi_, np.array([170, 70, 50]), np.array([180, 255, 255])
+
+            # ============== Calculate relative position of holder w.r.t. detected screw ==============
+            detected_screw = detect_screw_location(image)
+            screw_center_orange = (
+                detected_screw.get("Screw_orange", [])[0]["center"]
+                if detected_screw.get("Screw_orange")
+                else []
             )
 
-            # Find red contours and identify the closest tray corner
-            for red_contour_ in cv2.findContours(
-                red_mask_, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-            )[0]:
-                if cv2.contourArea(red_contour_) > 50:
-                    red_center_ = np.mean(
-                        cv2.boxPoints(cv2.minAreaRect(red_contour_)), axis=0
-                    ) + [
-                        x_,
-                        y_,
-                    ]
-                    closest_idx_ = np.argmin(
-                        [np.linalg.norm(corner_ - red_center_) for corner_ in box_]
-                    )
+            if len(screw_center_orange) != 0 and scaling_factor is not None:
+                holder_rel_position = depth_image_process(
+                    point0, screw_center_orange, scaling_factor
+                )
 
-                    # Draw bounding box for the red contour
-                    box_red_ = cv2.boxPoints(cv2.minAreaRect(red_contour_)).astype(
-                        np.int64
-                    )
-                    pts_red_ = np.array(
-                        [
-                            (box_red_[0]) + (x_, y_),
-                            (box_red_[1]) + (x_, y_),
-                            (box_red_[2]) + (x_, y_),
-                            (box_red_[3]) + (x_, y_),
-                        ]
-                    ).astype(np.int64)
-                    image = cv2.polylines(
-                        image, [pts_red_], isClosed=True, color=(0, 0, 255), thickness=2
-                    )
-
-                    # Determine tray points
-                    tray_points_ = [box_[closest_idx_]]
-                    next_idx_ = (closest_idx_ + 1) % 4
-                    prev_idx_ = (closest_idx_ - 1) % 4
-                    longer_corner_idx_ = (
-                        next_idx_
-                        if np.linalg.norm(box_[closest_idx_] - box_[next_idx_])
-                        > np.linalg.norm(box_[closest_idx_] - box_[prev_idx_])
-                        else prev_idx_
-                    )
-
-                    # Add 'POINT 1' and the remaining unmarked corners
-                    tray_points_.append(box_[longer_corner_idx_])
-                    # shorter_corner_idx = (set(range(4)) - {closest_idx, longer_corner_idx}).pop()
-                    remaining_indices_ = set(range(4)) - {
-                        closest_idx_,
-                        longer_corner_idx_,
-                    }
-                    shorter_corner_idx_ = min(
-                        remaining_indices_,
-                        key=lambda idx_: np.linalg.norm(
-                            box_[closest_idx_] - box_[idx_]
-                        ),
-                    )
-                    tray_points_.append(box_[shorter_corner_idx_])
-
-                    # Determine the final unmarked corner as 'point3'
-                    point3_idx_ = (
-                        set(range(4))
-                        - {closest_idx_, longer_corner_idx_, shorter_corner_idx_}
-                    ).pop()
-                    tray_points_.append(box_[point3_idx_])
-
-                    for i, pt in enumerate(tray_points_):
-                        cv2.circle(image, tuple(pt), 3, (255, 0, 0), -1)
-                        cv2.putText(
-                            image,
-                            f"p{i}",
-                            tuple(pt),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.4,
-                            (0, 255, 0),
-                            2,
-                        )
-
-                    # Find the angle between 'POINT 0' and 'POINT 1' with respect to the x-axis
-                    point0_ = tray_points_[0]
-                    point1_ = tray_points_[1]
-                    dx_, dy_ = point1_[0] - point0_[0], point1_[1] - point0_[1]
-                    holder_angle_with_x_axis = math.degrees(math.atan2(dy_, dx_))
-
-                    # ============== Draw the angle value next to 'POINT 0' ==============
-                    angle_text_ = f"Angle: {holder_angle_with_x_axis:.2f} deg"
-                    cv2.putText(
-                        image,
-                        angle_text_,
-                        (point0_[0] + 50, point0_[1]),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.4,
-                        (0, 255, 0),
-                        2,
-                    )
-
-                    # ============== Calculate relative position of holder w.r.t. detected screw ==============
-                    detected_screw = detect_screw_location(image)
-                    screw_center_orange = (
-                        detected_screw.get("Screw_orange", [])[0]["center"]
-                        if detected_screw.get("Screw_orange")
-                        else []
-                    )
-
-                    # ======================= CALCULATE SCALING FACTOR =======================
-                    Actual_distance_p0_p1_ = 250  # in mm
-                    pixel_distance_p0_p1_ = math.sqrt(
-                        (int(point1_[0]) - int(point0_[0])) ** 2
-                        + (int(point1_[1]) - int(point0_[1])) ** 2
-                    )
-                    scaling_factor_ = Actual_distance_p0_p1_ / pixel_distance_p0_p1_
-
-                    if len(screw_center_orange) != 0 and scaling_factor_ is not None:
-                        holder_rel_position = depth_image_process(
-                            point0_, screw_center_orange, scaling_factor_
-                        )
-
-    # scale_percent = 90
-    # width = int(image.shape[1] * scale_percent / 100)
-    # height = int(image.shape[0] * scale_percent / 100)
-    # dim = (width, height)  # Resize the image
-    # resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+    scale_percent = 90
+    width = int(image.shape[1] * scale_percent / 100)
+    height = int(image.shape[0] * scale_percent / 100)
+    dim = (width, height)  # Resize the image
+    resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
     # Show the resized image
-    # cv2.imshow("tray and holder detection", resized_image)
-    cv2.imshow("tray and holder detection", image)
+    cv2.imshow("tray and holder detection", resized_image)
     cv2.waitKey(wait_key)
 
     ## Draw contours on the original image
@@ -884,7 +802,7 @@ def update_camera_vision_database(
         "pos_x": tray_position[0],
         "pos_y": tray_position[1],
         "pos_z": tray_position[2],
-        "rot_x": 180.0,
+        "rot_x": 0.0,
         "rot_y": 0.0,
         "rot_z": 90 - tray_orientation,
         "usd_name": "Fixture.usd",
@@ -899,10 +817,10 @@ def update_camera_vision_database(
         "color_code": DEFAULT_BLACK_CODE,  # default color for holder
         "pos_x": holder_position[0],
         "pos_y": holder_position[1],
-        "pos_z": holder_position[2] + 8.6,
-        "rot_x": 180.0,
+        "pos_z": holder_position[2],
+        "rot_x": 0.0,
         "rot_y": 0.0,
-        "rot_z": 90 - holder_orientation,
+        "rot_z": holder_orientation,
         "usd_name": "Slide_Holder.usd",
     }
     upsert_camera_vision_record(db_handler, **holder_data)
@@ -912,35 +830,22 @@ def update_camera_vision_database(
     for index, detection in enumerate(slide_detections, start=1):
         slide_name = f"Slide_{index}"
         slide_color = detection.get("object_color", "Black")
-        closest_midpoint_index = detection.get("closest_midpoint_index")
         # Calculate slide position relative to the tray (example offsets)
-        # slide_pos_x = tray_position[0] + 10 * index
-        # slide_pos_y = tray_position[1] + 5 * index
-        # slide_pos_z = tray_position[2] - 19
-
-        # print(slide_detections)
-        # print(closest_midpoint_index)
-        if closest_midpoint_index < 10:
-            slide_pos_x = (22.75 + (closest_midpoint_index * 30.5)) * 10
-            slide_pos_y = 460
-            slide_pos_z = tray_position[2] - 19
-        else:
-            slide_pos_x = (22.75 + ((closest_midpoint_index - 10) * 30.5)) * 10
-            slide_pos_y = 1750
-            slide_pos_z = tray_position[2] - 19
-
+        slide_pos_x = tray_position[0] + 10 * index
+        slide_pos_y = tray_position[1] + 5 * index
+        slide_pos_z = tray_position[2]
         # Use the color code computed during detection; if not available, default to black.
         slide_color_code = detection.get("color_code", DEFAULT_BLACK_CODE)
         slide_data = {
             "object_name": slide_name,
             "object_color": slide_color,
             "color_code": slide_color_code,
-            "pos_x": slide_pos_y,
-            "pos_y": slide_pos_x,
-            "pos_z": slide_pos_z,
+            "pos_x": slide_pos_x,
+            "pos_y": slide_pos_y,
+            "pos_z": slide_pos_z - 19.0,  # 19mm above the tray
             "rot_x": 0.0,
             "rot_y": 0.0,
-            "rot_z": 90,
+            "rot_z": 90 - tray_orientation,
             "usd_name": "Slide.usd",
         }
         upsert_camera_vision_record(db_handler, **slide_data)

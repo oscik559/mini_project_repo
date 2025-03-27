@@ -1,16 +1,32 @@
-# authentication/face_auth.py
-
+# authentication/face_auth_pgSQL.py
 """
-Face Authentication Module
-
-This module provides a face authentication system that uses OpenCV,
-face_recognition, and FAISS for similarity search. It supports:
-  - Automatic face capture (with a consecutive detection counter),
-  - Manual face capture,
-  - A unified identification function that works whether one or multiple faces are detected,
-  - Registration with update confirmation for existing users.
-
-The module uses a custom context manager to handle video capture resources.
+Classes:
+    FaceUtils:
+        A utility class for face detection, bounding box drawing, and encoding selection.
+    FaceAuthSystem:
+        The main class for managing face authentication, including:
+        - Preloading and managing face encodings.
+        - Building and refreshing a FAISS index for similarity search.
+        - Capturing faces in automatic, manual, or multi-face modes.
+        - Registering new users with face and voice data.
+        - Identifying users based on captured face data.
+Functions:
+    VideoCaptureContext(index: int = 0):
+        A context manager for handling video capture resources.
+    main():
+        Entry point for the FaceAuthSystem application. Initializes directories and starts the system.
+Constants:
+    AUTO_CAPTURE_FRAME_COUNT: Number of consecutive frames required for automatic face capture.
+    EMAIL_PATTERN: Regular expression pattern for validating email addresses.
+    FACE_CAPTURE_PATH: Path for saving captured face images.
+    FACE_MATCH_THRESHOLD: Threshold for face similarity matching.
+    FACIAL_DATA_PATH: Path for storing facial data.
+    IDENTIFICATION_FRAMES: Number of frames to process during user identification.
+    LIU_ID_PATTERN: Regular expression pattern for validating LIU IDs.
+    MAX_ENCODINGS_PER_USER: Maximum number of face encodings to store per user.
+    TEMP_AUDIO_PATH: Path for storing temporary audio files.
+    TIMEDELAY: Delay between frames during identification.
+    VOICE_DATA_PATH: Path for storing voice data.
 """
 
 
@@ -45,6 +61,7 @@ from mini_project.authentication.voice_auth_pgSQL import VoiceAuth
 from mini_project.database.connection import get_connection
 
 
+# Context manager for handling an video session.
 @contextmanager
 def VideoCaptureContext(index: int = 0):
     cap = cv2.VideoCapture(index)
@@ -171,7 +188,7 @@ class FaceAuthSystem:
         """Refresh the in-memory known encodings and rebuild the FAISS index."""
         self.known_encodings = self._preload_encodings()
         self.faiss_index = self._build_faiss_index()
-        logging.info("FAISS index and known encodings refreshed.")
+        logging.info("✅ FAISS index and known encodings refreshed.")
 
     def _validate_user_input(self, liu_id: str, email: str) -> bool:
         """Validate LIU ID and email formats."""
@@ -379,7 +396,7 @@ class FaceAuthSystem:
                         logging.info("Registration aborted by user.")
                         return
                     else:
-                        logging.info("User confirmed update of face encoding.")
+                        logging.info("✅ User confirmed update of face encoding.")
                         user_id, existing_encoding_bytea = existing
                         existing_encodings = (
                             pickle.loads(existing_encoding_bytea)
@@ -399,7 +416,7 @@ class FaceAuthSystem:
                             ),
                         )
                         logging.info(
-                            "Face encoding updated for %s %s", first_name, last_name
+                            "✅ Face encoding updated for %s %s", first_name, last_name
                         )
                         # self._refresh_index()
                         # return
@@ -501,7 +518,7 @@ class FaceAuthSystem:
                 best_liu = max(recognized_users, key=recognized_users.get)
                 user = self.known_encodings.get(best_liu)
                 if user:
-                    print(f"Welcome back, {user['first_name']} {user['last_name']}!")
+                    print(f"✅ Welcome back, {user['first_name']} {user['last_name']}!")
                     return user
         else:
             print("No known faces detected.")

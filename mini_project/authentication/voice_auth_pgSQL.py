@@ -1,22 +1,31 @@
 # authentication/voice_auth_pgSQL.py
 """
-This module provides functionality for voice authentication, including recording audio,
-transcribing it, capturing voice embeddings, and storing them in a SQLite database and on disk.
+This module provides a voice authentication system using PostgreSQL as the database backend.
+It includes functionalities for user registration, voice embedding storage, and voice-based user verification.
 Classes:
-    VoiceAuth: A class for handling voice authentication tasks.
+    VoiceAuth:
+        A class for handling voice authentication, including:
+        - Transcription using Google Speech Recognition.
+        - Voice embedding generation using the Resemblyzer library.
+        - Storing embeddings in a PostgreSQL database and as pickle files.
+        - User registration and login via voice verification.
 Functions:
-    audio_session: A context manager for handling an audio recording session.
-VoiceAuth Methods:
-    __init__: Initialize the VoiceAuth class with database path, temporary audio path, and voice data path.
-    _create_directories: Ensure that the directories for voice data and temporary audio exist.
-    _record_audio: Record audio from the microphone and save it to a WAV file.
-    _transcribe_audio: Transcribe recorded audio to text using Google Speech Recognition.
-    _capture_voice_embedding: Capture a voice embedding from the recorded audio.
-    _validate_liu_id: Validate the LIU ID format.
-    _save_voice_embedding: Save the voice embedding in the database and as a pickle file.
-    register_user: Register a new user using voice authentication.
-    register_voice_for_user: Record a voice statement for an already-registered user.
+    audio_session():
+        A context manager for managing audio recording sessions.
+Constants:
+    MAX_RETRIES: int
+        Maximum number of retries for transcription matching during registration.
+    TEMP_AUDIO_PATH: str
+        Path to store temporary audio files.
+    TRANSCRIPTION_SENTENCE: str
+        The sentence users must read for transcription and verification.
+    VOICE_DATA_PATH: str
+        Path to store voice embedding pickle files.
+    VOICE_MATCH_THRESHOLD: float
+        Threshold for cosine similarity to determine voice match.
 """
+
+
 import logging
 import os
 import pickle
@@ -26,7 +35,6 @@ import warnings
 from contextlib import contextmanager
 from typing import List
 
-# import sqlite3
 import psycopg2
 import sounddevice as sd
 from resemblyzer import VoiceEncoder, preprocess_wav
@@ -82,7 +90,7 @@ class VoiceAuth:
         """Ensure that the directories for voice data and temporary audio exist."""
         os.makedirs(self.voice_data_path, exist_ok=True)
         os.makedirs(self.temp_audio_path, exist_ok=True)
-        logging.info("Directories ensured for voice data and temporary audio.")
+        logging.info("🟢 Directories ensured for voice data and temporary audio.")
 
     def _record_audio(
         self, filename: str, prompt: str, duration: int = 5, sampling_rate: int = 16000
@@ -232,7 +240,7 @@ class VoiceAuth:
         - Captures the voice embedding.
         - Saves the embedding in the database and as a file.
         """
-        logging.info("Starting voice-driven user registration...")
+        logging.info("🟡 Starting voice-driven user registration...")
         try:
             first_name = input("Enter your first name: ").strip()
             if not first_name:

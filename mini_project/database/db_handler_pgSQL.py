@@ -162,7 +162,7 @@ class DatabaseHandler:
             populator.populate_instructions()
             populator.populate_states()
             # populator.populate_operation_sequence()
-            populator.populate_sort_order()
+            # populator.populate_sort_order()
             populator.populate_task_preferences()
             populator.populate_interaction_memory()
             populator.populate_simulation_results()
