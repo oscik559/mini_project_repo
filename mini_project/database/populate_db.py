@@ -160,6 +160,17 @@ class DatabasePopulator:
         """
         self.cursor.executemany(insert_query, usd_data)
 
+    def populate_operation_library(self):
+        operation_library = [
+            ("slide_sorting", "pick, travel, drop"),
+            ("cube_sorting", "pick, travel, drop"),
+        ]
+        insert_query = """
+            INSERT INTO operation_library (operation_name, task_order)
+            VALUES (%s, %s)
+        """
+        self.cursor.executemany(insert_query, operation_library)
+
     def populate_users(self):
         users = [
             (

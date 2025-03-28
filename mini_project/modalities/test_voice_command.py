@@ -1,5 +1,7 @@
 # voice_command_runner.py
 
+
+
 import logging
 import time
 from datetime import datetime
@@ -76,6 +78,7 @@ def main():
         answer = query_scene(command_text)
         tts.speak(f"Based on the scene, {answer}")
         return
+
 
     logger.info(f"Transcribed voice command: {command_text}")
 

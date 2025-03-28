@@ -70,6 +70,16 @@ tables = OrderedDict(
     """,
         ),
         (
+            "operation_library",
+            """
+            CREATE TABLE IF NOT EXISTS operation_library (
+                id SERIAL PRIMARY KEY,
+                operation_name TEXT,
+                task_order TEXT
+            );
+    """,
+        ),
+        (
             "access_logs",
             """
             CREATE TABLE IF NOT EXISTS access_logs (

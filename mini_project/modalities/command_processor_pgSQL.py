@@ -131,166 +131,143 @@ class CommandProcessor:
             )
             raise
 
-    def process_command(self, unified_command: Dict) -> Tuple[bool, List[Dict]]:
-        """
-        Process a single unified command using LLM and return success + valid operations.
-        """
-        try:
-            task_templates = self.get_task_templates()
-            formatted_templates = "\n".join(
-                f'- Task: "{k}" → {v}' for k, v in task_templates.items()
-            )
+    def infer_operation_name_from_llm(self, command_text: str) -> str:
+        self.cursor.execute("SELECT operation_name FROM operation_library")
+        available_operations = [row[0] for row in self.cursor.fetchall()]
 
-            # Step: Extract sort preference and populate sort_order before planning
+        prompt = f"""
+        Given the following user command:
+
+        "{command_text}"
+
+        Choose the most appropriate operation name from the list:
+        {', '.join(available_operations)}
+
+        Only respond with the exact operation_name string — no extra words or explanation.
+        """
+
+        response = ollama.chat(
+            model=self.llm_model,
+            messages=[
+                {"role": "system", "content": "You are a smart classifier for robotic task types."},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        result = response["message"]["content"].strip()
+
+        if result not in available_operations:
+            raise ValueError(f"LLM returned invalid operation_name: {result}")
+
+        return result
+
+    def get_task_order(self, operation_name: str) -> List[str]:
+        self.cursor.execute(
+            "SELECT task_order FROM operation_library WHERE operation_name = %s",
+            (operation_name,)
+        )
+        row = self.cursor.fetchone()
+        return [s.strip() for s in row[0].split(",")] if row else []
+
+    def generate_operations_from_sort_order(
+        self, task_order: List[str], command_id: int
+    ) -> List[Dict]:
+        self.cursor.execute("SELECT object_name FROM sort_order ORDER BY order_id")
+        objects = [row[0] for row in self.cursor.fetchall()]
+
+        self.cursor.execute("SELECT COALESCE(MAX(operation_id), 0) + 1 FROM operation_sequence")
+        operation_id_start = self.cursor.fetchone()[0]
+
+        ops = []
+        idx = 0
+
+        for obj in objects:
+            for seq in task_order:
+                self.cursor.execute(
+                    "SELECT sequence_id FROM sequence_library WHERE sequence_name = %s",
+                    (seq,)
+                )
+                seq_id_row = self.cursor.fetchone()
+                if not seq_id_row:
+                    continue
+
+                ops.append({
+                    "operation_id": operation_id_start + idx,
+                    "sequence_id": seq_id_row[0],
+                    "sequence_name": seq,
+                    "object_name": obj,
+                    "command_id": command_id
+                })
+                idx += 1
+
+        # Optionally add a final "go_home"
+        self.cursor.execute("SELECT sequence_id FROM sequence_library WHERE sequence_name = 'go_home'")
+        go_home_seq = self.cursor.fetchone()
+        if go_home_seq:
+            ops.append({
+                "operation_id": operation_id_start + idx,
+                "sequence_id": go_home_seq[0],
+                "sequence_name": "go_home",
+                "object_name": "",
+                "command_id": command_id
+            })
+
+        return ops
+
+    def process_command(self, unified_command: Dict) -> Tuple[bool, List[Dict]]:
+        try:
             self.populate_sort_order_from_llm(unified_command["unified_command"])
 
-            formatted_system_prompt = PromptBuilder.operation_sequence_prompt(
-                available_sequences=", ".join(self.available_sequences),
-                task_templates=formatted_templates,
-                object_context=", ".join(self.get_available_objects_with_colors()),
-                sort_order=", ".join(self.get_sort_order()),
-            )
+            operation_name = self.infer_operation_name_from_llm(unified_command["unified_command"])
+            task_order = self.get_task_order(operation_name)
 
-            response = ollama.chat(
-                model=self.llm_model,
-                messages=[
-                    {"role": "system", "content": formatted_system_prompt},
-                    {"role": "user", "content": unified_command["unified_command"]},
-                ],
-            )
-        except Exception as e:
-            ...  # logging
-            return False, []
+            operations = self.generate_operations_from_sort_order(task_order, unified_command["id"])
 
-        try:
-            raw_response = response["message"]["content"]
-            logger.info("Raw LLM Response: %s", raw_response)
-            operations = self.extract_json_array(raw_response)
-            operations = self.remap_object_names_from_sort_order(operations)
-            logger.info("📦 Resolved object names from sort_order: %s", operations)
-            # operations = self.remap_operations_to_sort_order(operations)
-        except Exception as e:
-            logger.error("JSON parsing error: %s", e, exc_info=True)
-            return False, []
+            # Wipe old unprocessed
+            self.cursor.execute("UPDATE operation_sequence SET processed = TRUE WHERE processed = FALSE")
 
-        valid_operations = []
-        for op in operations:
-            op.setdefault("object_name", "")
-            if all(
-                k in op for k in ["sequence_name", "object_name"]
-            ) and self.validate_operation(op):
-                valid_operations.append(op)
-
-        # ✅ 1. Fetch color-ordered object names from sort_order
-        self.cursor.execute(
-            "SELECT object_name, object_color FROM sort_order ORDER BY order_id"
-        )
-        sort_order_rows = self.cursor.fetchall()
-
-        # ✅ 2. Build a mapping: color → queue of object_names (preserves sort order)
-        from collections import defaultdict, deque
-
-        color_to_objects = defaultdict(deque)
-        for obj_name, color in sort_order_rows:
-            color_to_objects[color.strip().lower()].append(obj_name)
-
-        # ✅ 3. Resolve placeholder object names in the plan
-        resolved_operations = []
-        for op in valid_operations:
-            obj_raw = op.get("object_name", "").lower()
-
-            # Try to extract color keyword from object name
-            extracted_color = None
-            for known_color in color_to_objects:
-                if known_color in obj_raw:
-                    extracted_color = known_color
-                    break
-
-            # Replace with object name from sort_order
-            if extracted_color and op["sequence_name"] in [
-                "pick",
-                "travel",
-                "drop",
-            ]:
-                if color_to_objects[extracted_color]:
-                    op["object_name"] = color_to_objects[extracted_color].popleft()
-
-            resolved_operations.append(op)
-
-        # 👉 Ensure resolved_operations are ordered based on sort_order.order_id
-        self.cursor.execute("SELECT object_name FROM sort_order ORDER BY order_id")
-        ordered_object_names = [row[0] for row in self.cursor.fetchall()]
-
-        def sort_key(op):
-            obj = op.get("object_name", "")
-            return (
-                ordered_object_names.index(obj)
-                if obj in ordered_object_names
-                else float("inf")
-            )
-
-        sorted_resolved_ops = sorted(resolved_operations, key=sort_key)
-
-        if valid_operations:
-            try:
-                cursor = self.cursor
-                cursor.execute(
-                    "UPDATE operation_sequence SET processed = TRUE WHERE processed = FALSE"
-                )
-                cursor.execute(
-                    "SELECT COALESCE(MAX(operation_id), 0) + 1 FROM operation_sequence"
-                )
-                operation_id = cursor.fetchone()[0]
-
-                for idx, op in enumerate(sorted_resolved_ops):
-
-                    cursor.execute(
-                        "SELECT sequence_id FROM sequence_library WHERE sequence_name = %s",
-                        (op["sequence_name"],),
-                    )
-                    seq_result = cursor.fetchone()
-                    if not seq_result:
-                        continue
-
-                    cursor.execute(
-                        """
-                        INSERT INTO operation_sequence
-                        (operation_id, sequence_id, sequence_name, object_name, command_id)
-                        VALUES (%s, %s, %s, %s, %s)
-                        """,
-                        (
-                            idx + 1,
-                            seq_result[0],
-                            op["sequence_name"],
-                            op["object_name"],
-                            unified_command["id"],
-                        ),
-                    )
-
-                cursor.execute(
-                    "UPDATE unified_instructions SET processed = TRUE WHERE id = %s",
-                    (unified_command["id"],),
-                )
-
-                # Auto-populate operation parameter tables
-                self.populate_operation_parameters()
-
-                # ✅ Log to task_history
+            # Insert new
+            insert_count = 0
+            for op in operations:
                 self.cursor.execute(
-                    "INSERT INTO task_history (command_text, generated_plan) VALUES (%s, %s)",
+                    """
+                    INSERT INTO operation_sequence
+                    (operation_id, sequence_id, sequence_name, object_name, command_id)
+                    VALUES (%s, %s, %s, %s, %s)
+                    """,
                     (
-                        unified_command["unified_command"],
-                        json.dumps(sorted_resolved_ops),
-                    ),
+                        op["operation_id"],
+                        op["sequence_id"],
+                        op["sequence_name"],
+                        op["object_name"],
+                        op["command_id"]
+                    )
                 )
+                insert_count += 1
+            logger.info(f"✅ Inserted {insert_count} rows into operation_sequence.")
 
-                self.conn.commit()
-                return True, valid_operations
+            # Mark as processed
+            self.cursor.execute(
+                "UPDATE unified_instructions SET processed = TRUE WHERE id = %s",
+                (unified_command["id"],)
+            )
 
-            except Exception as e:
-                logger.error("Failed to insert plan: %s", e, exc_info=True)
-                return False, []
-        return False, []
+            # Auto-populate operation parameter tables
+            self.populate_operation_parameters()
+
+            self.conn.commit()
+            return True, operations
+
+        except Exception as e:
+            logger.error("Failed to process command: %s", e, exc_info=True)
+            self.conn.rollback()
+            return False, []
+
+
+
+
+
+
+
 
     def populate_operation_parameters(self):
         logger.info("Populating operation-specific parameters...")
@@ -317,7 +294,7 @@ class CommandProcessor:
                     (i + 1, obj, False, "y", 0.01, False),
                 )
                 insert_count += 1
-            logger.info(f"Inserted {insert_count} rows into pick_op_parameters.")
+            logger.info(f"✅ Inserted {insert_count} rows into pick_op_parameters.")
 
         if "travel" in sequence_types:
             self.cursor.execute("DELETE FROM travel_op_parameters")
@@ -335,7 +312,7 @@ class CommandProcessor:
                     (i + 1, obj, 0.085, "y-axis", False),
                 )
                 insert_count += 1
-            logger.info(f"Inserted {insert_count} rows into travel_op_parameters.")
+            logger.info(f"✅ Inserted {insert_count} rows into travel_op_parameters.")
 
         if "drop" in sequence_types:
             self.cursor.execute("DELETE FROM drop_op_parameters")
@@ -353,7 +330,7 @@ class CommandProcessor:
                     (i + 1, obj, 0.0, False),
                 )
                 insert_count += 1
-            logger.info(f"Inserted {insert_count} rows into drop_op_parameters.")
+            logger.info(f"✅ Inserted {insert_count} rows into drop_op_parameters.")
 
         if "screw" in sequence_types:
             self.cursor.execute("DELETE FROM screw_op_parameters")
@@ -395,7 +372,7 @@ class CommandProcessor:
             logger.info(f"Inserted {insert_count} rows into rotate_state_parameters.")
 
         self.conn.commit()
-        logger.info("Operation-specific parameter tables updated.")
+        logger.info("✅ Operation-specific parameter tables updated.")
 
     def extract_sort_order_from_llm(self, command_text: str) -> List[Tuple[str, str]]:
         try:
@@ -429,57 +406,7 @@ class CommandProcessor:
             )
             return []
 
-    # def remap_operations_to_sort_order(self, operations: List[Dict]) -> List[Dict]:
-    #     """Ensure all object_name values in operations match those in sort_order table."""
-    #     self.cursor.execute(
-    #         "SELECT object_color, object_name FROM sort_order ORDER BY order_id"
-    #     )
-    #     sort_map = self.cursor.fetchall()
 
-    #     # Group object names by color
-    #     color_to_objects = {}
-    #     for color, obj in sort_map:
-    #         color_to_objects.setdefault(color.lower(), []).append(obj)
-
-    #     used_objects = set()
-    #     remapped = []
-
-    #     for op in operations:
-    #         color_key = None
-    #         obj_name = op["object_name"]
-
-    #         # Try to find a match by color (if the object name looks like a color label)
-    #         for color, names in color_to_objects.items():
-    #             if color in obj_name.lower():
-    #                 for candidate in names:
-    #                     if candidate not in used_objects:
-    #                         op["object_name"] = candidate
-    #                         used_objects.add(candidate)
-    #                         break
-    #                 break
-
-    #         remapped.append(op)
-
-    #     return remapped
-    def remap_object_names_from_sort_order(self, operations: List[dict]) -> List[dict]:
-        """Replace object_name in LLM operations using sorted object_names from sort_order"""
-        self.cursor.execute("SELECT object_name FROM sort_order ORDER BY order_id")
-        sorted_objects = [row[0] for row in self.cursor.fetchall()]
-
-        remapped = []
-        sort_index = 0
-
-        for op in operations:
-            obj_name = op.get("object_name", "").strip()
-
-            # Only remap if it's not already a valid object from sort_order
-            if obj_name not in sorted_objects:
-                if sort_index < len(sorted_objects):
-                    op["object_name"] = sorted_objects[sort_index]
-                    sort_index += 1
-            remapped.append(op)
-
-        return remapped
 
     def populate_sort_order_from_llm(self, command_text: str) -> None:
         try:
