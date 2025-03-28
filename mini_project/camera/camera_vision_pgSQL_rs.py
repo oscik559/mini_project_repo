@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pyrealsense2 as rs
 
-from config.app_config import *
+from config.app_config import CAMERA_DATA_PATH
 from mini_project.database.db_handler_pgSQL import DatabaseHandler
 
 
@@ -18,7 +18,8 @@ def process_image(image_path, wait_key, db_handler):
     Captures color and depth frames, processes each frame for object detection,
     and updates the database with the results.
     """
-    # ================ Initialize RealSense pipeline =====================================
+
+    # Start RealSense pipeline
     pipeline = rs.pipeline()
     config = rs.config()
     config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 30)
@@ -50,26 +51,50 @@ def process_image(image_path, wait_key, db_handler):
 
     try:
         while True:
-            # --- Capture frames ---
-            frames = pipeline.wait_for_frames()
-            color_frame = frames.get_color_frame()
-            depth_frame = frames.get_depth_frame()
-            if not color_frame or not depth_frame:
-                continue
 
-            color_image = np.asanyarray(color_frame.get_data())
-            if color_image is None:
-                print(f"Error: No image frames retrieved.")
-                return
+            if image_path:
+                # You're running in static image mode
+                (
+                    tray_rel_position,
+                    holder_rel_position,
+                    matched_slides,
+                    tray_angle_with_x,
+                    holder_angle_with_x,
+                ) = color_image_process(color_image, wait_key, depth_frame, intrinsics)
 
-            # --- Process the color image ---
-            (
-                tray_rel_position,
-                holder_rel_position,
-                matched_slides,
-                tray_angle_with_x,
-                holder_angle_with_x,
-            ) = color_image_process(color_image, wait_key, depth_frame, intrinsics)
+                # Skip frame grabbing and pipeline calls
+                break  # since you're just testing one image
+            else:
+                # RealSense mode
+                frames = pipeline.wait_for_frames()
+                color_frame = frames.get_color_frame()
+                depth_frame = frames.get_depth_frame()
+
+                # print(f"🟦 depth_frame: {depth_frame}")
+                # print(
+                #     f"🟦 intrinsics: {intrinsics.width}x{intrinsics.height}, "
+                #     f"ppx={intrinsics.ppx}, ppy={intrinsics.ppy}, "
+                #     f"fx={intrinsics.fx}, fy={intrinsics.fy}, "
+                #     f"model={intrinsics.model}, coeffs={intrinsics.coeffs}"
+                # )
+
+                if not color_frame or not depth_frame:
+                    continue
+
+                color_image = np.asanyarray(color_frame.get_data())
+
+                if color_image is None:
+                    print(f"Error: No image frames retrieved.")
+                    return
+
+                # --- Process the color image ---
+                (
+                    tray_rel_position,
+                    holder_rel_position,
+                    matched_slides,
+                    tray_angle_with_x,
+                    holder_angle_with_x,
+                ) = color_image_process(color_image, wait_key, depth_frame, intrinsics)
 
             # Convert numpy.float64 to native floats
             tray_rel_position = [float(value) for value in tray_rel_position]
@@ -132,6 +157,8 @@ def process_image(image_path, wait_key, db_handler):
             if cv2.waitKey(wait_key) & 0xFF == ord("q"):
                 break
     finally:
+        if not image_path:
+            pipeline.stop()
         cv2.destroyAllWindows()
 
 
@@ -1060,7 +1087,8 @@ def cleanup_camera_vision_records(db_handler, active_object_names):
 
 if __name__ == "__main__":
     db = DatabaseHandler()
-    image_path = CAMERA_DATA_PATH / "image_1.png"
+    image_path = None
+    # image_path = CAMERA_DATA_PATH / "image_1.png"
 
     wait_key = 1000
-    process_image(image_path, wait_key, db_handler=db)
+    process_image(image_path=image_path, wait_key=wait_key, db_handler=db)

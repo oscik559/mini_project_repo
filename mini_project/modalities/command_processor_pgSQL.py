@@ -16,6 +16,7 @@ from psycopg2.extras import DictCursor
 
 from config.app_config import setup_logging
 from mini_project.database.connection import get_connection
+from prompt_utils import PromptBuilder
 
 # === Logging Setup ===
 debug_mode = os.getenv("DEBUG", "0") in ["1", "true", "True"]
@@ -28,6 +29,7 @@ OLLAMA_MODEL = "mistral:latest"
 
 
 class CommandProcessor:
+
     def __init__(self, llm_model: str = OLLAMA_MODEL):
         self.conn = get_connection()
         self.cursor = self.conn.cursor(cursor_factory=DictCursor)
@@ -37,97 +39,6 @@ class CommandProcessor:
         # Cache available sequences and objects from database for validation purposes
         self.available_sequences = self.get_available_sequences()
         self.available_objects = self.get_available_objects()
-        self.system_prompt = self._build_system_prompt()
-
-    def _build_system_prompt(self):
-        return """
-            You are a robotic task planner. Your job is to break down natural language commands into valid low-level robot operations.
-
-            ### CONTEXT:
-
-            #### 1. AVAILABLE SEQUENCES:
-            The robot can only use the following valid sequence names from the sequence_library table:
-            {available_sequences}
-
-            ⚠️ Do NOT invent or assume sequences. Only use the names provided above. Invalid examples: checkColor, rotate, scan, verify, etc.
-
-
-            #### 2. TASK TEMPLATES:
-            These are default sequences for high-level tasks like sorting, assembling, etc.
-
-            Examples:
-            {task_templates}
-
-            #### 3. OBJECT CONTEXT:
-            Here are the known objects the robot can see, with color:
-            {object_context}
-
-            #### 4. SORT ORDER:
-            Extract and return the desired sort order mentioned in the instruction as an array of objects, each with object_name and/or object_color.
-            This list must reflect the exact intended sort order if mentioned (e.g. "green then pink then orange").
-            If the user says to sort "all slides by color", you must extract multiple entries for the same color.
-            List each object_color for each object you expect to sort based on the scene (e.g. two pink slides = two entries).
-            Only include colors that are known from the camera_vision.
-            After sorting by color, add sort order to sort_order here: {sort_order}
-
-            ### INSTRUCTIONS:
-            1. Determine the intended task (e.g., "sort").
-            2. Use the default task template unless user modifies the plan.
-            3. Match object names by color (e.g., "green slide").
-            4. If the user specifies steps (e.g., “rotate before drop”), update the sequence.
-            5. Apply the sequence to each object in order.
-            6. Must always Add `"go_home"` at the end unless told otherwise.
-
-            ### RESPONSE FORMAT:
-            Example JSON array of operations:
-            [
-            {{"sequence_name": "pick", "object_name": "Slide_1"}},
-            {{"sequence_name": "travel", "object_name": "Slide_1"}},
-            {{"sequence_name": "drop", "object_name": "Slide_1"}},
-            {{"sequence_name": "go_home", "object_name": ""}}
-            ]
-
-            Return only one JSON array — NEVER return multiple arrays or repeat the plan.
-            BAD ❌:
-            [
-            {{...}}
-            ]
-            [
-            {{...}}
-            ]
-
-            GOOD ✅:
-            [
-            {{"sequence_name": "...", "object_name": "..."}},
-            ...
-            ]
-
-            🚫 DO NOT include explanations like "Here's the plan:" or "In reverse order:" — only return ONE JSON array.
-
-            Do NOT include extra text, markdown, or explanations.
-            Note: All generated plans will be stored step-by-step in a planning table called "operation_sequence", indexed by a group ID called "operation_id".
-            Each row in the output corresponds to one line in this table.
-
-            """
-
-    def _build_sort_order_prompt(self, command_text: str) -> str:
-        return f"""
-        Given the following user instruction:
-        \"{command_text}\"
-
-        Extract the desired sort order as a JSON array of objects.
-        Each item should include:
-        - object_name (if mentioned)
-        - object_color (if used for sorting)
-
-        Respond only with a clean JSON array.
-        """
-    def _sort_order_system_msg(self) -> Dict:
-        return {
-            "role": "system",
-            "content": "You are a planner that helps extract object sorting order from commands."
-        }
-
 
     def get_available_sequences(self) -> List[str]:
         """Fetch available sequence names from sequence_library in database"""
@@ -201,6 +112,11 @@ class CommandProcessor:
         import re
 
         try:
+            if not PromptBuilder.validate_llm_json(raw_response):
+                raise ValueError(
+                    "Invalid JSON format: response must start with [ and end with ]"
+                )
+
             # Match the first complete JSON array only
             match = re.search(r"\[\s*{[\s\S]*?}\s*]", raw_response)
             if not match:
@@ -228,7 +144,7 @@ class CommandProcessor:
             # Step: Extract sort preference and populate sort_order before planning
             self.populate_sort_order_from_llm(unified_command["unified_command"])
 
-            formatted_system_prompt = self.system_prompt.format(
+            formatted_system_prompt = PromptBuilder.operation_sequence_prompt(
                 available_sequences=", ".join(self.available_sequences),
                 task_templates=formatted_templates,
                 object_context=", ".join(self.get_available_objects_with_colors()),
@@ -250,6 +166,9 @@ class CommandProcessor:
             raw_response = response["message"]["content"]
             logger.info("Raw LLM Response: %s", raw_response)
             operations = self.extract_json_array(raw_response)
+            operations = self.remap_object_names_from_sort_order(operations)
+            logger.info("📦 Resolved object names from sort_order: %s", operations)
+            # operations = self.remap_operations_to_sort_order(operations)
         except Exception as e:
             logger.error("JSON parsing error: %s", e, exc_info=True)
             return False, []
@@ -481,11 +400,11 @@ class CommandProcessor:
     def extract_sort_order_from_llm(self, command_text: str) -> List[Tuple[str, str]]:
         try:
             logger.info("🧠 Extracting sort order using LLM...")
-            prompt = self._build_sort_order_prompt(command_text)
+            prompt = PromptBuilder.sort_order_prompt(command_text)
             response = ollama.chat(
                 model=self.llm_model,
                 messages=[
-                    self._sort_order_system_msg(),
+                    PromptBuilder.sort_order_system_msg(),
                     {"role": "user", "content": prompt},
                 ],
             )
@@ -497,8 +416,8 @@ class CommandProcessor:
 
             results = []
             for item in parsed:
-                object_name = item.get("object_name", "").strip()
-                object_color = item.get("object_color", "").strip()
+                object_name = (item.get("object_name") or "").strip()
+                object_color = (item.get("object_color") or "").strip()
                 results.append((object_name, object_color))
 
             logger.info(f"✅ Extracted sort order: {results}")
@@ -509,6 +428,58 @@ class CommandProcessor:
                 "❌ Failed to extract sort order using LLM: %s", str(e), exc_info=True
             )
             return []
+
+    # def remap_operations_to_sort_order(self, operations: List[Dict]) -> List[Dict]:
+    #     """Ensure all object_name values in operations match those in sort_order table."""
+    #     self.cursor.execute(
+    #         "SELECT object_color, object_name FROM sort_order ORDER BY order_id"
+    #     )
+    #     sort_map = self.cursor.fetchall()
+
+    #     # Group object names by color
+    #     color_to_objects = {}
+    #     for color, obj in sort_map:
+    #         color_to_objects.setdefault(color.lower(), []).append(obj)
+
+    #     used_objects = set()
+    #     remapped = []
+
+    #     for op in operations:
+    #         color_key = None
+    #         obj_name = op["object_name"]
+
+    #         # Try to find a match by color (if the object name looks like a color label)
+    #         for color, names in color_to_objects.items():
+    #             if color in obj_name.lower():
+    #                 for candidate in names:
+    #                     if candidate not in used_objects:
+    #                         op["object_name"] = candidate
+    #                         used_objects.add(candidate)
+    #                         break
+    #                 break
+
+    #         remapped.append(op)
+
+    #     return remapped
+    def remap_object_names_from_sort_order(self, operations: List[dict]) -> List[dict]:
+        """Replace object_name in LLM operations using sorted object_names from sort_order"""
+        self.cursor.execute("SELECT object_name FROM sort_order ORDER BY order_id")
+        sorted_objects = [row[0] for row in self.cursor.fetchall()]
+
+        remapped = []
+        sort_index = 0
+
+        for op in operations:
+            obj_name = op.get("object_name", "").strip()
+
+            # Only remap if it's not already a valid object from sort_order
+            if obj_name not in sorted_objects:
+                if sort_index < len(sorted_objects):
+                    op["object_name"] = sorted_objects[sort_index]
+                    sort_index += 1
+            remapped.append(op)
+
+        return remapped
 
     def populate_sort_order_from_llm(self, command_text: str) -> None:
         try:

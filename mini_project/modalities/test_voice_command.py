@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Dict, List
 
 import ollama
-
+from prompt_utils import PromptBuilder
 from mini_project.database.connection import get_connection
 from mini_project.modalities.command_processor_pgSQL import CommandProcessor
 from mini_project.modalities.voice_processor_pgSQL import (
@@ -109,34 +109,13 @@ def is_scene_query(command_text: str) -> bool:
 
 
 def generate_llm_greeting():
-    hour = datetime.now().hour
-    if 5 <= hour < 12:
-        time_context = "morning"
-    elif 12 <= hour < 17:
-        time_context = "afternoon"
-    elif 17 <= hour < 22:
-        time_context = "evening"
-    else:
-        time_context = "night"
-
-    prompt = f"""
-    You're a friendly assistant robot about to greet the user.
-    It's currently {time_context}.
-    Generate a short, warm, and creative spoken greeting suitable for a voice interface.
-    Mention that you're getting ready to assist, and keep it under 2 sentences. Very short, with less wordings.
-    """
-
     response = ollama.chat(
-        model="mistral:latest",  # or whichever model you're using
+        model="mistral:latest",
         messages=[
-            {
-                "role": "system",
-                "content": "You generate short spoken greetings for a robotic assistant.",
-            },
-            {"role": "user", "content": prompt},
+            PromptBuilder.greeting_system_msg(),
+            {"role": "user", "content": PromptBuilder.greeting_prompt()},
         ],
     )
-
     return response["message"]["content"].strip()
 
 
