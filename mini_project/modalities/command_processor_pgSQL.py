@@ -149,7 +149,10 @@ class CommandProcessor:
         response = ollama.chat(
             model=self.llm_model,
             messages=[
-                {"role": "system", "content": "You are a smart classifier for robotic task types."},
+                {
+                    "role": "system",
+                    "content": "You are a smart classifier for robotic task types.",
+                },
                 {"role": "user", "content": prompt},
             ],
         )
@@ -163,7 +166,7 @@ class CommandProcessor:
     def get_task_order(self, operation_name: str) -> List[str]:
         self.cursor.execute(
             "SELECT task_order FROM operation_library WHERE operation_name = %s",
-            (operation_name,)
+            (operation_name,),
         )
         row = self.cursor.fetchone()
         return [s.strip() for s in row[0].split(",")] if row else []
@@ -174,7 +177,9 @@ class CommandProcessor:
         self.cursor.execute("SELECT object_name FROM sort_order ORDER BY order_id")
         objects = [row[0] for row in self.cursor.fetchall()]
 
-        self.cursor.execute("SELECT COALESCE(MAX(operation_id), 0) + 1 FROM operation_sequence")
+        self.cursor.execute(
+            "SELECT COALESCE(MAX(operation_id), 0) + 1 FROM operation_sequence"
+        )
         operation_id_start = self.cursor.fetchone()[0]
 
         ops = []
@@ -184,32 +189,38 @@ class CommandProcessor:
             for seq in task_order:
                 self.cursor.execute(
                     "SELECT sequence_id FROM sequence_library WHERE sequence_name = %s",
-                    (seq,)
+                    (seq,),
                 )
                 seq_id_row = self.cursor.fetchone()
                 if not seq_id_row:
                     continue
 
-                ops.append({
-                    "operation_id": operation_id_start + idx,
-                    "sequence_id": seq_id_row[0],
-                    "sequence_name": seq,
-                    "object_name": obj,
-                    "command_id": command_id
-                })
+                ops.append(
+                    {
+                        "operation_id": operation_id_start + idx,
+                        "sequence_id": seq_id_row[0],
+                        "sequence_name": seq,
+                        "object_name": obj,
+                        "command_id": command_id,
+                    }
+                )
                 idx += 1
 
         # Optionally add a final "go_home"
-        self.cursor.execute("SELECT sequence_id FROM sequence_library WHERE sequence_name = 'go_home'")
+        self.cursor.execute(
+            "SELECT sequence_id FROM sequence_library WHERE sequence_name = 'go_home'"
+        )
         go_home_seq = self.cursor.fetchone()
         if go_home_seq:
-            ops.append({
-                "operation_id": operation_id_start + idx,
-                "sequence_id": go_home_seq[0],
-                "sequence_name": "go_home",
-                "object_name": "",
-                "command_id": command_id
-            })
+            ops.append(
+                {
+                    "operation_id": operation_id_start + idx,
+                    "sequence_id": go_home_seq[0],
+                    "sequence_name": "go_home",
+                    "object_name": "",
+                    "command_id": command_id,
+                }
+            )
 
         return ops
 
@@ -217,13 +228,19 @@ class CommandProcessor:
         try:
             self.populate_sort_order_from_llm(unified_command["unified_command"])
 
-            operation_name = self.infer_operation_name_from_llm(unified_command["unified_command"])
+            operation_name = self.infer_operation_name_from_llm(
+                unified_command["unified_command"]
+            )
             task_order = self.get_task_order(operation_name)
 
-            operations = self.generate_operations_from_sort_order(task_order, unified_command["id"])
+            operations = self.generate_operations_from_sort_order(
+                task_order, unified_command["id"]
+            )
 
             # Wipe old unprocessed
-            self.cursor.execute("UPDATE operation_sequence SET processed = TRUE WHERE processed = FALSE")
+            self.cursor.execute(
+                "UPDATE operation_sequence SET processed = TRUE WHERE processed = FALSE"
+            )
 
             # Insert new
             insert_count = 0
@@ -239,8 +256,8 @@ class CommandProcessor:
                         op["sequence_id"],
                         op["sequence_name"],
                         op["object_name"],
-                        op["command_id"]
-                    )
+                        op["command_id"],
+                    ),
                 )
                 insert_count += 1
             logger.info(f"✅ Inserted {insert_count} rows into operation_sequence.")
@@ -248,7 +265,7 @@ class CommandProcessor:
             # Mark as processed
             self.cursor.execute(
                 "UPDATE unified_instructions SET processed = TRUE WHERE id = %s",
-                (unified_command["id"],)
+                (unified_command["id"],),
             )
 
             # Auto-populate operation parameter tables
@@ -261,13 +278,6 @@ class CommandProcessor:
             logger.error("Failed to process command: %s", e, exc_info=True)
             self.conn.rollback()
             return False, []
-
-
-
-
-
-
-
 
     def populate_operation_parameters(self):
         logger.info("Populating operation-specific parameters...")
@@ -405,8 +415,6 @@ class CommandProcessor:
                 "❌ Failed to extract sort order using LLM: %s", str(e), exc_info=True
             )
             return []
-
-
 
     def populate_sort_order_from_llm(self, command_text: str) -> None:
         try:

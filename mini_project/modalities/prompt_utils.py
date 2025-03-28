@@ -81,9 +81,6 @@ class PromptBuilder:
             Respond only with a clean JSON array.
         """
 
-
-
-
     @staticmethod
     def sort_order_system_msg() -> Dict:
         return {
@@ -123,4 +120,3 @@ class PromptBuilder:
             "role": "system",
             "content": "You generate short spoken greetings for a robotic assistant.",
         }
-
