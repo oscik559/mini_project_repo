@@ -10,13 +10,13 @@ from typing import Dict, List, Tuple
 
 import ollama
 import psycopg2
+from prompt_utils import PromptBuilder
 from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 from psycopg2.extras import DictCursor
 
 from config.app_config import setup_logging
 from mini_project.database.connection import get_connection
-from prompt_utils import PromptBuilder
 
 # === Logging Setup ===
 debug_mode = os.getenv("DEBUG", "0") in ["1", "true", "True"]

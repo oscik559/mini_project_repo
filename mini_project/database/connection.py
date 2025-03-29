@@ -1,7 +1,9 @@
-import os
 import logging
+import os
+
 import psycopg2
 from dotenv import load_dotenv
+
 from config.app_config import setup_logging
 
 load_dotenv()
