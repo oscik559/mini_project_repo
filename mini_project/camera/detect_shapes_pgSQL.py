@@ -15,13 +15,14 @@ MIN_SHAPE_AREA = 200
 MAX_SHAPE_AREA = 5000
 SCREW_TO_SCREW = 252.0  # mm
 SCREW_TIMEOUT_SEC = 3
-POSITION_TOLERANCE_MM = 50
+POSITION_TOLERANCE_MM = 10
 
 # ------------------- Globals -------------------
 shape_counter = defaultdict(int)
 last_known_screw_positions = {}
 last_screw_update_time = None
 known_objects = {}  # {(shape_type, color): [{x, y, z, name}]}
+
 
 # ------------------- Color Ranges -------------------
 color_ranges = {
@@ -261,7 +262,7 @@ def detect_shape(contour):
 
 
 def detect_colored_shapes(
-    roi, roi_origin, depth_frame, conn, origin_px, scaling_factor
+    roi, roi_origin, depth_frame, conn, origin_px, scaling_factor, screw_positions
 ):
 
     hsv_roi = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
@@ -270,7 +271,6 @@ def detect_colored_shapes(
         all_mask |= cv2.inRange(hsv_roi, lower, upper)
 
     # 🔍 Detect screws *inside* the ROI
-    screw_positions = detect_screw_positions(roi, depth_frame, roi_origin)
     if "orange" not in screw_positions or "blue" not in screw_positions:
         logger.warning("🟠🔵 Missing screws! Cannot compute relative positions.")
         return [], roi
@@ -285,21 +285,14 @@ def detect_colored_shapes(
     origin_px = (ox, oy)
 
     contours, _ = cv2.findContours(all_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    # Log the area of each detected contour for debugging
-    # all_areas = [cv2.contourArea(c) for c in contours]
-    # logger.info(f"📊 Shape areas in this frame: {all_areas}")
-
     output_image = roi.copy()
     center_points = []
 
-    # for idx, contour in enumerate(contours, start=1):
     for contour in contours:
 
         area = cv2.contourArea(contour)
         # ✅ Filter shapes by contour area (tune as needed)
         if area < MIN_SHAPE_AREA or area > MAX_SHAPE_AREA:
-            logger.debug(f"🔕 Ignored contour with area {area:.1f}")
             continue
 
         shape_name, approx = detect_shape(contour)
@@ -307,7 +300,6 @@ def detect_colored_shapes(
         cv2.drawContours(mask, [contour], -1, 255, thickness=cv2.FILLED)
         x, y, w, h = cv2.boundingRect(contour)
         bgr = tuple(int(v) for v in cv2.mean(cv2.bitwise_and(roi, roi, mask=mask))[:3])
-        cv2.rectangle(output_image, (x, y), (x + w, y + h), bgr, 2)
 
         mean_hsv = tuple(map(int, cv2.mean(hsv_roi, mask=mask)[:3]))
         color_name = get_color_name_from_ranges(mean_hsv, color_ranges)
@@ -330,27 +322,24 @@ def detect_colored_shapes(
         color_code = normalize_rgb_color(mean_bgr)
         rot_z = cv2.minAreaRect(contour)[-1]
 
-        # object_name = f"Shape_{idx}"
-        # Canonicalize shape names
         shape_type = map_shape_to_object(shape_name)
 
+        # return center_points, output_image
         matched_name = None
-        key = (shape_type, color_name)
-        if key in known_objects:
-            for obj in known_objects[key]:
-                dx = abs(obj["x"] - rel_x_mm)
-                dy = abs(obj["y"] - rel_y_mm)
-
-                if dx < POSITION_TOLERANCE_MM and dy < POSITION_TOLERANCE_MM:
-                    matched_name = obj["name"]
-                    break
+        for obj in known_objects.get(color_name, []):
+            dx = abs(obj["x"] - rel_x_mm)
+            dy = abs(obj["y"] - rel_y_mm)
+            if dx < POSITION_TOLERANCE_MM and dy < POSITION_TOLERANCE_MM:
+                matched_name = obj["name"]
+                obj.update({"x": rel_x_mm, "y": rel_y_mm, "z": depth_mm})
+                break
 
         if matched_name:
             object_name = matched_name
         else:
             shape_counter[shape_type] += 1
             object_name = f"{shape_type} {shape_counter[shape_type]}"
-            known_objects.setdefault(key, []).append(
+            known_objects.setdefault(color_name, []).append(
                 {"x": rel_x_mm, "y": rel_y_mm, "z": depth_mm, "name": object_name}
             )
 
@@ -450,6 +439,9 @@ def camera_pipeline():
             global last_known_screw_positions
             screw_positions = detect_screw_positions(screw_roi, depth_frame, roi_origin)
 
+            # 🔁 Overlay annotated screw_roi back into roi so markings are visible
+            roi[0 : screw_roi.shape[0], 180:-180] = screw_roi
+
             current_time = datetime.now()
 
             if "orange" in screw_positions and "blue" in screw_positions:
@@ -493,6 +485,7 @@ def camera_pipeline():
                 conn,
                 origin_px=orange_screw[:2],
                 scaling_factor=scaling_factor,
+                screw_positions=screw_positions,
             )
 
             conn.commit()
