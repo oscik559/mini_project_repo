@@ -1,11 +1,13 @@
 # detect_shapes_pgSQL.py
 
+import logging
+from collections import Counter, defaultdict
+from datetime import datetime
+
 import cv2
 import numpy as np
 import pyrealsense2 as rs
-import logging
-from datetime import datetime
-from collections import defaultdict
+
 from mini_project.database.connection import get_connection
 
 logger = logging.getLogger("ShapeDetection")
@@ -13,7 +15,7 @@ logger = logging.getLogger("ShapeDetection")
 # ------------------- Constants -------------------
 MIN_SHAPE_AREA = 200
 MAX_SHAPE_AREA = 5000
-SCREW_TO_SCREW = 252.0  # mm
+SCREW_TO_SCREW = 251.0  # mm
 SCREW_TIMEOUT_SEC = 3
 POSITION_TOLERANCE_MM = 10
 
@@ -22,7 +24,7 @@ shape_counter = defaultdict(int)
 last_known_screw_positions = {}
 last_screw_update_time = None
 known_objects = {}  # {(shape_type, color): [{x, y, z, name}]}
-
+shape_history = defaultdict(list)  # {object_name: ["Circle", "Hexagon", ...]}
 
 # ------------------- Color Ranges -------------------
 color_ranges = {
@@ -153,7 +155,7 @@ def find_table_roi(image):
     x, y, w, h = cv2.boundingRect(largest_contour)
     cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255), 2)
 
-    roi = image[y + 20 : y + h - 50, x + 20 : x + w - 20]
+    roi = image[y + 20 : y + h - 100, x + 20 : x + w - 20]
     cv2.imshow("Table_ROI", roi)
 
     debug_image = image.copy()
@@ -257,6 +259,10 @@ def detect_shape(contour):
         return "Hexagon", approx
     elif len(approx) > 6:
         return "Circle", approx
+        # if circularity > 0.85:
+        #     return "Circle", approx
+        # else:
+        #     return "Ellipse" or "Unknown", approx
     else:
         return "Unknown", approx
 
@@ -281,7 +287,7 @@ def detect_colored_shapes(
     pixel_dist = np.linalg.norm([bx - ox, by - oy])
     actual_mm = SCREW_TO_SCREW  # real-world mm between screws
     scaling_factor = actual_mm / pixel_dist
-
+    print(scaling_factor)
     origin_px = (ox, oy)
 
     contours, _ = cv2.findContours(all_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -322,9 +328,8 @@ def detect_colored_shapes(
         color_code = normalize_rgb_color(mean_bgr)
         rot_z = cv2.minAreaRect(contour)[-1]
 
-        shape_type = map_shape_to_object(shape_name)
+        # shape_type = map_shape_to_object(shape_name)
 
-        # return center_points, output_image
         matched_name = None
         for obj in known_objects.get(color_name, []):
             dx = abs(obj["x"] - rel_x_mm)
@@ -337,11 +342,19 @@ def detect_colored_shapes(
         if matched_name:
             object_name = matched_name
         else:
-            shape_counter[shape_type] += 1
-            object_name = f"{shape_type} {shape_counter[shape_type]}"
+            shape_counter[shape_name] += 1
+            object_name = f"{shape_name} {shape_counter[shape_name]}"
             known_objects.setdefault(color_name, []).append(
                 {"x": rel_x_mm, "y": rel_y_mm, "z": depth_mm, "name": object_name}
             )
+
+        # ⏳ Temporal shape smoothing
+        shape_history[object_name].append(shape_name)
+        if len(shape_history[object_name]) > 15:
+            shape_history[object_name].pop(0)
+        most_common_shape = Counter(shape_history[object_name]).most_common(1)[0][0]
+        shape_name = most_common_shape
+        shape_type = map_shape_to_object(shape_name)
 
         usd_name = f"{shape_type}.usd"
 

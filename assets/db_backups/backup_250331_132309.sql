@@ -45,12 +45,12 @@ CREATE TABLE public.camera_vision (
     object_name text NOT NULL,
     object_color text NOT NULL,
     color_code double precision[],
-    pos_x real NOT NULL,
-    pos_y real NOT NULL,
-    pos_z real NOT NULL,
-    rot_x real NOT NULL,
-    rot_y real NOT NULL,
-    rot_z real NOT NULL,
+    pos_x double precision NOT NULL,
+    pos_y double precision NOT NULL,
+    pos_z double precision NOT NULL,
+    rot_x double precision NOT NULL,
+    rot_y double precision NOT NULL,
+    rot_z double precision NOT NULL,
     usd_name text NOT NULL,
     last_detected timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
@@ -1235,18 +1235,6 @@ COPY public.access_logs (log_id, user_id, action_type, target_table, "timestamp"
 --
 
 COPY public.camera_vision (object_id, object_name, object_color, color_code, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, usd_name, last_detected) FROM stdin;
-3	cuboid 1	green	{0.01,0.01,0.01}	118.1214	354.3642	1941.0001	0	0	5.640549	cuboid.usd	2025-03-29 16:20:06.95275
-11	cylinder 3	orange	{0,0,0}	31.497837	259.85715	924	0	0	37.69424	cylinder.usd	2025-03-29 16:20:18.508645
-10	hexagonal prism 2	black	{0,0,0}	-127.95996	519.7143	657	0	0	90	hexagonal prism.usd	2025-03-29 16:20:20.340642
-6	hexagonal prism 1	red	{0,0,0}	31.497837	259.85715	927.00006	0	0	37.568592	hexagonal prism.usd	2025-03-29 16:20:30.319046
-12	hexagonal prism 3	orange	{0,0,0}	31.497837	259.85715	930.00006	0	0	37.568592	hexagonal prism.usd	2025-03-29 16:20:31.017888
-8	cylinder 2	red	{0,0,0}	32.482143	259.85715	929	0	0	37.568592	cylinder.usd	2025-03-29 16:20:32.844186
-9	cube 2	red	{0,0,0}	32.482143	259.85715	923.00006	0	0	37.568592	cube.usd	2025-03-29 16:20:36.301926
-7	cuboid 2	red	{0,0,0}	31.621342	260.87607	919	0	0	37.69424	cuboid.usd	2025-03-29 16:20:36.983082
-1	pentagonal prism 1	black	{0,0,0}	-127.95996	519.7143	659.00006	0	0	90	pentagonal prism.usd	2025-03-29 16:20:37.199726
-2	cube 1	pink	{0,0,0}	-207.68886	345.4919	928.00006	0	0	59.620872	cube.usd	2025-03-29 16:20:37.202795
-4	pentagonal prism 2	red	{0,0,0}	32.482143	259.85715	920	0	0	37.405357	pentagonal prism.usd	2025-03-29 16:20:37.204648
-5	cylinder 1	green	{0,0,0}	-271.66885	217.53194	934	0	0	36.869896	cylinder.usd	2025-03-29 16:20:37.206537
 \.
 
 
@@ -1287,8 +1275,8 @@ COPY public.instruction_operation_sequence (task_id, instruction_id, skill_id, s
 --
 
 COPY public.instructions (id, "timestamp", user_id, modality, language, instruction_type, processed, content, sync_id, confidence) FROM stdin;
-1	2025-03-29 16:19:52.311576	1	voice	en	command	f	Pick up object	\N	0.95
-2	2025-03-29 16:19:52.311576	2	text	en	command	f	Place object	\N	0.9
+1	2025-03-31 13:23:08.842611	1	voice	en	command	f	Pick up object	\N	0.95
+2	2025-03-31 13:23:08.842611	2	text	en	command	f	Place object	\N	0.9
 \.
 
 
@@ -1297,9 +1285,9 @@ COPY public.instructions (id, "timestamp", user_id, modality, language, instruct
 --
 
 COPY public.interaction_memory (interaction_id, user_id, instruction_id, interaction_type, data, start_time, end_time, "timestamp") FROM stdin;
-1	1	1	task_query	{"task": "Pick Object"}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-29 16:19:52.311576
-2	2	1	preference_update	{"preference": {"time": "morning"}}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-29 16:19:52.311576
-3	1	2	task_execution	{"status": "success", "task": "Place Object"}	2023-10-02 09:00:00	2023-10-02 17:00:00	2025-03-29 16:19:52.311576
+1	1	1	task_query	{"task": "Pick Object"}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-31 13:23:08.842611
+2	2	1	preference_update	{"preference": {"time": "morning"}}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-31 13:23:08.842611
+3	1	2	task_execution	{"status": "success", "task": "Place Object"}	2023-10-02 09:00:00	2023-10-02 17:00:00	2025-03-31 13:23:08.842611
 \.
 
 
@@ -1383,8 +1371,8 @@ COPY public.sequence_library (sequence_id, sequence_name, skill_name, node_name,
 --
 
 COPY public.simulation_results (simulation_id, instruction_id, success, metrics, error_log, "timestamp") FROM stdin;
-1	1	t	{"accuracy": 0.95, "time_taken": 2.5}	No errors	2025-03-29 16:19:52.311576
-2	2	f	{"accuracy": 0.8, "time_taken": 3.0}	Gripper misalignment	2025-03-29 16:19:52.311576
+1	1	t	{"accuracy": 0.95, "time_taken": 2.5}	No errors	2025-03-31 13:23:08.842611
+2	2	f	{"accuracy": 0.8, "time_taken": 3.0}	Gripper misalignment	2025-03-31 13:23:08.842611
 \.
 
 
@@ -1489,10 +1477,10 @@ COPY public.usd_data (sequence_id, usd_name, type_of_usd, repository, scale_x, s
 --
 
 COPY public.users (user_id, first_name, last_name, liu_id, email, preferences, profile_image_path, interaction_memory, face_encoding, voice_embedding, created_at, last_updated) FROM stdin;
-1	Oscar	Ikechukwu	oscik559	oscik559@student.liu.se	{"likes": ["AI", "Robotics"]}	/images/oscar.jpg	{"last_task": "Pick object", "successful_tasks": 5}	\N	\N	2025-03-29 16:19:52.311576	2025-03-29 16:19:52.311576
-2	Rahul	Chiramel	rahch515	rahch515@student.liu.se	{"likes": ["Aeroplanes", "Automation"]}	/images/rahul.jpg	{"last_task": "Screw object", "successful_tasks": 10}	\N	\N	2025-03-29 16:19:52.311576	2025-03-29 16:19:52.311576
-3	Sanjay	Nambiar	sanna58	sanjay.nambiar@liu.se	{"likes": ["Programming", "Machine Learning"]}	/images/sanjay.jpg	{"last_task": "Slide object", "successful_tasks": 7}	\N	\N	2025-03-29 16:19:52.311576	2025-03-29 16:19:52.311576
-4	Mehdi	Tarkian	mehta77	mehdi.tarkian@liu.se	{"likes": ["Running", "Cats"]}	/images/mehdi.jpg	{"last_task": "Drop object", "successful_tasks": 2}	\N	\N	2025-03-29 16:19:52.311576	2025-03-29 16:19:52.311576
+1	Oscar	Ikechukwu	oscik559	oscik559@student.liu.se	{"likes": ["AI", "Robotics"]}	/images/oscar.jpg	{"last_task": "Pick object", "successful_tasks": 5}	\N	\N	2025-03-31 13:23:08.842611	2025-03-31 13:23:08.842611
+2	Rahul	Chiramel	rahch515	rahch515@student.liu.se	{"likes": ["Aeroplanes", "Automation"]}	/images/rahul.jpg	{"last_task": "Screw object", "successful_tasks": 10}	\N	\N	2025-03-31 13:23:08.842611	2025-03-31 13:23:08.842611
+3	Sanjay	Nambiar	sanna58	sanjay.nambiar@liu.se	{"likes": ["Programming", "Machine Learning"]}	/images/sanjay.jpg	{"last_task": "Slide object", "successful_tasks": 7}	\N	\N	2025-03-31 13:23:08.842611	2025-03-31 13:23:08.842611
+4	Mehdi	Tarkian	mehta77	mehdi.tarkian@liu.se	{"likes": ["Running", "Cats"]}	/images/mehdi.jpg	{"last_task": "Drop object", "successful_tasks": 2}	\N	\N	2025-03-31 13:23:08.842611	2025-03-31 13:23:08.842611
 \.
 
 
@@ -1508,7 +1496,7 @@ COPY public.voice_instructions (id, session_id, transcribed_text, confidence, la
 -- Name: camera_vision_object_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.camera_vision_object_id_seq', 12, true);
+SELECT pg_catalog.setval('public.camera_vision_object_id_seq', 1, false);
 
 
 --

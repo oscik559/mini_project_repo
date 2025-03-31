@@ -237,12 +237,12 @@ tables = OrderedDict(
                 object_name TEXT NOT NULL,
                 object_color TEXT NOT NULL,
                 color_code FLOAT8[],
-                pos_x REAL NOT NULL,
-                pos_y REAL NOT NULL,
-                pos_z REAL NOT NULL,
-                rot_x REAL NOT NULL,
-                rot_y REAL NOT NULL,
-                rot_z REAL NOT NULL,
+                pos_x DOUBLE PRECISION NOT NULL,
+                pos_y DOUBLE PRECISION NOT NULL,
+                pos_z DOUBLE PRECISION NOT NULL,
+                rot_x DOUBLE PRECISION NOT NULL,
+                rot_y DOUBLE PRECISION NOT NULL,
+                rot_z DOUBLE PRECISION NOT NULL,
                 usd_name TEXT NOT NULL,
                 last_detected TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );

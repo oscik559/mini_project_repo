@@ -370,6 +370,41 @@ ALTER SEQUENCE public.lift_state_parameters_sequence_id_seq OWNED BY public.lift
 
 
 --
+-- Name: operation_library; Type: TABLE; Schema: public; Owner: oscar
+--
+
+CREATE TABLE public.operation_library (
+    id integer NOT NULL,
+    operation_name text,
+    task_order text
+);
+
+
+ALTER TABLE public.operation_library OWNER TO oscar;
+
+--
+-- Name: operation_library_id_seq; Type: SEQUENCE; Schema: public; Owner: oscar
+--
+
+CREATE SEQUENCE public.operation_library_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.operation_library_id_seq OWNER TO oscar;
+
+--
+-- Name: operation_library_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: oscar
+--
+
+ALTER SEQUENCE public.operation_library_id_seq OWNED BY public.operation_library.id;
+
+
+--
 -- Name: operation_sequence; Type: TABLE; Schema: public; Owner: oscar
 --
 
@@ -687,19 +722,19 @@ ALTER SEQUENCE public.slide_state_parameters_sequence_id_seq OWNED BY public.sli
 --
 
 CREATE TABLE public.sort_order (
-    sequence_id integer NOT NULL,
-    object_name text NOT NULL,
-    object_color text NOT NULL
+    order_id integer NOT NULL,
+    object_name text,
+    object_color text
 );
 
 
 ALTER TABLE public.sort_order OWNER TO oscar;
 
 --
--- Name: sort_order_sequence_id_seq; Type: SEQUENCE; Schema: public; Owner: oscar
+-- Name: sort_order_order_id_seq; Type: SEQUENCE; Schema: public; Owner: oscar
 --
 
-CREATE SEQUENCE public.sort_order_sequence_id_seq
+CREATE SEQUENCE public.sort_order_order_id_seq
     AS integer
     START WITH 1
     INCREMENT BY 1
@@ -708,13 +743,13 @@ CREATE SEQUENCE public.sort_order_sequence_id_seq
     CACHE 1;
 
 
-ALTER SEQUENCE public.sort_order_sequence_id_seq OWNER TO oscar;
+ALTER SEQUENCE public.sort_order_order_id_seq OWNER TO oscar;
 
 --
--- Name: sort_order_sequence_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: oscar
+-- Name: sort_order_order_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: oscar
 --
 
-ALTER SEQUENCE public.sort_order_sequence_id_seq OWNED BY public.sort_order.sequence_id;
+ALTER SEQUENCE public.sort_order_order_id_seq OWNED BY public.sort_order.order_id;
 
 
 --
@@ -1076,6 +1111,13 @@ ALTER TABLE ONLY public.lift_state_parameters ALTER COLUMN sequence_id SET DEFAU
 
 
 --
+-- Name: operation_library id; Type: DEFAULT; Schema: public; Owner: oscar
+--
+
+ALTER TABLE ONLY public.operation_library ALTER COLUMN id SET DEFAULT nextval('public.operation_library_id_seq'::regclass);
+
+
+--
 -- Name: operation_sequence id; Type: DEFAULT; Schema: public; Owner: oscar
 --
 
@@ -1132,10 +1174,10 @@ ALTER TABLE ONLY public.slide_state_parameters ALTER COLUMN sequence_id SET DEFA
 
 
 --
--- Name: sort_order sequence_id; Type: DEFAULT; Schema: public; Owner: oscar
+-- Name: sort_order order_id; Type: DEFAULT; Schema: public; Owner: oscar
 --
 
-ALTER TABLE ONLY public.sort_order ALTER COLUMN sequence_id SET DEFAULT nextval('public.sort_order_sequence_id_seq'::regclass);
+ALTER TABLE ONLY public.sort_order ALTER COLUMN order_id SET DEFAULT nextval('public.sort_order_order_id_seq'::regclass);
 
 
 --
@@ -1193,6 +1235,8 @@ COPY public.access_logs (log_id, user_id, action_type, target_table, "timestamp"
 --
 
 COPY public.camera_vision (object_id, object_name, object_color, color_code, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, usd_name, last_detected) FROM stdin;
+4	Fixture	black	{0,0,0}	50	150	10	180	0	0	Fixture.usd	2025-03-31 12:25:29.652934
+5	Holder	black	{0,0,0}	165	440	8.6	180	0	0	Slide_Holder.usd	2025-03-31 12:25:29.657288
 \.
 
 
@@ -1201,9 +1245,6 @@ COPY public.camera_vision (object_id, object_name, object_color, color_code, pos
 --
 
 COPY public.drop_op_parameters (sequence_id, operation_order, object_id, drop_height, operation_status) FROM stdin;
-1	1	Slide_1	-0.003	f
-2	2	Slide_2	-0.003	f
-3	3	Slide_3	-0.003	f
 \.
 
 
@@ -1236,8 +1277,8 @@ COPY public.instruction_operation_sequence (task_id, instruction_id, skill_id, s
 --
 
 COPY public.instructions (id, "timestamp", user_id, modality, language, instruction_type, processed, content, sync_id, confidence) FROM stdin;
-1	2025-03-26 18:56:02.745997	1	voice	en	command	f	Pick up object	\N	0.95
-2	2025-03-26 18:56:02.745997	2	text	en	command	f	Place object	\N	0.9
+1	2025-03-31 10:11:17.685503	1	voice	en	command	f	Pick up object	\N	0.95
+2	2025-03-31 10:11:17.685503	2	text	en	command	f	Place object	\N	0.9
 \.
 
 
@@ -1246,9 +1287,9 @@ COPY public.instructions (id, "timestamp", user_id, modality, language, instruct
 --
 
 COPY public.interaction_memory (interaction_id, user_id, instruction_id, interaction_type, data, start_time, end_time, "timestamp") FROM stdin;
-1	1	1	task_query	{"task": "Pick Object"}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-26 18:56:02.745997
-2	2	1	preference_update	{"preference": {"time": "morning"}}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-26 18:56:02.745997
-3	1	2	task_execution	{"status": "success", "task": "Place Object"}	2023-10-02 09:00:00	2023-10-02 17:00:00	2025-03-26 18:56:02.745997
+1	1	1	task_query	{"task": "Pick Object"}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-31 10:11:17.685503
+2	2	1	preference_update	{"preference": {"time": "morning"}}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-31 10:11:17.685503
+3	1	2	task_execution	{"status": "success", "task": "Place Object"}	2023-10-02 09:00:00	2023-10-02 17:00:00	2025-03-31 10:11:17.685503
 \.
 
 
@@ -1272,20 +1313,20 @@ COPY public.lift_state_parameters (sequence_id, operation_order, object_id, lift
 
 
 --
+-- Data for Name: operation_library; Type: TABLE DATA; Schema: public; Owner: oscar
+--
+
+COPY public.operation_library (id, operation_name, task_order) FROM stdin;
+1	slide_sorting	pick, travel, drop
+2	cube_sorting	pick, travel, drop
+\.
+
+
+--
 -- Data for Name: operation_sequence; Type: TABLE DATA; Schema: public; Owner: oscar
 --
 
 COPY public.operation_sequence (id, operation_id, sequence_id, sequence_name, object_name, command_id, processed, execution_time) FROM stdin;
-1	1	1	pick	Slide_1	\N	f	2025-03-26 18:56:02.745997
-2	2	2	travel	Slide_1	\N	f	2025-03-26 18:56:02.745997
-3	3	3	drop	Slide_1	\N	f	2025-03-26 18:56:02.745997
-4	4	1	pick	Slide_2	\N	f	2025-03-26 18:56:02.745997
-5	5	2	travel	Slide_2	\N	f	2025-03-26 18:56:02.745997
-6	6	3	drop	Slide_2	\N	f	2025-03-26 18:56:02.745997
-7	7	1	pick	Slide_3	\N	f	2025-03-26 18:56:02.745997
-8	8	2	travel	Slide_3	\N	f	2025-03-26 18:56:02.745997
-9	9	3	drop	Slide_3	\N	f	2025-03-26 18:56:02.745997
-10	10	6	go_home		\N	f	2025-03-26 18:56:02.745997
 \.
 
 
@@ -1294,9 +1335,6 @@ COPY public.operation_sequence (id, operation_id, sequence_id, sequence_name, ob
 --
 
 COPY public.pick_op_parameters (sequence_id, operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status) FROM stdin;
-1	1	Slide_1	f	y	0.01	f
-2	2	Slide_2	f	y	0.01	f
-3	3	Slide_3	f	y	0.01	f
 \.
 
 
@@ -1335,8 +1373,8 @@ COPY public.sequence_library (sequence_id, sequence_name, skill_name, node_name,
 --
 
 COPY public.simulation_results (simulation_id, instruction_id, success, metrics, error_log, "timestamp") FROM stdin;
-1	1	t	{"accuracy": 0.95, "time_taken": 2.5}	No errors	2025-03-26 18:56:02.745997
-2	2	f	{"accuracy": 0.8, "time_taken": 3.0}	Gripper misalignment	2025-03-26 18:56:02.745997
+1	1	t	{"accuracy": 0.95, "time_taken": 2.5}	No errors	2025-03-31 10:11:17.685503
+2	2	f	{"accuracy": 0.8, "time_taken": 3.0}	Gripper misalignment	2025-03-31 10:11:17.685503
 \.
 
 
@@ -1362,10 +1400,7 @@ COPY public.slide_state_parameters (sequence_id, operation_order, object_id, lif
 -- Data for Name: sort_order; Type: TABLE DATA; Schema: public; Owner: oscar
 --
 
-COPY public.sort_order (sequence_id, object_name, object_color) FROM stdin;
-1	Slide_1	Green
-2	Slide_2	Orange
-3	Slide_3	Pink
+COPY public.sort_order (order_id, object_name, object_color) FROM stdin;
 \.
 
 
@@ -1415,9 +1450,6 @@ COPY public.task_templates (task_id, task_name, description, default_sequence) F
 --
 
 COPY public.travel_op_parameters (sequence_id, operation_order, object_id, travel_height, gripper_rotation, operation_status) FROM stdin;
-1	1	Slide_1	0.085	y-axis	f
-2	2	Slide_2	0.085	y-axis	f
-3	3	Slide_3	0.085	y-axis	f
 \.
 
 
@@ -1426,6 +1458,9 @@ COPY public.travel_op_parameters (sequence_id, operation_order, object_id, trave
 --
 
 COPY public.unified_instructions (id, session_id, "timestamp", liu_id, voice_command, gesture_command, unified_command, confidence, processed) FROM stdin;
+1	session_voice_001	2025-03-31 11:05:43.224817	oscik559	 What do you see in this scene?		 What do you see in this scene?	0.95	f
+2	session_voice_001	2025-03-31 12:08:14.384639	oscik559	 What do you see in this scene?		 What do you see in this scene?	0.95	f
+3	session_voice_001	2025-03-31 12:11:48.901317	oscik559	 Sort the objects according to red, pink and green.		 Sort the objects according to red, pink and green.	0.95	f
 \.
 
 
@@ -1447,10 +1482,10 @@ COPY public.usd_data (sequence_id, usd_name, type_of_usd, repository, scale_x, s
 --
 
 COPY public.users (user_id, first_name, last_name, liu_id, email, preferences, profile_image_path, interaction_memory, face_encoding, voice_embedding, created_at, last_updated) FROM stdin;
-1	Oscar	Ikechukwu	oscik559	oscik559@student.liu.se	{"likes": ["AI", "Robotics"]}	/images/oscar.jpg	{"last_task": "Pick object", "successful_tasks": 5}	\N	\N	2025-03-26 18:56:02.745997	2025-03-26 18:56:02.745997
-2	Rahul	Chiramel	rahch515	rahch515@student.liu.se	{"likes": ["Aeroplanes", "Automation"]}	/images/rahul.jpg	{"last_task": "Screw object", "successful_tasks": 10}	\N	\N	2025-03-26 18:56:02.745997	2025-03-26 18:56:02.745997
-3	Sanjay	Nambiar	sanna58	sanjay.nambiar@liu.se	{"likes": ["Programming", "Machine Learning"]}	/images/sanjay.jpg	{"last_task": "Slide object", "successful_tasks": 7}	\N	\N	2025-03-26 18:56:02.745997	2025-03-26 18:56:02.745997
-4	Mehdi	Tarkian	mehta77	mehdi.tarkian@liu.se	{"likes": ["Running", "Cats"]}	/images/mehdi.jpg	{"last_task": "Drop object", "successful_tasks": 2}	\N	\N	2025-03-26 18:56:02.745997	2025-03-26 18:56:02.745997
+1	Oscar	Ikechukwu	oscik559	oscik559@student.liu.se	{"likes": ["AI", "Robotics"]}	/images/oscar.jpg	{"last_task": "Pick object", "successful_tasks": 5}	\N	\N	2025-03-31 10:11:17.685503	2025-03-31 10:11:17.685503
+2	Rahul	Chiramel	rahch515	rahch515@student.liu.se	{"likes": ["Aeroplanes", "Automation"]}	/images/rahul.jpg	{"last_task": "Screw object", "successful_tasks": 10}	\N	\N	2025-03-31 10:11:17.685503	2025-03-31 10:11:17.685503
+3	Sanjay	Nambiar	sanna58	sanjay.nambiar@liu.se	{"likes": ["Programming", "Machine Learning"]}	/images/sanjay.jpg	{"last_task": "Slide object", "successful_tasks": 7}	\N	\N	2025-03-31 10:11:17.685503	2025-03-31 10:11:17.685503
+4	Mehdi	Tarkian	mehta77	mehdi.tarkian@liu.se	{"likes": ["Running", "Cats"]}	/images/mehdi.jpg	{"last_task": "Drop object", "successful_tasks": 2}	\N	\N	2025-03-31 10:11:17.685503	2025-03-31 10:11:17.685503
 \.
 
 
@@ -1459,6 +1494,7 @@ COPY public.users (user_id, first_name, last_name, liu_id, email, preferences, p
 --
 
 COPY public.voice_instructions (id, session_id, transcribed_text, confidence, language, processed, "timestamp") FROM stdin;
+1	80965812-ea24-498f-808a-4479ac0afb43	 What do you see in this scene?	\N	english	f	2025-03-31 11:05:43.157511
 \.
 
 
@@ -1466,14 +1502,14 @@ COPY public.voice_instructions (id, session_id, transcribed_text, confidence, la
 -- Name: camera_vision_object_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.camera_vision_object_id_seq', 1, false);
+SELECT pg_catalog.setval('public.camera_vision_object_id_seq', 6, true);
 
 
 --
 -- Name: drop_op_parameters_sequence_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.drop_op_parameters_sequence_id_seq', 3, true);
+SELECT pg_catalog.setval('public.drop_op_parameters_sequence_id_seq', 1, false);
 
 
 --
@@ -1526,17 +1562,24 @@ SELECT pg_catalog.setval('public.lift_state_parameters_sequence_id_seq', 1, fals
 
 
 --
+-- Name: operation_library_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
+--
+
+SELECT pg_catalog.setval('public.operation_library_id_seq', 2, true);
+
+
+--
 -- Name: operation_sequence_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.operation_sequence_id_seq', 10, true);
+SELECT pg_catalog.setval('public.operation_sequence_id_seq', 1, false);
 
 
 --
 -- Name: pick_op_parameters_sequence_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.pick_op_parameters_sequence_id_seq', 3, true);
+SELECT pg_catalog.setval('public.pick_op_parameters_sequence_id_seq', 1, false);
 
 
 --
@@ -1582,10 +1625,10 @@ SELECT pg_catalog.setval('public.slide_state_parameters_sequence_id_seq', 1, fal
 
 
 --
--- Name: sort_order_sequence_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
+-- Name: sort_order_order_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.sort_order_sequence_id_seq', 3, true);
+SELECT pg_catalog.setval('public.sort_order_order_id_seq', 3, true);
 
 
 --
@@ -1620,14 +1663,14 @@ SELECT pg_catalog.setval('public.task_templates_task_id_seq', 4, true);
 -- Name: travel_op_parameters_sequence_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.travel_op_parameters_sequence_id_seq', 3, true);
+SELECT pg_catalog.setval('public.travel_op_parameters_sequence_id_seq', 1, false);
 
 
 --
 -- Name: unified_instructions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.unified_instructions_id_seq', 1, false);
+SELECT pg_catalog.setval('public.unified_instructions_id_seq', 3, true);
 
 
 --
@@ -1641,7 +1684,7 @@ SELECT pg_catalog.setval('public.users_user_id_seq', 4, true);
 -- Name: voice_instructions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.voice_instructions_id_seq', 1, false);
+SELECT pg_catalog.setval('public.voice_instructions_id_seq', 1, true);
 
 
 --
@@ -1741,6 +1784,14 @@ ALTER TABLE ONLY public.lift_state_parameters
 
 
 --
+-- Name: operation_library operation_library_pkey; Type: CONSTRAINT; Schema: public; Owner: oscar
+--
+
+ALTER TABLE ONLY public.operation_library
+    ADD CONSTRAINT operation_library_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: operation_sequence operation_sequence_pkey; Type: CONSTRAINT; Schema: public; Owner: oscar
 --
 
@@ -1817,7 +1868,7 @@ ALTER TABLE ONLY public.slide_state_parameters
 --
 
 ALTER TABLE ONLY public.sort_order
-    ADD CONSTRAINT sort_order_pkey PRIMARY KEY (sequence_id);
+    ADD CONSTRAINT sort_order_pkey PRIMARY KEY (order_id);
 
 
 --

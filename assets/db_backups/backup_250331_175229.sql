@@ -45,12 +45,12 @@ CREATE TABLE public.camera_vision (
     object_name text NOT NULL,
     object_color text NOT NULL,
     color_code double precision[],
-    pos_x real NOT NULL,
-    pos_y real NOT NULL,
-    pos_z real NOT NULL,
-    rot_x real NOT NULL,
-    rot_y real NOT NULL,
-    rot_z real NOT NULL,
+    pos_x double precision NOT NULL,
+    pos_y double precision NOT NULL,
+    pos_z double precision NOT NULL,
+    rot_x double precision NOT NULL,
+    rot_y double precision NOT NULL,
+    rot_z double precision NOT NULL,
     usd_name text NOT NULL,
     last_detected timestamp without time zone DEFAULT CURRENT_TIMESTAMP
 );
@@ -1235,17 +1235,8 @@ COPY public.access_logs (log_id, user_id, action_type, target_table, "timestamp"
 --
 
 COPY public.camera_vision (object_id, object_name, object_color, color_code, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, usd_name, last_detected) FROM stdin;
-8	hexagonal prism 3	orange	{0,0,0}	30.51353	260.84146	928.00006	0	0	37.568592	hexagonal prism.usd	2025-03-29 16:19:41.800396
-11	cylinder 3	orange	{0,0,0}	31.497837	260.84146	924	0	0	37.568592	cylinder.usd	2025-03-29 16:19:26.519129
-1	hexagonal prism 2	black	{0,0,0}	-127.95996	519.7143	658.00006	0	0	90	hexagonal prism.usd	2025-03-29 16:19:40.864887
-3	pentagonal prism 2	red	{0,0,0}	32.482143	259.85715	925.00006	0	0	37.69424	pentagonal prism.usd	2025-03-29 16:19:42.054814
-5	pentagonal prism 1	black	{0,0,0}	-127.95996	519.7143	658.00006	0	0	90	pentagonal prism.usd	2025-03-29 16:19:42.284563
-2	cube 1	pink	{0,0,0}	-207.68886	345.4919	914.00006	0	0	59.534454	cube.usd	2025-03-29 16:19:42.290026
-7	hexagonal prism 1	red	{0,0,0}	31.497837	259.85715	925.00006	0	0	37.568592	hexagonal prism.usd	2025-03-29 16:19:42.292747
-4	cylinder 1	green	{0,0,0}	-271.66885	217.53194	926.00006	0	0	36.869896	cylinder.usd	2025-03-29 16:19:42.295141
-9	cuboid 1	red	{0,0,0}	31.621342	260.87607	915	0	0	37.568592	cuboid.usd	2025-03-29 16:19:33.372807
-10	cube 2	red	{0,0,0}	31.497837	259.85715	930.00006	0	0	37.405357	cube.usd	2025-03-29 16:19:35.038599
-6	cylinder 2	red	{0,0,0}	30.633175	260.87607	929	0	0	37.874985	cylinder.usd	2025-03-29 16:19:36.918159
+2	Circle 2	green	{0,0,0}	97.66241242308492	-32.228596099618024	482.0000231266022	0	0	90	cylinder.usd	2025-03-31 17:00:36.028462
+1	Circle 1	green	{0,0,0}	181.65208710693796	155.28323575270502	936.0000491142273	0	0	45	cylinder.usd	2025-03-31 17:48:09.278288
 \.
 
 
@@ -1286,8 +1277,8 @@ COPY public.instruction_operation_sequence (task_id, instruction_id, skill_id, s
 --
 
 COPY public.instructions (id, "timestamp", user_id, modality, language, instruction_type, processed, content, sync_id, confidence) FROM stdin;
-1	2025-03-29 16:18:54.437112	1	voice	en	command	f	Pick up object	\N	0.95
-2	2025-03-29 16:18:54.437112	2	text	en	command	f	Place object	\N	0.9
+1	2025-03-31 15:03:53.00646	1	voice	en	command	f	Pick up object	\N	0.95
+2	2025-03-31 15:03:53.00646	2	text	en	command	f	Place object	\N	0.9
 \.
 
 
@@ -1296,9 +1287,9 @@ COPY public.instructions (id, "timestamp", user_id, modality, language, instruct
 --
 
 COPY public.interaction_memory (interaction_id, user_id, instruction_id, interaction_type, data, start_time, end_time, "timestamp") FROM stdin;
-1	1	1	task_query	{"task": "Pick Object"}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-29 16:18:54.437112
-2	2	1	preference_update	{"preference": {"time": "morning"}}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-29 16:18:54.437112
-3	1	2	task_execution	{"status": "success", "task": "Place Object"}	2023-10-02 09:00:00	2023-10-02 17:00:00	2025-03-29 16:18:54.437112
+1	1	1	task_query	{"task": "Pick Object"}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-31 15:03:53.00646
+2	2	1	preference_update	{"preference": {"time": "morning"}}	2023-10-01 09:00:00	2023-10-01 17:00:00	2025-03-31 15:03:53.00646
+3	1	2	task_execution	{"status": "success", "task": "Place Object"}	2023-10-02 09:00:00	2023-10-02 17:00:00	2025-03-31 15:03:53.00646
 \.
 
 
@@ -1382,8 +1373,8 @@ COPY public.sequence_library (sequence_id, sequence_name, skill_name, node_name,
 --
 
 COPY public.simulation_results (simulation_id, instruction_id, success, metrics, error_log, "timestamp") FROM stdin;
-1	1	t	{"accuracy": 0.95, "time_taken": 2.5}	No errors	2025-03-29 16:18:54.437112
-2	2	f	{"accuracy": 0.8, "time_taken": 3.0}	Gripper misalignment	2025-03-29 16:18:54.437112
+1	1	t	{"accuracy": 0.95, "time_taken": 2.5}	No errors	2025-03-31 15:03:53.00646
+2	2	f	{"accuracy": 0.8, "time_taken": 3.0}	Gripper misalignment	2025-03-31 15:03:53.00646
 \.
 
 
@@ -1488,10 +1479,10 @@ COPY public.usd_data (sequence_id, usd_name, type_of_usd, repository, scale_x, s
 --
 
 COPY public.users (user_id, first_name, last_name, liu_id, email, preferences, profile_image_path, interaction_memory, face_encoding, voice_embedding, created_at, last_updated) FROM stdin;
-1	Oscar	Ikechukwu	oscik559	oscik559@student.liu.se	{"likes": ["AI", "Robotics"]}	/images/oscar.jpg	{"last_task": "Pick object", "successful_tasks": 5}	\N	\N	2025-03-29 16:18:54.437112	2025-03-29 16:18:54.437112
-2	Rahul	Chiramel	rahch515	rahch515@student.liu.se	{"likes": ["Aeroplanes", "Automation"]}	/images/rahul.jpg	{"last_task": "Screw object", "successful_tasks": 10}	\N	\N	2025-03-29 16:18:54.437112	2025-03-29 16:18:54.437112
-3	Sanjay	Nambiar	sanna58	sanjay.nambiar@liu.se	{"likes": ["Programming", "Machine Learning"]}	/images/sanjay.jpg	{"last_task": "Slide object", "successful_tasks": 7}	\N	\N	2025-03-29 16:18:54.437112	2025-03-29 16:18:54.437112
-4	Mehdi	Tarkian	mehta77	mehdi.tarkian@liu.se	{"likes": ["Running", "Cats"]}	/images/mehdi.jpg	{"last_task": "Drop object", "successful_tasks": 2}	\N	\N	2025-03-29 16:18:54.437112	2025-03-29 16:18:54.437112
+1	Oscar	Ikechukwu	oscik559	oscik559@student.liu.se	{"likes": ["AI", "Robotics"]}	/images/oscar.jpg	{"last_task": "Pick object", "successful_tasks": 5}	\N	\N	2025-03-31 15:03:53.00646	2025-03-31 15:03:53.00646
+2	Rahul	Chiramel	rahch515	rahch515@student.liu.se	{"likes": ["Aeroplanes", "Automation"]}	/images/rahul.jpg	{"last_task": "Screw object", "successful_tasks": 10}	\N	\N	2025-03-31 15:03:53.00646	2025-03-31 15:03:53.00646
+3	Sanjay	Nambiar	sanna58	sanjay.nambiar@liu.se	{"likes": ["Programming", "Machine Learning"]}	/images/sanjay.jpg	{"last_task": "Slide object", "successful_tasks": 7}	\N	\N	2025-03-31 15:03:53.00646	2025-03-31 15:03:53.00646
+4	Mehdi	Tarkian	mehta77	mehdi.tarkian@liu.se	{"likes": ["Running", "Cats"]}	/images/mehdi.jpg	{"last_task": "Drop object", "successful_tasks": 2}	\N	\N	2025-03-31 15:03:53.00646	2025-03-31 15:03:53.00646
 \.
 
 
@@ -1500,6 +1491,39 @@ COPY public.users (user_id, first_name, last_name, liu_id, email, preferences, p
 --
 
 COPY public.voice_instructions (id, session_id, transcribed_text, confidence, language, processed, "timestamp") FROM stdin;
+1	daf79399-5a0f-4065-b5db-c088f02771da	 What do you see on the table?	\N	english	f	2025-03-31 15:29:16.71644
+2	33cc01f0-8857-498b-aac7-0a4f430c285c	 What do you see on the table?	\N	english	f	2025-03-31 15:29:34.700568
+3	34a21d63-5943-4a05-b730-011c6982b927	 What can you see?	\N	english	f	2025-03-31 15:29:51.871997
+4	393bd594-ab96-4957-8f2d-0449f3061eb2	 What do you see?	\N	english	f	2025-03-31 15:35:26.782983
+5	19d470b7-dccd-4f68-a423-d4563a47f178	 What color is the circle?	\N	english	f	2025-03-31 15:35:58.934367
+6	3b1808a1-3717-4aba-8013-e3c1ac5d9c94	 Did you see any other objects?	\N	english	f	2025-03-31 15:36:17.349074
+7	fc98ee05-ebcd-4f9f-832b-0b9a5d307e5b	 What other objects do you see?	\N	english	f	2025-03-31 15:36:35.937858
+8	6ce7867c-76fd-4aef-9995-dacb79f426d8	 What's green?	\N	english	f	2025-03-31 15:37:35.703275
+9	8d56bbdd-ad17-46ee-b8bc-64e22f7f0adc	 Here is the circle.	\N	english	f	2025-03-31 15:37:53.496576
+10	165f5b11-28d7-43a1-b2a6-951cf0f8301d	 What do you see?	\N	english	f	2025-03-31 16:00:28.703684
+11	57e1a769-8413-4f03-b536-b737988d3fe1	 I'm going to make a	\N	nynorsk	f	2025-03-31 16:21:30.170087
+12	30be4015-ecfd-4cd8-9e69-dd915b13c09b	 What do you see?	\N	english	f	2025-03-31 16:41:14.928897
+13	30be4015-ecfd-4cd8-9e69-dd915b13c09b	 What can you see?	\N	english	f	2025-03-31 16:41:22.910953
+14	30be4015-ecfd-4cd8-9e69-dd915b13c09b	 What object is green?	\N	english	f	2025-03-31 16:41:38.892369
+15	30be4015-ecfd-4cd8-9e69-dd915b13c09b	 What can you see?	\N	english	f	2025-03-31 16:41:58.705775
+16	30be4015-ecfd-4cd8-9e69-dd915b13c09b	 What can you see?	\N	english	f	2025-03-31 16:42:05.897961
+17	30be4015-ecfd-4cd8-9e69-dd915b13c09b	 What is cylinder 1?	\N	english	f	2025-03-31 16:42:25.275971
+18	30be4015-ecfd-4cd8-9e69-dd915b13c09b	 What is cylinder 1?	\N	english	f	2025-03-31 16:42:32.905908
+19	30be4015-ecfd-4cd8-9e69-dd915b13c09b	 What objects exist?	\N	swahili	f	2025-03-31 16:42:54.832328
+20	3d15293b-576f-4ac5-8ebb-e2d3df610a3d	 What do you see?	\N	english	f	2025-03-31 16:45:35.626988
+21	3d15293b-576f-4ac5-8ebb-e2d3df610a3d	 How many green objects are there?	\N	english	f	2025-03-31 16:46:08.0273
+22	8906144a-4670-4926-8383-845399acb9d0	 What do you see?	\N	english	f	2025-03-31 16:47:25.393353
+23	8906144a-4670-4926-8383-845399acb9d0	 How many green circles are there?	\N	english	f	2025-03-31 16:47:37.82533
+24	43f680c8-ad96-42de-b905-312ac364ce59	 What do you see on the table?	\N	english	f	2025-03-31 16:51:01.982616
+25	43f680c8-ad96-42de-b905-312ac364ce59	 How many circles are there?	\N	english	f	2025-03-31 16:51:15.730383
+26	43f680c8-ad96-42de-b905-312ac364ce59	 How many objects do you see?	\N	english	f	2025-03-31 16:51:28.328148
+27	43f680c8-ad96-42de-b905-312ac364ce59	 what can you find	\N	english	f	2025-03-31 16:51:40.896075
+28	43f680c8-ad96-42de-b905-312ac364ce59	 What is on the table?	\N	english	f	2025-03-31 16:51:53.511716
+29	43f680c8-ad96-42de-b905-312ac364ce59	 what is on the table	\N	english	f	2025-03-31 16:53:13.29052
+30	43f680c8-ad96-42de-b905-312ac364ce59	 What do you see?	\N	english	f	2025-03-31 16:53:27.661115
+31	57266205-8e65-494f-a51e-210683c041af	How many objects can you count?	\N	english	f	2025-03-31 17:12:42.194547
+32	568abea6-d3ba-4860-a9c7-35a729d94bd6	How many objects are there?	\N	english	f	2025-03-31 17:51:33.564959
+33	568abea6-d3ba-4860-a9c7-35a729d94bd6	I don't think it's in SQL 1 also. Let's see. I would clear the database to be sure that it's in SQL 1.	\N	english	f	2025-03-31 17:52:23.7913
 \.
 
 
@@ -1507,7 +1531,7 @@ COPY public.voice_instructions (id, session_id, transcribed_text, confidence, la
 -- Name: camera_vision_object_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.camera_vision_object_id_seq', 11, true);
+SELECT pg_catalog.setval('public.camera_vision_object_id_seq', 2, true);
 
 
 --
@@ -1689,7 +1713,7 @@ SELECT pg_catalog.setval('public.users_user_id_seq', 4, true);
 -- Name: voice_instructions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: oscar
 --
 
-SELECT pg_catalog.setval('public.voice_instructions_id_seq', 1, false);
+SELECT pg_catalog.setval('public.voice_instructions_id_seq', 33, true);
 
 
 --
