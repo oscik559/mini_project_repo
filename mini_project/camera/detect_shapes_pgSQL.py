@@ -164,85 +164,19 @@ def find_table_roi(image):
     return roi, (x + 20, y + 20), debug_image
 
 
-def upsert_camera_vision_record(
-    conn,
-    object_name,
-    object_color,
-    color_code,
-    pos_x,
-    pos_y,
-    pos_z,
-    rot_x,
-    rot_y,
-    rot_z,
-    usd_name,
-):
-    try:
-        cursor = conn.cursor()
-        query = "SELECT object_id FROM camera_vision WHERE object_name = %s"
-        cursor.execute(query, (object_name,))
-        result = cursor.fetchone()
-
-        if result is None:
-            insert_query = """
-                INSERT INTO camera_vision
-                (object_name, object_color, color_code, pos_x, pos_y, pos_z,
-                 rot_x, rot_y, rot_z, usd_name, last_detected)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-            """
-            cursor.execute(
-                insert_query,
-                (
-                    object_name,
-                    object_color,
-                    color_code,
-                    pos_x,
-                    pos_y,
-                    pos_z,
-                    rot_x,
-                    rot_y,
-                    rot_z,
-                    usd_name,
-                ),
-            )
-            logger.info(f"➕ Inserted {object_name} into camera_vision")
-        else:
-            update_query = """
-                UPDATE camera_vision
-                SET object_color = %s,
-                    color_code = %s,
-                    pos_x = %s,
-                    pos_y = %s,
-                    pos_z = %s,
-                    rot_x = %s,
-                    rot_y = %s,
-                    rot_z = %s,
-                    usd_name = %s,
-                    last_detected = NOW()
-                WHERE object_name = %s
-            """
-            cursor.execute(
-                update_query,
-                (
-                    object_color,
-                    color_code,
-                    pos_x,
-                    pos_y,
-                    pos_z,
-                    rot_x,
-                    rot_y,
-                    rot_z,
-                    usd_name,
-                    object_name,
-                ),
-            )
-            logger.info(f"🔁 Updated {object_name} in camera_vision")
-        conn.commit()
-
-    except Exception as e:
-        print(f"Database error in upsert_camera_vision_record: {e}")
-        conn.rollback()
-
+      upsert_camera_vision_record(
+            conn,
+            object_name,
+            color_name,
+            color_code,
+            rel_x_mm,
+            rel_y_mm,
+            depth_mm,
+            0.0,
+            0.0,
+            rot_z,
+            usd_name,
+        )
 
 def detect_shape(contour):
     epsilon = 0.02 * cv2.arcLength(contour, True)
