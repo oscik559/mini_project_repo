@@ -1,14 +1,11 @@
+import datetime
 import logging
 import os
+import random
 import tempfile
+import time
 import uuid
 from datetime import datetime
-import time
-import datetime
-import random
-
-import ollama
-from prompt_utils import PromptBuilder
 
 # from prompt_utils import PromptBuilder
 import ollama
@@ -22,11 +19,12 @@ from langchain_ollama import ChatOllama
 
 from config.app_config import setup_logging
 from mini_project.database.connection import get_connection
-from mini_project.modalities.command_processor_pgSQL import CommandProcessor
-from mini_project.modalities.voice_processor_pgSQL import (
+from mini_project.modalities.FOR_SHAPES.command_processor_pgSQL import CommandProcessor
+from mini_project.modalities.FOR_SHAPES.voice_processor_pgSQL import (
     SpeechSynthesizer,
     VoiceProcessor,
 )
+from mini_project.modalities.prompt_utils import PromptBuilder
 
 # === Logging Config ===
 logging.getLogger("comtypes").setLevel(logging.WARNING)

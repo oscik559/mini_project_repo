@@ -31,6 +31,8 @@ tables = OrderedDict(
                 usd_name TEXT NOT NULL,
                 type_of_usd TEXT NOT NULL,
                 repository TEXT NOT NULL,
+                block_height FLOAT NOT NULL,
+                block_pick_height FLOAT NOT NULL,
                 scale_x FLOAT NOT NULL,
                 scale_y FLOAT NOT NULL,
                 scale_z FLOAT NOT NULL,

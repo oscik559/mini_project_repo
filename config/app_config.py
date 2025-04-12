@@ -90,7 +90,7 @@ VOICE_TTS_SETTINGS = {
     "use_gtts": True,
     "ping_sound_path": str(BASE_DIR / "assets" / "sound_effects" / "ping.wav"),
     "ding_sound_path": str(BASE_DIR / "assets" / "sound_effects" / "ding.wav"),
-    "voice_index": 1,  # 0 = Hazel, 1 = David, 2 = Zira (example for Windows)
+    "voice_index": 2,  # 0 = Hazel, 1 = David, 2 = Zira (example for Windows)
 }
 
 

@@ -85,6 +85,8 @@ class DatabasePopulator:
                 "Fixture.usd",
                 "GeometryPrim",
                 "/fixture_description/Slide_Fixture.usd",
+                0.0,
+                0.0,
                 0.1,
                 0.1,
                 0.1,
@@ -99,6 +101,8 @@ class DatabasePopulator:
                 "Slide_Holder.usd",
                 "GeometryPrim",
                 "/fixture_description/Slide_Holder.usd",
+                0.0,
+                0.0,
                 0.1,
                 0.1,
                 0.1,
@@ -110,37 +114,11 @@ class DatabasePopulator:
             ),
             (
                 3,
-                "Cuboid.usd",
-                "DynamicCuboid",
-                "/basicshapes/cuboid.usd",
-                0.0825,
-                0.0825,
-                0.0825,
-                "/World/fixtureprim/Fixture",
-                0.0,
-                0.0,
-                0.0,
-                False,
-            ),
-            (
-                4,
-                "Cylinder.usd",
-                "DynamicCuboid",
-                "/basicshapes/cylinder.usd",
-                0.0825,
-                0.0825,
-                0.0825,
-                "/World/fixtureprim/Fixture",
-                0.0,
-                0.0,
-                0.0,
-                False,
-            ),
-            (
-                5,
                 "Slide.usd",
                 "DynamicCuboid",
-                "aaa",
+                "None",
+                0.002,
+                0.016,
                 75.0,
                 24.4,
                 2.0,
@@ -150,20 +128,84 @@ class DatabasePopulator:
                 0.0,
                 True,
             ),
+            (
+                4,
+                "Cuboid.usd",
+                "RigidPrim",
+                "/yumi_basic_shapes/cuboid.usd",
+                0.025,
+                0.015,
+                0.1,
+                0.1,
+                0.1,
+                "/World/fixtureprim",
+                0.55475,
+                -0.116,
+                0.113,
+                True,
+            ),
+            (
+                5,
+                "Cylinder.usd",
+                "RigidPrim",
+                "/yumi_basic_shapes/cylinder.usd",
+                0.025,
+                0.015,
+                0.1,
+                0.1,
+                0.1,
+                "/World/fixtureprim",
+                0.41475,
+                -0.116,
+                0.113,
+                True,
+            ),
+            (
+                6,
+                "Cube.usd",
+                "RigidPrim",
+                "/yumi_basic_shapes/cube.usd",
+                0.025,
+                0.015,
+                0.1,
+                0.1,
+                0.1,
+                "/World/fixtureprim",
+                0.34475,
+                -0.116,
+                0.113,
+                True,
+            ),
+            (
+                7,
+                "Hexagon.usd",
+                "RigidPrim",
+                "/yumi_basic_shapes/hexagon.usd",
+                0.025,
+                0.015,
+                0.1,
+                0.1,
+                0.1,
+                "/World/fixtureprim",
+                0.48475,
+                -0.116,
+                0.113,
+                True,
+            ),
         ]
         insert_query = """
             INSERT INTO usd_data (
-                    sequence_id, usd_name, type_of_usd, repository, scale_x, scale_y, scale_z,
+                    sequence_id, usd_name, type_of_usd, repository,block_height,block_pick_height, scale_x, scale_y, scale_z,
                     prim_path, initial_pos_x, initial_pos_y, initial_pos_z, register_obstacle
                 )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
         self.cursor.executemany(insert_query, usd_data)
 
     def populate_operation_library(self):
         operation_library = [
             ("slide_sorting", "pick, travel, drop"),
-            ("cube_sorting", "pick, travel, drop"),
+            ("shape_stacking", "pick, travel, drop"),
         ]
         insert_query = """
             INSERT INTO operation_library (operation_name, task_order)
@@ -406,108 +448,214 @@ class DatabasePopulator:
         self.cursor.executemany(insert_query, results)
 
     def populate_manual_operations(self):
-        # -- Screw Operation Parameters
         self.cursor.execute(
-            "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
+            "SELECT COUNT(*) FROM camera_vision WHERE usd_name = 'Slide.usd'"
         )
-        screw_data = self.cursor.fetchall()
-        screw_op_parameters = [
-            (i + 1, seq_id, obj_name, i % 2 == 0, 3, 0, False)
-            for i, (seq_id, obj_name) in enumerate(screw_data)
-        ]
-        self.cursor.executemany(
-            """
-            INSERT INTO screw_op_parameters (
-                operation_order, sequence_id, object_id,
-                rotation_dir, number_of_rotations,
-                current_rotation, operation_status
+        slide_usd_count = self.cursor.fetchone()[0]
+        if slide_usd_count > 0:
+
+            # -- Screw Operation Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            screw_op_parameters,
-        )
-
-        # -- Rotate State Parameters
-        self.cursor.execute(
-            "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
-        )
-        rotate_data = self.cursor.fetchall()
-        rotate_state_parameters = [
-            (seq_id, operation_order, obj_id, 90, False)
-            for (seq_id, operation_order, obj_id) in rotate_data
-        ]
-        self.cursor.executemany(
-            """
-            INSERT INTO rotate_state_parameters (
-                sequence_id, operation_order, object_id,
-                rotation_angle, operation_status
+            screw_data = self.cursor.fetchall()
+            screw_op_parameters = [
+                (i + 1, seq_id, obj_name, i % 2 == 0, 3, 0, False)
+                for i, (seq_id, obj_name) in enumerate(screw_data)
+            ]
+            self.cursor.executemany(
+                """
+                INSERT INTO screw_op_parameters (
+                    operation_order, sequence_id, object_id,
+                    rotation_dir, number_of_rotations,
+                    current_rotation, operation_status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                screw_op_parameters,
             )
-            VALUES (%s, %s, %s, %s, %s)
-            """,
-            rotate_state_parameters,
-        )
 
-        # -- Pick Operation Parameters
-        self.cursor.execute(
-            "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'pick'"
-        )
-        pick_data = self.cursor.fetchall()
-        pick_op_parameters = [
-            (i + 1, obj_name, False, "y", 0.01, False)
-            for i, (seq_id, obj_name) in enumerate(pick_data)
-        ]
-        self.cursor.executemany(
-            """
-            INSERT INTO pick_op_parameters (
-                operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
+            # -- Rotate State Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
             )
-            VALUES (%s, %s, %s, %s, %s, %s)
-
-            """,
-            pick_op_parameters,
-        )
-
-        # -- Travel Operation Parameters
-        self.cursor.execute(
-            "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'travel'"
-        )
-        travel_data = self.cursor.fetchall()
-        travel_op_parameters = [
-            (i + 1, obj_name, 0.085, "y-axis", False)
-            for i, (_, obj_name) in enumerate(travel_data)
-        ]
-
-        self.cursor.executemany(
-            """
-            INSERT INTO travel_op_parameters (
-                operation_order, object_id, travel_height, gripper_rotation, operation_status
+            rotate_data = self.cursor.fetchall()
+            rotate_state_parameters = [
+                (seq_id, operation_order, obj_id, 90, False)
+                for (seq_id, operation_order, obj_id) in rotate_data
+            ]
+            self.cursor.executemany(
+                """
+                INSERT INTO rotate_state_parameters (
+                    sequence_id, operation_order, object_id,
+                    rotation_angle, operation_status
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                rotate_state_parameters,
             )
-            VALUES (%s, %s, %s, %s, %s)
-            """,
-            travel_op_parameters,
-        )
 
-        # -- Drop Operation Parameters
-        self.cursor.execute(
-            "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'drop'"
-        )
-        drop_data = self.cursor.fetchall()
-
-        drop_op_parameters = [
-            (i + 1, obj_name, -0.003, False)
-            for i, (_, obj_name) in enumerate(drop_data)
-        ]
-
-        self.cursor.executemany(
-            """
-            INSERT INTO drop_op_parameters (
-                operation_order, object_id, drop_height, operation_status
+            # -- Pick Operation Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'pick'"
             )
-            VALUES (%s, %s, %s, %s)
-            """,
-            drop_op_parameters,
-        )
+            pick_data = self.cursor.fetchall()
+            pick_op_parameters = [
+                (i + 1, obj_name, False, "y", 0.01, False)
+                for i, (seq_id, obj_name) in enumerate(pick_data)
+            ]
+            self.cursor.executemany(
+                """
+                INSERT INTO pick_op_parameters (
+                    operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
 
+                """,
+                pick_op_parameters,
+            )
+
+            # -- Travel Operation Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'travel'"
+            )
+            travel_data = self.cursor.fetchall()
+            travel_op_parameters = [
+                (i + 1, obj_name, 0.085, "y-axis", False)
+                for i, (_, obj_name) in enumerate(travel_data)
+            ]
+
+            self.cursor.executemany(
+                """
+                INSERT INTO travel_op_parameters (
+                    operation_order, object_id, travel_height, gripper_rotation, operation_status
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                travel_op_parameters,
+            )
+
+            # -- Drop Operation Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'drop'"
+            )
+            drop_data = self.cursor.fetchall()
+
+            drop_op_parameters = [
+                (i + 1, obj_name, -0.003, False)
+                for i, (_, obj_name) in enumerate(drop_data)
+            ]
+
+            self.cursor.executemany(
+                """
+                INSERT INTO drop_op_parameters (
+                    operation_order, object_id, drop_height, operation_status
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                drop_op_parameters,
+            )
+        else:
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
+            )
+            screw_data = self.cursor.fetchall()
+            screw_op_parameters = [
+                (i + 1, seq_id, obj_name, i % 2 == 0, 3, 0, False)
+                for i, (seq_id, obj_name) in enumerate(screw_data)
+            ]
+            self.cursor.executemany(
+                """
+                INSERT INTO screw_op_parameters (
+                    operation_order, sequence_id, object_id,
+                    rotation_dir, number_of_rotations,
+                    current_rotation, operation_status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """,
+                screw_op_parameters,
+            )
+
+            # -- Rotate State Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
+            )
+            rotate_data = self.cursor.fetchall()
+            rotate_state_parameters = [
+                (seq_id, operation_order, obj_id, 90, False)
+                for (seq_id, operation_order, obj_id) in rotate_data
+            ]
+            self.cursor.executemany(
+                """
+                INSERT INTO rotate_state_parameters (
+                    sequence_id, operation_order, object_id,
+                    rotation_angle, operation_status
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                rotate_state_parameters,
+            )
+
+            # -- Pick Operation Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'pick'"
+            )
+            pick_data = self.cursor.fetchall()
+            pick_op_parameters = [
+                (i + 1, obj_name, False, "y", 0.01, False)
+                for i, (seq_id, obj_name) in enumerate(pick_data)
+            ]
+            self.cursor.executemany(
+                """
+                INSERT INTO pick_op_parameters (
+                    operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+
+                """,
+                pick_op_parameters,
+            )
+
+            # -- Travel Operation Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'travel'"
+            )
+            travel_data = self.cursor.fetchall()
+            travel_op_parameters = [
+                (i + 1, obj_name, 0.085, "z-axis", False)
+                for i, (_, obj_name) in enumerate(travel_data)
+            ]
+
+            self.cursor.executemany(
+                """
+                INSERT INTO travel_op_parameters (
+                    operation_order, object_id, travel_height, gripper_rotation, operation_status
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                travel_op_parameters,
+            )
+
+            # -- Drop Operation Parameters
+            self.cursor.execute(
+                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'drop'"
+            )
+            drop_data = self.cursor.fetchall()
+
+            drop_op_parameters = [
+                (i + 1, obj_name, -0.003, False)
+                for i, (_, obj_name) in enumerate(drop_data)
+            ]
+
+            self.cursor.executemany(
+                """
+                INSERT INTO drop_op_parameters (
+                    operation_order, object_id, drop_height, operation_status
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                drop_op_parameters,
+            )
         # -- Isaac GUI Features
         isaac_sim_gui = [("Start", False), ("Reset", False), ("Load", False)]
         self.cursor.executemany(
