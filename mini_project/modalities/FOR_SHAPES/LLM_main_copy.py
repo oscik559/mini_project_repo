@@ -9,8 +9,7 @@ import warnings
 from datetime import datetime
 from typing import Literal
 from langchain.schema import messages_from_dict, messages_to_dict
-
-
+import json
 import ollama
 import pyttsx3
 import requests
@@ -535,6 +534,9 @@ def voice_to_scene_response(
     tts.speak(answer)
 
 
+
+
+
 # === CLI Entry Point ===
 if __name__ == "__main__":
 
@@ -564,6 +566,7 @@ if __name__ == "__main__":
             voice_to_scene_response(vp, tts, conversational=True)
             save_chat_history()
             first_turn = False
+
             logger.info(f"🟡 Listening again in a few seconds...")
 
     except KeyboardInterrupt:

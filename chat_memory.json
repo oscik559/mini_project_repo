@@ -241,5 +241,59 @@
       "invalid_tool_calls": [],
       "usage_metadata": null
     }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "What do you see?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "I see four objects on the table: a green slide and three other objects with different colors and positions along the table length. The green slides appear to be positioned side by side, while the black tray is at one end of the table.",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
+  },
+  {
+    "type": "human",
+    "data": {
+      "content": "Can you sort these lights in order of green and green?",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": null,
+      "example": false
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "There is no object with the name \"green\" in the scene. The objects are \"lights\", but their color or type isn't specified in the database table provided.",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "ai",
+      "name": null,
+      "id": null,
+      "example": false,
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": null
+    }
   }
 ]
