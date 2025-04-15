@@ -1,4 +1,31 @@
-# tray_and_holder_detection.py
+INSERT INTO camera_vision (
+    object_id,
+    object_name,
+    object_color,
+    color_code,
+    pos_x,
+    pos_y,
+    pos_z,
+    rot_x,
+    rot_y,
+    rot_z,
+    usd_name,
+    last_detected
+  )
+VALUES (
+    object_id:integer,
+    'object_name:text',
+    'object_color:text',
+    'color_code:ARRAY',
+    'pos_x:double precision',
+    'pos_y:double precision',
+    'pos_z:double precision',
+    'rot_x:double precision',
+    'rot_y:double precision',
+    'rot_z:double precision',
+    'usd_name:text',
+    'last_detected:timestamp without time zone'
+  );# tray_and_holder_detection.py
 
 import math
 import time
