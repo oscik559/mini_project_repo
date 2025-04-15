@@ -33,6 +33,54 @@ from mini_project.modalities.prompt_utils import PromptBuilder
 import json
 from pathlib import Path
 
+import pvporcupine
+import sounddevice as sd
+import struct
+import threading
+
+
+# ========== Wake Word Setup ==========
+ACCESS_KEY = "E0O2AD01eT6cJ83n1yYf5bekfdIOEGUky9q6APkwdx9enDaMLZQtLw=="
+WAKEWORD = (
+    r"C:\Users\oscik559\Projects\mini_project_repo\assets\robot_wakewords\hey_yummy.ppn"
+)
+WAKE_RESPONSES = [
+    "Yes?",
+    "I'm listening...",
+    "What's up?",
+    "Go ahead.",
+    "At your service.",
+    "Hello?" "what do you need?",
+    "Ready for your command",
+    "I'm here!",
+    "Yes, how can I help?",
+    "You called?",
+    "Yes, I'm here.",
+    "Yes, what do you need?",
+    "Yes, I'm listening.",
+    "Yes, how can I assist you?",
+    "Yes, how can I help?",
+    "Yes, what can I do for you?",
+    "Yes, what do you want?",
+    "Yes, what can I do for you?",
+    "Yes, what do you need?",
+]
+# Use built-in or custom model path
+porcupine = pvporcupine.create(
+    access_key=ACCESS_KEY,
+    keywords=[
+        "computer",  # Built-in wake word
+    ],
+    keyword_paths=[WAKEWORD],
+)
+wake_word_triggered = threading.Event()
+
+import random
+
+
+# =====================================
+
+
 CHAT_MEMORY_PATH = Path("chat_memory.json")
 # CHAT_MEMORY_PATH = BASE_DIR / "assets" / "chat_memory" / "chat_memory.json"
 
@@ -322,6 +370,30 @@ def get_weather_description(latitude=58.41, longitude=15.62) -> str:
         return "mysterious skies"
 
 
+# ========== Wake Word Listener ==========
+def listen_for_wake_word(vp, tts):
+    def callback(indata, frames, time, status):
+        try:
+            pcm = struct.unpack_from("h" * porcupine.frame_length, bytes(indata))
+            keyword_index = porcupine.process(pcm)
+            if keyword_index >= 0:
+                logger.info("🟢 Wake word detected!")
+                wake_word_triggered.set()  # ✅ Set flag
+        except Exception as e:
+            logger.warning(f"Wake word callback error: {e}")
+
+    with sd.RawInputStream(
+        samplerate=porcupine.sample_rate,
+        blocksize=porcupine.frame_length,
+        dtype="int16",
+        channels=1,
+        callback=callback,
+    ):
+        logger.info("🎙️  Passive listening for wake word...")
+        while not wake_word_triggered.is_set():
+            sd.sleep(100)  # non-blocking wait
+
+
 # === Greeting ===
 def generate_llm_greeting():
     now = datetime.now()
@@ -440,14 +512,18 @@ def voice_to_scene_response(
             answer = process_task(request)
             print("🤖 (Task Response):", answer)
         else:
-            tts.speak("I wasn't sure what you meant. Could you please repeat your confirmation?")
+            tts.speak(
+                "I wasn't sure what you meant. Could you please repeat your confirmation?"
+            )
             retry_result = vp.capture_voice()
             if retry_result is None:
                 tts.speak("Still couldn't hear you. Skipping the task.")
                 return
 
             confirmation_retry, _ = retry_result
-            cleaned_retry = confirmation_retry.lower().translate(str.maketrans("", "", string.punctuation))
+            cleaned_retry = confirmation_retry.lower().translate(
+                str.maketrans("", "", string.punctuation)
+            )
 
             if any(word in cleaned_retry for word in CONFIRM_WORDS):
                 tts.speak("Okay, planning task...")
@@ -475,11 +551,20 @@ if __name__ == "__main__":
     first_turn = True
 
     try:
+        # while True:
+        #     voice_to_scene_response(vp, tts, conversational=not first_turn)
+        #     save_chat_history()
+        #     first_turn = False
+        #     logger.info(f"🟡 Listening again in a few seconds... (Ctrl+C to stop)")
+
         while True:
-            voice_to_scene_response(vp, tts, conversational=not first_turn)
+            wake_word_triggered.clear()  # reset flag
+            listen_for_wake_word(vp, tts)  # blocks until flag is set
+            tts.speak(random.choice(WAKE_RESPONSES))
+            voice_to_scene_response(vp, tts, conversational=True)
             save_chat_history()
             first_turn = False
-            logger.info(f"🟡 Listening again in a few seconds... (Ctrl+C to stop)")
+            logger.info(f"🟡 Listening again in a few seconds...")
 
     except KeyboardInterrupt:
         logger.info("👋 Exiting session by user (Ctrl+C).")
