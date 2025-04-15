@@ -154,11 +154,11 @@ class AudioRecorder:
         # 🗣️ Speak the instruction aloud
         if speak_prompt:
             try:
-                self.synthesizer.speak("Tell me, what do you want?.")
+                self.synthesizer.speak("Tell me, how can I help you?")
             except Exception as e:
                 logger.warning(f"[Recorder] Failed to speak instruction: {e}")
 
-        logger.info("🟢 Voice recording: Speak now...❓")
+        logger.info("📢 Voice recording: Speak now...🟢🟢🟢")
 
         # 🔔 Play ding sound immediately after prompt
         if play_ding:
@@ -261,9 +261,9 @@ class Transcriber:
             detected_language = info.language
             language_prob = info.language_probability
 
-            if language_prob < 0.5:
+            if language_prob < 0.3:
                 logger.warning(
-                    f"❗ Low language detection confidence: {language_prob:.2f} for '{detected_language}'"
+                    f"🔴 Low language detection confidence: {language_prob:.2f} for '{detected_language}'"
                 )
                 raise ValueError("Unclear speech or unsupported language.")
 
@@ -287,7 +287,7 @@ class Transcriber:
             logger.error(f"Error loading Whisper model: {e}")
             raise
         except Exception as e:
-            logger.error(f"Unexpected error during transcription: {e}")
+            logger.warning(f"🔴 Unexpected error during transcription: {e}")
             raise
 
 
@@ -400,15 +400,15 @@ class VoiceProcessor:
 
     def capture_voice(self, conversational: bool = True) -> Optional[Tuple[str, str]]:
         try:
-            logger.info("🟠 Starting voice capture process...")
+            # logger.info("🟠 Starting voice capture process...")
             self.recorder.record_audio(speak_prompt=not conversational, play_ding=True)
 
             if not self.recorder.speech_detected:
-                logger.info("No speech detected. Skipping transcription.")
+                logger.info("🟡 No speech detected. Skipping transcription.")
                 try:
                     os.remove(self.recorder.temp_audio_path)
                     logger.info(
-                        f"Deleted temporary audio file: {self.recorder.temp_audio_path}"
+                        f"✅ Deleted temporary audio file: {self.recorder.temp_audio_path}"
                     )
                 except Exception as e:
                     logger.error(f"Error deleting temporary audio file: {e}")
@@ -423,9 +423,9 @@ class VoiceProcessor:
                     )
                     break  # Transcription succeeded
                 except ValueError as e:
-                    logger.warning(f"Attempt {attempt+1}: {e}")
+                    logger.warning(f"🟡 Attempt {attempt+1}: {e}")
                     if attempt == MAX_TRANSCRIPTION_RETRIES - 1:
-                        logger.info(
+                        logger.warning(
                             "❌ Failed to transcribe clearly after retries. Skipping."
                         )
                         return None

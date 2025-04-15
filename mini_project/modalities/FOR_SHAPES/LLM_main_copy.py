@@ -8,6 +8,8 @@ import uuid
 import warnings
 from datetime import datetime
 from typing import Literal
+from langchain.schema import messages_from_dict, messages_to_dict
+
 
 import ollama
 import pyttsx3
@@ -20,7 +22,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableSequence
 from langchain_ollama import ChatOllama
 
-from config.app_config import setup_logging
+from config.app_config import setup_logging, BASE_DIR
 from mini_project.database.connection import get_connection
 from mini_project.modalities.FOR_SHAPES.command_processor_pgSQL import CommandProcessor
 from mini_project.modalities.FOR_SHAPES.voice_processor_pgSQL import (
@@ -28,18 +30,23 @@ from mini_project.modalities.FOR_SHAPES.voice_processor_pgSQL import (
     VoiceProcessor,
 )
 from mini_project.modalities.prompt_utils import PromptBuilder
+import json
+from pathlib import Path
+
+CHAT_MEMORY_PATH = Path("chat_memory.json")
+# CHAT_MEMORY_PATH = BASE_DIR / "assets" / "chat_memory" / "chat_memory.json"
 
 warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 
 
 # === Logging Config ===
 logging.getLogger("comtypes").setLevel(logging.WARNING)
-logger = logging.getLogger("LLMSceneHybrid")
+logging.getLogger("faster_whisper").setLevel(logging.WARNING)
+logger = logging.getLogger("VoiceAssistant")
 
 # === Configuration ===
-# OLLAMA_MODEL = "mistral:latest"
 OLLAMA_MODEL = "llama3.2:latest"
-voice_speed = 165
+voice_speed = 180  # 165
 
 TASK_VERBS = {
     "sort",
@@ -189,7 +196,29 @@ def classify_command(command_text: str, llm) -> Literal["scene", "task"]:
     return "task"
 
 
-# === Fetch Camera Data ===
+# === Persistent Chat Memory ===
+def save_chat_history():
+    try:
+        serialized = messages_to_dict(memory.chat_memory.messages)
+        with open(CHAT_MEMORY_PATH, "w", encoding="utf-8") as f:
+            json.dump(serialized, f, indent=2)
+        logger.info("💾 Chat history saved.")
+    except Exception as e:
+        logger.error(f"Failed to save chat memory: {e}")
+
+
+def load_chat_history():
+    if CHAT_MEMORY_PATH.exists():
+        try:
+            with open(CHAT_MEMORY_PATH, "r", encoding="utf-8") as f:
+                raw_messages = json.load(f)
+            memory.chat_memory.messages = messages_from_dict(raw_messages)
+            logger.info("🧠 Loaded past chat history.")
+        except Exception as e:
+            logger.warning(f"Could not load chat memory: {e}")
+
+
+# === Scene Description ===
 def fetch_camera_objects() -> list:
     conn = get_connection()
     cursor = conn.cursor()
@@ -205,7 +234,6 @@ def fetch_camera_objects() -> list:
     return rows
 
 
-# === Format Camera Data ===
 def format_camera_data(objects: list) -> str:
     return "\n".join(
         f"- {name} ({color}) at ({x:.1f}, {y:.1f}, {z:.1f}) oriented at ({r:.1f}, {p:.1f}, {w:.1f}) last seen at {timestamp}, usd_name: {usd}"
@@ -295,19 +323,12 @@ def get_weather_description(latitude=58.41, longitude=15.62) -> str:
 
 
 # === Greeting ===
-def generate_llm_greeting() -> str:
-
+def generate_llm_greeting():
     now = datetime.now()
     weekday = now.strftime("%A")
     month = now.strftime("%B")
     hour = now.hour
-
-    if hour < 12:
-        time_of_day = "morning"
-    elif hour < 18:
-        time_of_day = "afternoon"
-    else:
-        time_of_day = "evening"
+    time_of_day = "morning" if hour < 12 else "afternoon" if hour < 18 else "evening"
 
     base_greetings = [
         f"Good {time_of_day}! Happy {weekday}.",
@@ -316,55 +337,29 @@ def generate_llm_greeting() -> str:
         f"It's {month} already! Let's get started.",
         f"Hi! What’s the first thing you'd like me to do this {time_of_day}?",
     ]
+    seed = random.choice(base_greetings)
 
     try:
-        seasonal_greeting = random.choice(base_greetings)
-        weather_desc = get_weather_description().strip().capitalize()
-
         prompt = f"""
         You're Yumi, a clever and friendly assistant robot in a research lab at the Product Realization division of Linköping University.
-
-        Your specialty is computer vision, LLM, robotics, automation, and intelligent systems. You love to share short, delightful science facts, engineering curiosities, or thought-provoking questions.
-
         It's {time_of_day} on a {weekday} in {month}.
-
-        Say **one short and creative sentence** suitable for speaking aloud — like:
-        - A surprising robotics/Automation/AI/LLM fact
-        - A quirky observation about machines or automation
-        - Or a playful science-inspired question to start the day
-        - Keep the grammer level moderate
-
-        Use this seed greeting as inspiration: '{seasonal_greeting}' — but do not repeat it exactly.
-
-        Rules:
-        - 1 sentence only
-        - Voice-friendly
-        - Under 20 words
-        - No quotes, no lists, no formal tone
-        - Make it sound like a research-savvy lab buddy who’s excited to explore new ideas
+        Say one short and creative sentence (under 20 words) suitable for voice use —
+        a fun robotics fact, quirky comment, or a science-themed greeting.
+        Inspiration: '{seed}' — but do not repeat it.
         """
-
-        response = ollama.chat(
-            model=OLLAMA_MODEL,
-            messages=[
+        response = llm.invoke(
+            [
                 PromptBuilder.greeting_system_msg(),
                 {"role": "user", "content": prompt},
-            ],
+            ]
         )
-        print(response)
-        content = response.get("message", {}).get("content", "").strip().strip('"“”')
-        return content if content else random.choice(base_greetings)
+        logger.info(f"📢 {response.content}")
+        return response.content.strip().strip('"“”') or seed
     except Exception as e:
         logger.error(f"Greeting failed: {e}")
-        seed = random.choice(base_greetings)
-        return (
-            fallback_llm_greeting(seed)
-            if "fallback_llm_greeting" in globals()
-            else seed
-        )
+        return fallback_llm_greeting(seed)
 
 
-# Fallback LLM greeting
 def fallback_llm_greeting(seed_greeting: str) -> str:
     try:
         response = ollama.chat(
@@ -389,15 +384,16 @@ def fallback_llm_greeting(seed_greeting: str) -> str:
 def voice_to_scene_response(
     vp: VoiceProcessor, tts: SpeechSynthesizer, conversational: bool = True
 ):
-    print("🟠 Speak your request (scene question or task)...")
+    # logger.info(f"🟠 Speak your request (scene question or task)...")
 
     result = vp.capture_voice(conversational=conversational)
     if result is None:
-        print("⚠️ No speech detected. Try again.")
+        logger.info(f"🟡 No speech detected. Try again.")
+        tts.speak("I didn't catch that. Could you please repeat?")
         return
 
     request, lang = result
-    print(f"You said: {request}")
+    logger.info(f"🎯 You said: {request}")
 
     cmd_type = classify_command(request, llm)
     logger.info(f"🧠 Command classified as: {cmd_type}")
@@ -407,17 +403,19 @@ def voice_to_scene_response(
         exit(0)
     if request.lower() in {"reset memory", "clear memory"}:
         memory.clear()
+        CHAT_MEMORY_PATH.unlink(missing_ok=True)
+
         tts.speak("Memory has been reset.")
         return
 
-    print("🤖 Thinking...")
+    logger.info(f"🤖 Thinking...")
 
     if cmd_type == "scene":
         answer = query_scene(request)
-        print("🤖 (Scene Response):", answer)
+        logger.info(f"🤖 (Scene Response): {answer}")
     else:
         # Confirm before executing
-        tts.speak("Should I go ahead and plan this task?")
+        tts.speak("Should I plan this task?")
         confirm_result = vp.capture_voice()
         if confirm_result is None:
             tts.speak("No confirmation heard. Skipping the task.")
@@ -430,31 +428,44 @@ def voice_to_scene_response(
         )
         # Match negative intent first
         if any(word in cleaned for word in CANCEL_WORDS):
-            tts.speak("Okay, I won't execute the task.")
+            tts.speak("Okay, discarding the task.")
             return
 
         # Match positive intent
         if any(word in cleaned for word in CONFIRM_WORDS):
-            tts.speak("Okay, planning the task now.")
+            tts.speak("Okay, planning task...")
 
             # Only now store it in the database
             vp.storage.store_instruction(vp.session_id, lang, request)
             answer = process_task(request)
             print("🤖 (Task Response):", answer)
         else:
-            tts.speak("I wasn't sure what you meant. Skipping the task for now.")
-            return
+            tts.speak("I wasn't sure what you meant. Could you please repeat your confirmation?")
+            retry_result = vp.capture_voice()
+            if retry_result is None:
+                tts.speak("Still couldn't hear you. Skipping the task.")
+                return
 
-    print("🔊 Speaking response...")
+            confirmation_retry, _ = retry_result
+            cleaned_retry = confirmation_retry.lower().translate(str.maketrans("", "", string.punctuation))
+
+            if any(word in cleaned_retry for word in CONFIRM_WORDS):
+                tts.speak("Okay, planning task...")
+                vp.storage.store_instruction(vp.session_id, lang, request)
+                answer = process_task(request)
+                print("🤖 (Task Response):", answer)
+            else:
+                tts.speak("No confirmation. Skipping the task.")
     tts.speak(answer)
 
 
 # === CLI Entry Point ===
 if __name__ == "__main__":
+
     setup_logging()
     vp = VoiceProcessor()
-    # vp.capture_voice()
     tts = SpeechSynthesizer()
+    load_chat_history()
 
     if not hasattr(voice_to_scene_response, "greeted"):
         greeting = generate_llm_greeting()
@@ -463,8 +474,17 @@ if __name__ == "__main__":
 
     first_turn = True
 
-    while True:
-        voice_to_scene_response(vp, tts, conversational=not first_turn)
-        first_turn = False
-        print("🟡 Listening again in a few seconds... (Ctrl+C to stop)")
-        time.sleep(2)
+    try:
+        while True:
+            voice_to_scene_response(vp, tts, conversational=not first_turn)
+            save_chat_history()
+            first_turn = False
+            logger.info(f"🟡 Listening again in a few seconds... (Ctrl+C to stop)")
+
+    except KeyboardInterrupt:
+        logger.info("👋 Exiting session by user (Ctrl+C).")
+
+    finally:
+        if CHAT_MEMORY_PATH.exists():
+            CHAT_MEMORY_PATH.unlink()
+            logger.info("🧹 Deleted chat memory on exit.")

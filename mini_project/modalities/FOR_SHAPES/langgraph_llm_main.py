@@ -2,6 +2,7 @@
 
 from langgraph.graph import StateGraph, END
 from typing import TypedDict
+from typing import Annotated
 
 from langchain_core.runnables import RunnableLambda
 from langchain.memory import ConversationBufferMemory
@@ -18,17 +19,22 @@ from mini_project.modalities.FOR_SHAPES.voice_processor_pgSQL import (
 from mini_project.modalities.FOR_SHAPES.prompt_utils import PromptBuilder
 from datetime import datetime
 import logging, os, re, string, random, requests, time
+from datetime import datetime, timedelta
 
 # === Setup ===
 logging.getLogger("comtypes").setLevel(logging.WARNING)
 logger = logging.getLogger("LangGraphYumi")
 
-
+# === LLM Setup ===
 OLLAMA_MODEL = "llama3.2:latest"
 llm = ChatOllama(model=OLLAMA_MODEL)
+
+# === Memory + TTS Singletons ===
 memory = ConversationBufferMemory(memory_key="chat_history", input_key="question")
 tts = SpeechSynthesizer()
 
+
+# === Known Keywords ===
 TASK_VERBS = {
     "sort",
     "move",
@@ -54,39 +60,29 @@ CONFIRM_WORDS = {
 }
 CANCEL_WORDS = {"no", "cancel", "not now", "stop", "never mind", "don't"}
 
+# === Scene Prompt Template ===
 SCENE_PROMPT_TEMPLATE = PromptBuilder.scene_prompt_template()
 
 
 # === State Type ===
 class AssistantState(TypedDict, total=False):
     vp: VoiceProcessor
-    request: str
-    lang: str
-    cmd_type: str
-    confirmed: bool
-    end: bool
+    request: Annotated[str, "output"]
+    lang: Annotated[str, "output"]
+    cmd_type: Annotated[str, "output"]
+    confirmed: Annotated[bool, "output"]
+    end: Annotated[bool, "output"]
+    greeted: bool
 
 
-# === Utility: Greeting Generation ===
-def fallback_llm_greeting(seed_greeting):
-    try:
-        response = llm.invoke(
-            {
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a friendly assistant that creates warm spoken greetings.",
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Improve this fallback greeting for voice use: '{seed_greeting}'",
-                    },
-                ]
-            }
-        )
-        return response.content.strip().strip('"“”')
-    except Exception:
-        return seed_greeting
+def greet_user(state: AssistantState, tts: SpeechSynthesizer):
+    if not state.get("greeted"):
+        greeting = generate_llm_greeting()
+        tts.speak(greeting)
+        logger.info("[Greet] Setting greeted = True")
+
+        return {**state, "greeted": True, "end": False}
+    return {"greeted": True, **state}
 
 
 def generate_llm_greeting():
@@ -114,63 +110,89 @@ def generate_llm_greeting():
         Inspiration: '{seed}' — but do not repeat it.
         """
         response = llm.invoke(
-            {
-                "messages": [
-                    PromptBuilder.greeting_system_msg(),
-                    {"role": "user", "content": prompt},
-                ]
-            }
+            [
+                PromptBuilder.greeting_system_msg(),
+                {"role": "user", "content": prompt},
+            ]
         )
+        print(response)
         return response.content.strip().strip('"“”') or seed
     except Exception as e:
         logger.error(f"Greeting failed: {e}")
         return fallback_llm_greeting(seed)
 
 
+def fallback_llm_greeting(seed_greeting):
+    try:
+        response = llm.invoke(
+            [
+                {
+                    "role": "system",
+                    "content": "You are a friendly assistant that creates warm spoken greetings.",
+                },
+                {
+                    "role": "user",
+                    "content": f"Improve this fallback greeting for voice use: '{seed_greeting}'",
+                },
+            ]
+        )
+        return response.content.strip().strip('"“”')
+    except Exception:
+        return seed_greeting
+
+
 # === State Functions ===
-def capture_voice(state: AssistantState):
-    vp: VoiceProcessor = state["vp"]
+def capture_voice(state: AssistantState, vp: VoiceProcessor, tts: SpeechSynthesizer):
     result = vp.capture_voice(conversational=True)
 
     if result is None:
         logger.info("🟡 No speech detected. Could you try again.")
         return {
-            "vp": vp,
-            "tts": tts,
-            "end": False,  # don't exit
             "retry": True,
         }
 
-    logger.info(f"✅ You said: {result[0]}")
-    tts.speak(f"You said: {result[0]}")
+    logger.info(f"📢 You said: {result[0]}")
+    # tts.speak(f"You said: {result[0]}")
     return {
-        "vp": vp,
-        "tts": tts,
         "request": result[0],
         "lang": result[1],
-        "end": False,
+        "retry": False,  # explicitly say we're not retrying now
     }
 
 
-def classify_request(state: AssistantState):
+def classify_request(state: AssistantState, tts: SpeechSynthesizer):
 
     request = state["request"].lower().strip()
+
+    # End session?
     if any(q in request for q in {"exit", "quit", "goodbye", "stop"}):
         tts.speak("Okay, goodbye!")
         return {"end": True}
+
+    # Reset memory?
     if request in {"reset memory", "clear memory"}:
         memory.clear()
         tts.speak("Memory has been reset.")
         return {"end": False}
 
+    # Use an LLM to classify as "scene" or "task"
     try:
-        result = llm.invoke({"prompt": f"Classify: {request}"})
+        result = llm.invoke(
+            [
+                {
+                    "role": "system",
+                    "content": "Classify the user request as either 'scene' or 'task'.",
+                },
+                {"role": "user", "content": request},
+            ]
+        )
         label = result.content.strip().lower()
         if label in {"scene", "task"}:
             return {"cmd_type": label, **state}
     except:
         pass
 
+    # Fallback keyword detection
     if any(request.startswith(q) for q in QUESTION_WORDS):
         return {"cmd_type": "scene", **state}
     if any(v in request for v in TASK_VERBS):
@@ -178,11 +200,13 @@ def classify_request(state: AssistantState):
     return {"cmd_type": "task", **state}
 
 
-def query_scene(state: AssistantState):
+def query_scene(state: AssistantState, tts: SpeechSynthesizer):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT object_name, object_color, pos_x, pos_y, pos_z, rot_x, rot_y, rot_z, last_detected, usd_name FROM camera_vision"
+        """SELECT object_name, object_color, pos_x, pos_y, pos_z,
+                  rot_x, rot_y, rot_z, last_detected, usd_name
+           FROM camera_vision"""
     )
     objects = cursor.fetchall()
     cursor.close()
@@ -200,8 +224,8 @@ def query_scene(state: AssistantState):
             "data": formatted,
             "chat_history": memory.load_memory_variables({})["chat_history"],
         }
-        output = SCENE_PROMPT_TEMPLATE.format_prompt(**input_data)
-        result = llm.invoke(output.to_string())
+        prompt_msg = SCENE_PROMPT_TEMPLATE.format_prompt(**input_data)
+        result = llm.invoke(prompt_msg.to_string())
         memory.save_context(
             {"question": input_data["question"]}, {"answer": result.content}
         )
@@ -210,7 +234,7 @@ def query_scene(state: AssistantState):
     return {"end": False, **state}
 
 
-def confirm_task(state: AssistantState):
+def confirm_task(state: AssistantState, tts: SpeechSynthesizer):
     tts.speak("Should I go ahead and plan this task?")
     result = state["vp"].capture_voice()
 
@@ -255,19 +279,19 @@ def confirm_task(state: AssistantState):
     }
 
 
-def process_task(state: AssistantState):
+def process_task(state: AssistantState, tts: SpeechSynthesizer):
     conn = get_connection()
     cursor = conn.cursor()
     cursor.execute(
         """
         INSERT INTO unified_instructions (
-        session_id, timestamp, liu_id,
-        voice_command, gesture_command, unified_command,
-        confidence, processed
-    )
+            session_id, timestamp, liu_id,
+            voice_command, gesture_command, unified_command,
+            confidence, processed
+        )
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         RETURNING id;
-    """,
+        """,
         (
             "session_voice_001",
             datetime.now(),
@@ -302,13 +326,17 @@ def process_task(state: AssistantState):
 
 # === Build Graph ===
 graph = StateGraph(state_schema=AssistantState)
-graph.add_node("Capture", RunnableLambda(capture_voice))
-graph.add_node("Classify", RunnableLambda(classify_request))
-graph.add_node("Scene", RunnableLambda(query_scene))
-graph.add_node("Confirm", RunnableLambda(confirm_task))
-graph.add_node("Execute", RunnableLambda(process_task))
 
-graph.set_entry_point("Capture")
+graph.add_node("Greet", RunnableLambda(lambda state: greet_user(state, tts)))
+graph.add_node("Capture", RunnableLambda(lambda state: capture_voice(state, vp, tts)))
+graph.add_node("Classify", RunnableLambda(lambda state: classify_request(state, tts)))
+graph.add_node("Scene", RunnableLambda(lambda state: query_scene(state, tts)))
+graph.add_node("Confirm", RunnableLambda(lambda state: confirm_task(state, vp, tts)))
+graph.add_node("Execute", RunnableLambda(lambda state: process_task(state, tts)))
+
+graph.set_entry_point("Greet")
+
+graph.add_edge("Greet", "Capture")  # Go directly from Greet ➝ Capture
 graph.add_edge("Capture", "Classify")
 graph.add_conditional_edges(
     "Classify", lambda x: x.get("cmd_type"), {"scene": "Scene", "task": "Confirm"}
@@ -316,51 +344,58 @@ graph.add_conditional_edges(
 graph.add_edge("Scene", END)
 graph.add_conditional_edges(
     "Confirm",
-    lambda x: "Execute" if x.get("confirmed") else END,
+    lambda st: "Execute" if st.get("confirmed") else END,
     {"Execute": "Execute"},
 )
+graph.add_edge("Execute", END)
 graph.add_conditional_edges(
     "Capture",
-    lambda x: "Capture" if x.get("retry") else "Classify",
-    {"Capture": "Capture", "Classify": "Classify"},
+    lambda st: "Capture" if st.get("retry") else "Classify",
+    {
+        "Capture": "Capture",
+        "Classify": "Classify",
+    },
 )
 
-graph.add_edge("Execute", END)
 
 app = graph.compile()
+print(app.get_graph().draw_mermaid())
 
 
-# === Continuous Run ===
 if __name__ == "__main__":
     setup_logging()
     vp = VoiceProcessor()
     tts = SpeechSynthesizer()
 
-    if not hasattr(app, "greeted"):
-        greeting = generate_llm_greeting()
-        tts.speak(greeting)
-        app.greeted = True
+    # Initialize
+    state = {
+        "greeted": False,
+    }
+    greeted_once = False
 
-    first_turn = True
+    entry_point = "Greet"
     while True:
-        state = {"vp": vp, "tts": tts}
-        while True:
+        try:
+            result = app.invoke(state, config={"entry_point": entry_point})
+            updated_state = result.get("__end__", result)
 
-            try:
-                result = app.invoke(state)
-                final_state = result.get("__end__", result)
-                final_state["vp"] = vp
-                final_state["tts"] = tts
-                state = final_state
+            # 🔸 Switch entry point AFTER first greet
+            if entry_point == "Greet" and updated_state.get("greeted"):
+                entry_point = "Capture"
 
-                if final_state.get("end") is True:
-                    print("👋 Ending session.")
-                    break
+            # Update greeting flag
+            state["greeted"] = updated_state.get("greeted", False)
 
-            except Exception as e:
-                print(f"[❌] Error during graph execution: {e}")
+            # Handle end
+            if updated_state.get("end"):
+                print("👋 Ending session.")
                 break
 
-        first_turn = False
+            state = updated_state
+
+        except Exception as e:
+            print(f"[❌] Error during graph execution: {e}")
+            break
+
         print("🟡 Listening again in a few seconds... (Ctrl+C to stop)")
-        time.sleep(1.5)
+        time.sleep(1)

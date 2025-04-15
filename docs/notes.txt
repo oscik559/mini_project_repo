@@ -107,3 +107,28 @@ To run tests:
     print("📊 sequence_library: 6 rows")
     print("🧾 operation_sequence: 12 planned steps")
     print("🧠 Task plan saved to history. Done!")
+
+
+
+Report
+Langgraph:
+    graph TD;
+        __start__([<p>__start__</p>]):::first
+        Capture(Capture)
+        Classify(Classify)
+        Scene(Scene)
+        Confirm(Confirm)
+        Execute(Execute)
+        __end__([<p>__end__</p>]):::last
+        Capture --> Classify;
+        Execute --> __end__;
+        Scene --> __end__;
+        __start__ --> Capture;
+        Classify -. &nbsp;scene&nbsp; .-> Scene;
+        Classify -. &nbsp;task&nbsp; .-> Confirm;
+        Confirm -.-> Execute;
+        Capture -.-> Classify;
+        Capture -.-> Capture;
+        classDef default fill:#f2f0ff,line-height:1.2
+        classDef first fill-opacity:0
+        classDef last fill:#bfb6fc

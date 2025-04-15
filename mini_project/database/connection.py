@@ -12,7 +12,7 @@ load_dotenv()
 debug_mode = os.getenv("DEBUG", "0") in ["1", "true", "True"]
 log_level = os.getenv("LOG_LEVEL", "DEBUG" if debug_mode else "INFO").upper()
 setup_logging(level=getattr(logging, log_level))
-logger = logging.getLogger("DBConnection")
+logger = logging.getLogger("PgDBConnection")
 
 
 def get_connection():
