@@ -8,7 +8,7 @@ import uuid
 from config.app_config import *
 from mini_project.modalities.gesture_processor import GestureDetector
 from mini_project.modalities.synchronizer import synchronize_and_unify
-from mini_project.modalities.voice_processor import VoiceProcessor
+from mini_project.modalities.voice_processor_SQLite import VoiceProcessor
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)

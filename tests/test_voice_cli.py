@@ -16,7 +16,7 @@ python test_voice_cli.py --mode tts --text "Hello robot"
 import argparse
 import os
 
-from mini_project.modalities.voice_processor_pgSQL import (
+from mini_project.modalities.voice_processor import (
     AudioRecorder,
     SpeechSynthesizer,
     Transcriber,

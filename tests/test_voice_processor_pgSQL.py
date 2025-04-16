@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from mini_project.modalities.voice_processor_pgSQL import (
+from mini_project.modalities.voice_processor import (
     SpeechSynthesizer,
     Storage,
     VoiceProcessor,

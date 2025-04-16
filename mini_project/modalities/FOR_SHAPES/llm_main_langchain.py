@@ -23,8 +23,8 @@ from langchain_ollama import ChatOllama
 
 from config.app_config import setup_logging, BASE_DIR
 from mini_project.database.connection import get_connection
-from mini_project.modalities.FOR_SHAPES.command_processor_pgSQL import CommandProcessor
-from mini_project.modalities.FOR_SHAPES.voice_processor_pgSQL import (
+from mini_project.modalities.FOR_SHAPES.command_processor import CommandProcessor
+from mini_project.modalities.FOR_SHAPES.voice_processor import (
     SpeechSynthesizer,
     VoiceProcessor,
 )
@@ -80,8 +80,8 @@ import random
 # =====================================
 
 
-CHAT_MEMORY_PATH = Path("chat_memory.json")
-# CHAT_MEMORY_PATH = BASE_DIR / "assets" / "chat_memory" / "chat_memory.json"
+# CHAT_MEMORY_PATH = Path("chat_memory.json")
+CHAT_MEMORY_PATH = BASE_DIR / "assets" / "chat_memory" / "chat_memory.json"
 
 warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 
@@ -532,9 +532,6 @@ def voice_to_scene_response(
             else:
                 tts.speak("No confirmation. Skipping the task.")
     tts.speak(answer)
-
-
-
 
 
 # === CLI Entry Point ===

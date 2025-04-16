@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from mini_project.modalities.FOR_SHAPES.LLM_main_copy import (
+from mini_project.modalities.FOR_SHAPES.llm_main_langchain import (
     classify_command,
     generate_llm_greeting,
     memory,

@@ -11,8 +11,8 @@ from langchain_core.prompts import PromptTemplate
 from config.app_config import setup_logging
 
 from mini_project.database.connection import get_connection
-from mini_project.modalities.FOR_SHAPES.command_processor_pgSQL import CommandProcessor
-from mini_project.modalities.FOR_SHAPES.voice_processor_pgSQL import (
+from mini_project.modalities.FOR_SHAPES.command_processor import CommandProcessor
+from mini_project.modalities.FOR_SHAPES.voice_processor import (
     VoiceProcessor,
     SpeechSynthesizer,
 )

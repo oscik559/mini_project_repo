@@ -10,8 +10,8 @@ import ollama
 from prompt_utils import PromptBuilder
 
 from mini_project.database.connection import get_connection
-from mini_project.modalities.command_processor_pgSQL import CommandProcessor
-from mini_project.modalities.voice_processor_pgSQL import (
+from mini_project.modalities.command_processor import CommandProcessor
+from mini_project.modalities.voice_processor import (
     SpeechSynthesizer,
     VoiceProcessor,
 )
