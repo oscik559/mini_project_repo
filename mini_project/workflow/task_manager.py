@@ -7,9 +7,9 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
 from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
-from mini_project.authentication.face_auth import FaceAuthSystem
-from mini_project.authentication.voice_auth import VoiceAuth
-from mini_project.modalities.command_processor_SQLite import CommandProcessor
+from mini_project.authentication._face_auth import FaceAuthSystem
+from mini_project.authentication._voice_auth import VoiceAuth
+from mini_project.modalities.command_processor import CommandProcessor
 from mini_project.modalities.orchestrator import run_gesture_capture, run_voice_capture
 from mini_project.modalities.synchronizer import synchronize_and_unify
 from mini_project.workflow.session_manager import SessionManager

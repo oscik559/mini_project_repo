@@ -19,8 +19,8 @@ from config.app_config import *
 setup_logging()  # You can pass a different level if needed
 
 # Import the authentication modules.
-from mini_project.authentication.face_auth import FaceAuthSystem
-from mini_project.authentication.voice_auth import VoiceAuth
+from mini_project.authentication.face_auth_SQLite import FaceAuthSystem
+from mini_project.authentication.voice_auth_SQLite import VoiceAuth
 
 
 def main() -> None:

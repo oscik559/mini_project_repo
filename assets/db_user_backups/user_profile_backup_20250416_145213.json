@@ -1,0 +1,53 @@
+[
+  {
+    "user_id": 2,
+    "first_name": "Rahul",
+    "last_name": "Chiramel",
+    "liu_id": "rahch515",
+    "email": "rahch515@student.liu.se",
+    "preferences": "{\"likes\": [\"Aeroplanes\", \"Automation\"]}",
+    "profile_image_path": "/images/rahul.jpg",
+    "interaction_memory": "{\"last_task\": \"Screw object\", \"successful_tasks\": 10}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-16T13:47:30.605413",
+    "last_updated": "2025-04-16T13:47:30.605413"
+  },
+  {
+    "user_id": 3,
+    "first_name": "Sanjay",
+    "last_name": "Nambiar",
+    "liu_id": "sanna58",
+    "email": "sanjay.nambiar@liu.se",
+    "preferences": "{\"likes\": [\"Programming\", \"Machine Learning\"]}",
+    "profile_image_path": "/images/sanjay.jpg",
+    "interaction_memory": "{\"last_task\": \"Slide object\", \"successful_tasks\": 7}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-16T13:47:30.605413",
+    "last_updated": "2025-04-16T13:47:30.605413"
+  },
+  {
+    "user_id": 4,
+    "first_name": "Mehdi",
+    "last_name": "Tarkian",
+    "liu_id": "mehta77",
+    "email": "mehdi.tarkian@liu.se",
+    "preferences": "{\"likes\": [\"Running\", \"Cats\"]}",
+    "profile_image_path": "/images/mehdi.jpg",
+    "interaction_memory": "{\"last_task\": \"Drop object\", \"successful_tasks\": 2}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-16T13:47:30.605413",
+    "last_updated": "2025-04-16T13:47:30.605413"
+  },
+  {
+    "user_id": 1,
+    "first_name": "Oscar",
+    "last_name": "Ikechukwu",
+    "liu_id": "oscik559",
+    "email": "oscik559@student.liu.se",
+    "preferences": "{\"likes\": [\"AI\", \"Robotics\"]}",
+    "profile_image_path": "/images/oscar.jpg",
+    "interaction_memory": "{\"last_task\": \"Pick object\", \"successful_tasks\": 5}",
+    "face_encoding": 

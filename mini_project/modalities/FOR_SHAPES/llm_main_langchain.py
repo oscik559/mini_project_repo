@@ -1,42 +1,42 @@
+import json
 import logging
 import os
 import random
 import re
 import string
+import struct
+import threading
 import time
 import uuid
 import warnings
 from datetime import datetime
+from pathlib import Path
 from typing import Literal
-from langchain.schema import messages_from_dict, messages_to_dict
-import json
+
 import ollama
+import pvporcupine
 import pyttsx3
 import requests
+import sounddevice as sd
 from gtts import gTTS
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
+from langchain.schema import messages_from_dict, messages_to_dict
 from langchain_core._api.deprecation import LangChainDeprecationWarning
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableSequence
 from langchain_ollama import ChatOllama
 
-from config.app_config import setup_logging, BASE_DIR
+from config.app_config import BASE_DIR, setup_logging
 from mini_project.database.connection import get_connection
+from mini_project.workflow.session_manager import SessionManager
+
 from mini_project.modalities.FOR_SHAPES.command_processor import CommandProcessor
 from mini_project.modalities.FOR_SHAPES.voice_processor import (
     SpeechSynthesizer,
     VoiceProcessor,
 )
-from mini_project.modalities.prompt_utils import PromptBuilder
-import json
-from pathlib import Path
-
-import pvporcupine
-import sounddevice as sd
-import struct
-import threading
-
+from mini_project.modalities.FOR_SHAPES.prompt_utils import PromptBuilder
 
 # ========== Wake Word Setup ==========
 ACCESS_KEY = "E0O2AD01eT6cJ83n1yYf5bekfdIOEGUky9q6APkwdx9enDaMLZQtLw=="
@@ -44,30 +44,24 @@ WAKEWORD = (
     r"C:\Users\oscik559\Projects\mini_project_repo\assets\robot_wakewords\hey_yummy.ppn"
 )
 WAKE_RESPONSES = [
-    "Yes?",
-    "I'm listening...",
-    "What's up?",
-    "Go ahead.",
-    "At your service.",
-    "Hello?" "what do you need?",
-    "Ready for your command",
+    "yes?",
+    "I'm listening",
+    "what's up?",
+    "go ahead.",
+    "at your service.",
+    "hello?",
     "I'm here!",
-    "Yes, how can I help?",
-    "You called?",
-    "Yes, I'm here.",
-    "Yes, what do you need?",
-    "Yes, I'm listening.",
-    "Yes, how can I assist you?",
-    "Yes, how can I help?",
-    "Yes, what can I do for you?",
-    "Yes, what do you want?",
-    "Yes, what can I do for you?",
-    "Yes, what do you need?",
+    "you called?",
+    "what do you want?",
+    "I'm listening.",
+    "hi?",
+    "what is it?",
 ]
 # Use built-in or custom model path
 porcupine = pvporcupine.create(
     access_key=ACCESS_KEY,
     keywords=[
+        "jarvis",
         "computer",  # Built-in wake word
     ],
     keyword_paths=[WAKEWORD],
@@ -76,12 +70,11 @@ wake_word_triggered = threading.Event()
 
 import random
 
-
 # =====================================
 
 
 # CHAT_MEMORY_PATH = Path("chat_memory.json")
-CHAT_MEMORY_PATH = BASE_DIR / "assets" / "chat_memory" / "chat_memory.json"
+# CHAT_MEMORY_PATH = BASE_DIR / "assets" / "chat_memory" / "chat_memory.json"
 
 warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 
@@ -129,39 +122,40 @@ CONFIRM_WORDS = {
 CANCEL_WORDS = {"no", "cancel", "not now", "stop", "never mind", "don't"}
 # ==========================ADD MORE
 
-SCENE_PROMPT_TEMPLATE = """
-You are an intelligent robotic assistant, with the camera as your eye. Based on the objects in the scene, listed in a camera_vision database table, respond concisely and clearly to the user question. One line answers are acceptable.
-if there are any, the objects here are sitting on a table. Do not assume objects unless they are listed.
----
-Each object has the following fields:
-# - object_name: the name of the object in the scene.
-# - object_color: the color of the object in the scene
-# - pos_x, pos_y, pos_z: the 3D position of the object in the scene relative to table (0,0). You can use the object position to imagine the relative distances of the objects from each other
-# - rot_x, rot_y, rot_z: the orientation of the object in the scene
+# SCENE_PROMPT_TEMPLATE = """
+# You are an intelligent robotic assistant, with the camera as your eye. Based on the objects in the scene, listed in a camera_vision database table, respond concisely and clearly to the user question. One line answers are acceptable.
+# if there are any, the objects here are sitting on a table. Do not assume objects unless they are listed.
+# ---
+# Each object has the following fields:
+# # - object_name: the name of the object in the scene.
+# # - object_color: the color of the object in the scene
+# # - pos_x, pos_y, pos_z: the 3D position of the object in the scene relative to table (0,0). You can use the object position to imagine the relative distances of the objects from each other
+# # - rot_x, rot_y, rot_z: the orientation of the object in the scene
 
----
-if the object is a slide, it will have a usd_name of slide.usd, and the holder object will have a usd_name of holder.usd
-any objects with object_name that does not start with \"slide...\" are not slides
----
+# ---
+# if the object is a slide, it will have a usd_name of slide.usd, and the holder object will have a usd_name of holder.usd
+# any objects with object_name that does not start with \"slide...\" are not slides
+# ---
 
-Avoid technical terms like rot_x or pos_y. Instead, describe in natural language (e.g., "position x", "rotation y").
-Assume the pos_x, pos_y, pos_z are coordinates of the objects on the table with respect to a 0,0,0 3D cordinate which is thereference ( the far right edge of the table top rectangle). the values are tenth of an mm unit.
----
-Previous conversation:
-{chat_history}
+# Avoid technical terms like rot_x or pos_y. Instead, describe in natural language (e.g., "position x", "rotation y").
+# Assume the pos_x, pos_y, pos_z are coordinates of the objects on the table with respect to a 0,0,0 3D cordinate which is thereference ( the far right edge of the table top rectangle). the values are tenth of an mm unit.
+# ---
+# Previous conversation:
+# {chat_history}
 
-User question: {question}
-Objects in scene:
-{data}
----
-Answer:
-"""
+# User question: {question}
+# Objects in scene:
+# {data}
+# ---
+# Answer:
+# """
 
 
 # === LangChain Setup ===
 llm = ChatOllama(model=OLLAMA_MODEL)
 memory = ConversationBufferMemory(memory_key="chat_history", input_key="question")
-prompt = PromptTemplate.from_template(SCENE_PROMPT_TEMPLATE)
+# prompt = PromptTemplate.from_template(SCENE_PROMPT_TEMPLATE)
+prompt = PromptBuilder.scene_prompt_template()
 
 
 # Helper to load chat history into the prompt input
@@ -322,7 +316,7 @@ def process_task(command_text: str) -> str:
             (
                 "session_voice_001",
                 datetime.now(),
-                "oscik559",
+                session.authenticated_user["liu_id"],
                 command_text,
                 "",
                 command_text,
@@ -388,7 +382,7 @@ def listen_for_wake_word(vp, tts):
         channels=1,
         callback=callback,
     ):
-        logger.info("🎙️  Passive listening for wake word...")
+        logger.info("🎙️  Passive listening for wake word...🟢🟢🟢")
         while not wake_word_triggered.is_set():
             sd.sleep(100)  # non-blocking wait
 
@@ -540,11 +534,34 @@ if __name__ == "__main__":
     setup_logging()
     vp = VoiceProcessor()
     tts = SpeechSynthesizer()
+    # load_chat_history()
+
+    # Authenticate user
+    session = SessionManager()
+    user = session.authenticate_user()
+
+    if not user:
+        tts.speak("Authentication failed. Please try again.")
+        exit()
+
+    liu_id = user["liu_id"]
+    first_name = user["first_name"]
+    last_name = user["last_name"]
+
+    # Load personalized memory
+    CHAT_MEMORY_PATH = (
+        BASE_DIR / "assets" / "chat_memory" / f"chat_memory_{liu_id}.json"
+    )
     load_chat_history()
 
+    # Greet user
     if not hasattr(voice_to_scene_response, "greeted"):
         greeting = generate_llm_greeting()
         tts.speak(greeting)
+
+        greeting = f"Hello {first_name}. How can I assist you today?"
+        tts.speak(greeting)
+
         voice_to_scene_response.greeted = True
 
     first_turn = True
@@ -563,7 +580,6 @@ if __name__ == "__main__":
             voice_to_scene_response(vp, tts, conversational=True)
             save_chat_history()
             first_turn = False
-
             logger.info(f"🟡 Listening again in a few seconds...")
 
     except KeyboardInterrupt:

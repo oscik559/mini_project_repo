@@ -1,6 +1,7 @@
 from datetime import datetime
-from langchain_core.prompts import PromptTemplate
 from typing import Dict, List
+
+from langchain_core.prompts import PromptTemplate
 
 
 class PromptBuilder:
@@ -8,32 +9,73 @@ class PromptBuilder:
     def scene_prompt_template() -> PromptTemplate:
         return PromptTemplate.from_template(
             """
-You are an intelligent robotic assistant, with the camera as your eye. Based on the objects in the scene, listed in a camera_vision database table, respond concisely and clearly to the user question. One line answers are acceptable.
-if there are any, the objects here are sitting on a table. Do not assume objects unless they are listed.
----
-Each object has the following fields:
-# - object_name: the name of the object in the scene.
-# - object_color: the color of the object in the scene
-# - pos_x, pos_y, pos_z: the 3D position of the object in the scene relative to table (0,0). You can use the object position to imagine the relative distances of the objects from each other
-# - rot_x, rot_y, rot_z: the orientation of the object in the scene
+        You are an intelligent robotic assistant, with the camera as your eye. Based on the objects in the scene, listed in a camera_vision database table, respond concisely and clearly to the user question. One line answers are acceptable.
+        if there are any, the objects here are sitting on a table. Do not assume objects unless they are listed.
+        ---
+        Each object has the following fields:
+        # - object_name: the name of the object in the scene.
+        # - object_color: the color of the object in the scene
+        # - pos_x, pos_y, pos_z: the 3D position of the object in the scene relative to table (0,0). You can use the object position to imagine the relative distances of the objects from each other
+        # - rot_x, rot_y, rot_z: the orientation of the object in the scene
 
----
-if the object is a slide, it will have a usd_name of slide.usd, and the holder object will have a usd_name of holder.usd
-any objects with object_name that does not start with "slide..." are not slides
----
+        ---
+        if the object is a slide, it will have a usd_name of slide.usd, and the holder object will have a usd_name of holder.usd
+        any objects with object_name that does not start with "slide..." are not slides
+        ---
 
-Avoid technical terms like rot_x or pos_y. Instead, describe in natural language (e.g., "position x", "rotation y").
-Assume the pos_x, pos_y, pos_z are coordinates of the objects on the table with respect to a 0,0,0 3D coordinate which is the reference (the far right edge of the table top rectangle). the values are tenth of a mm unit.
----
-Previous conversation:
-{chat_history}
+        Avoid technical terms like rot_x or pos_y. Instead, describe in natural language (e.g., "position x", "rotation y").
+        Assume the pos_x, pos_y, pos_z are coordinates of the objects on the table with respect to a 0,0,0 3D coordinate which is the reference (the far right edge of the table top rectangle). the values are tenth of a mm unit.
+        ---
+        Previous conversation:
+        {chat_history}
 
-User question: {question}
-Objects in scene:
-{data}
----
-Answer:
-        """
+        User question: {question}
+        Objects in scene:
+        {data}
+        ---
+        Answer:
+                """
+        )
+
+    @staticmethod
+    def scene_prompt_template_2() -> PromptTemplate:
+        return PromptTemplate(
+            input_variables=[
+                "chat_history",
+                "question",
+                "data",
+                "first_name",
+                "liu_id",
+            ],
+            template="""
+            You are Yumi, a helpful, voice-interactive robotic assistant. You are currently assisting {first_name} ({liu_id}).
+            You use your camera to observe objects in the scene and respond to user questions. Keep replies short, natural, and friendly.
+
+            ---
+            Objects in the scene are listed from a database. If no objects are listed, say so. If objects are present, assume they are on a table and describe them naturally.
+            Avoid technical terms like rot_x or pos_y. Use real-world terms instead (e.g., “on the left side”, “rotated forward”).
+            Only speak about objects that are listed. Do not imagine or assume extra details.
+
+            ---
+            Each object has the following fields:
+            - object_name: the name of the object in the scene.
+            - object_color: the color of the object in the scene.
+            - pos_x, pos_y, pos_z: 3D position of the object on the table.
+            - rot_x, rot_y, rot_z: orientation angles of the object.
+
+            ---
+            Previous conversation:
+            {chat_history}
+
+            User question:
+            {question}
+
+            Objects in scene:
+            {data}
+
+            ---
+            Yumi's response:
+            """,
         )
 
     @staticmethod

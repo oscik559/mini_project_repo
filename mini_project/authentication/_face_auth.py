@@ -1,16 +1,32 @@
-# authentication/face_auth.py
-
+# authentication/face_auth_pgSQL.py
 """
-Face Authentication Module
-
-This module provides a face authentication system that uses OpenCV,
-face_recognition, and FAISS for similarity search. It supports:
-  - Automatic face capture (with a consecutive detection counter),
-  - Manual face capture,
-  - A unified identification function that works whether one or multiple faces are detected,
-  - Registration with update confirmation for existing users.
-
-The module uses a custom context manager to handle video capture resources.
+Classes:
+    FaceUtils:
+        A utility class for face detection, bounding box drawing, and encoding selection.
+    FaceAuthSystem:
+        The main class for managing face authentication, including:
+        - Preloading and managing face encodings.
+        - Building and refreshing a FAISS index for similarity search.
+        - Capturing faces in automatic, manual, or multi-face modes.
+        - Registering new users with face and voice data.
+        - Identifying users based on captured face data.
+Functions:
+    VideoCaptureContext(index: int = 0):
+        A context manager for handling video capture resources.
+    main():
+        Entry point for the FaceAuthSystem application. Initializes directories and starts the system.
+Constants:
+    AUTO_CAPTURE_FRAME_COUNT: Number of consecutive frames required for automatic face capture.
+    EMAIL_PATTERN: Regular expression pattern for validating email addresses.
+    FACE_CAPTURE_PATH: Path for saving captured face images.
+    FACE_MATCH_THRESHOLD: Threshold for face similarity matching.
+    FACIAL_DATA_PATH: Path for storing facial data.
+    IDENTIFICATION_FRAMES: Number of frames to process during user identification.
+    LIU_ID_PATTERN: Regular expression pattern for validating LIU IDs.
+    MAX_ENCODINGS_PER_USER: Maximum number of face encodings to store per user.
+    TEMP_AUDIO_PATH: Path for storing temporary audio files.
+    TIMEDELAY: Delay between frames during identification.
+    VOICE_DATA_PATH: Path for storing voice data.
 """
 
 
@@ -18,7 +34,6 @@ The module uses a custom context manager to handle video capture resources.
 import logging
 import pickle
 import re
-import sqlite3
 import time
 from contextlib import contextmanager
 from typing import Dict, List, Optional, Tuple
@@ -27,10 +42,10 @@ import cv2
 import face_recognition
 import faiss  # For fast similarity search
 import numpy as np
+import psycopg2
 
 from config.app_config import (
     AUTO_CAPTURE_FRAME_COUNT,
-    DB_PATH,
     EMAIL_PATTERN,
     FACE_CAPTURE_PATH,
     FACE_MATCH_THRESHOLD,
@@ -43,11 +58,13 @@ from config.app_config import (
     VOICE_DATA_PATH,
     setup_logging,
 )
-from mini_project.authentication.voice_auth import VoiceAuth
-from mini_project.database._db_handler_SQLite import DatabaseHandler
+from mini_project.authentication._voice_auth import VoiceAuth
+from mini_project.database.connection import get_connection
+
+logger = logging.getLogger("FaceAuthSystem")
 
 
-# Define a context manager for cv2.VideoCapture that calls release() on exit.
+# Context manager for handling an video session.
 @contextmanager
 def VideoCaptureContext(index: int = 0):
     cap = cv2.VideoCapture(index)
@@ -58,7 +75,6 @@ def VideoCaptureContext(index: int = 0):
 
 
 class FaceUtils:
-    """Utility methods for face processing using OpenCV and face_recognition."""
 
     @staticmethod
     def detect_faces(frame: np.ndarray) -> Tuple[List[tuple], List[np.ndarray]]:
@@ -121,11 +137,9 @@ class FaceUtils:
 
 class FaceAuthSystem:
     def __init__(self) -> None:
-        self.db_handler = DatabaseHandler(DB_PATH)
-        # Instantiate the VoiceAuth module to integrate voice registration
-        from mini_project.authentication.voice_auth import VoiceAuth
-
-        self.voice_auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
+        self.conn = get_connection()
+        self.cursor = self.conn.cursor()
+        self.voice_auth = VoiceAuth()
         self.face_utils = FaceUtils()
         self.known_encodings: Dict[str, dict] = self._preload_encodings()
         self.faiss_index: Optional[faiss.IndexFlatL2] = self._build_faiss_index()
@@ -134,22 +148,21 @@ class FaceAuthSystem:
         """Preload all face encodings from the database."""
         encodings: Dict[str, dict] = {}
         try:
-            with self.db_handler.conn:
-                cursor = self.db_handler.conn.cursor()
-                users = cursor.execute(
-                    "SELECT user_id, first_name, last_name, liu_id, face_encoding FROM users"
-                ).fetchall()
+            self.cursor.execute(
+                "SELECT user_id, first_name, last_name, liu_id, face_encoding FROM users"
+            )
+            users = self.cursor.fetchall()
             for user in users:
-                if user[4]:  # Ensure a face encoding exists.
+                if user[4]:
                     encodings[user[3]] = {
                         "user_id": user[0],
                         "first_name": user[1],
                         "last_name": user[2],
                         "liu_id": user[3],
-                        "encodings": pickle.loads(user[4]),
+                        "encodings": pickle.loads(user[4].tobytes()),
                     }
-        except sqlite3.Error as e:
-            logging.error("Database error during encoding preload: %s", e)
+        except psycopg2.Error as e:
+            logging.error("🔴 Database error during encoding preload: %s", e)
         return encodings
 
     def _build_faiss_index(self) -> Optional[faiss.IndexFlatL2]:
@@ -178,15 +191,15 @@ class FaceAuthSystem:
         """Refresh the in-memory known encodings and rebuild the FAISS index."""
         self.known_encodings = self._preload_encodings()
         self.faiss_index = self._build_faiss_index()
-        logging.info("FAISS index and known encodings refreshed.")
+        logging.info("✅ FAISS index and known encodings refreshed.")
 
     def _validate_user_input(self, liu_id: str, email: str) -> bool:
         """Validate LIU ID and email formats."""
         if not re.match(LIU_ID_PATTERN, liu_id):
-            logging.error("Invalid LIU ID format. Expected format: abc123")
+            logging.error("🔴 Invalid LIU ID format. Expected format: abc123")
             return False
         if not re.match(EMAIL_PATTERN, email):
-            logging.error("Invalid email format")
+            logging.error("🔴 Invalid email format")
             return False
         return True
 
@@ -216,7 +229,7 @@ class FaceAuthSystem:
         """
         with VideoCaptureContext(0) as cap:
             if not cap.isOpened():
-                logging.error("Error: Camera not accessible.")
+                logging.error("🔴 Error: Camera not accessible.")
                 return None
             consecutive_detections = (
                 0  # Count of consecutive frames with exactly one face.
@@ -266,7 +279,7 @@ class FaceAuthSystem:
         """
         with VideoCaptureContext(0) as cap:
             if not cap.isOpened():
-                logging.error("Error: Camera not accessible.")
+                logging.error("🔴 Error: Camera not accessible.")
                 return None
 
             captured_frame: Optional[np.ndarray] = None
@@ -326,11 +339,11 @@ class FaceAuthSystem:
         """
         with VideoCaptureContext(0) as cap:
             if not cap.isOpened():
-                logging.error("Error: Camera not accessible.")
+                logging.error("🔴 Error: Camera not accessible.")
                 return None
             ret, frame = cap.read()
             if not ret:
-                logging.error("Failed to capture frame for multi-face detection.")
+                logging.error("🔴 Failed to capture frame for multi-face detection.")
                 return None
             face_locations, face_encodings = self.face_utils.detect_faces(frame)
             return frame, face_encodings, face_locations
@@ -348,7 +361,7 @@ class FaceAuthSystem:
         """
         frame_encoding = self._capture_face("manual")
         if not frame_encoding:
-            logging.error("Face capture failed during registration.")
+            logging.error("🔴 Face capture failed during registration.")
             return
 
         frame, encoding = frame_encoding
@@ -361,20 +374,21 @@ class FaceAuthSystem:
         email = input("Enter your Email: ").strip()
 
         if not first_name or not last_name:
-            logging.error("First name and last name cannot be empty.")
+            logging.error("🔴 First name and last name cannot be empty.")
             return
 
         if not self._validate_user_input(liu_id, email):
             return
 
         try:
-            with self.db_handler.conn:
-                cursor = self.db_handler.conn.cursor()
+            with self.conn:
+                cursor = self.conn.cursor()
                 # Query for an existing user with the same LIU ID or email.
-                existing = cursor.execute(
-                    "SELECT user_id, face_encoding FROM users WHERE liu_id = ? OR email = ?",
+                cursor.execute(
+                    "SELECT user_id, face_encoding FROM users WHERE liu_id = %s OR email = %s",
                     (liu_id, email),
-                ).fetchone()
+                )
+                existing = cursor.fetchone()
 
                 if existing:
                     logging.info(
@@ -385,11 +399,11 @@ class FaceAuthSystem:
                         logging.info("Registration aborted by user.")
                         return
                     else:
-                        logging.info("User confirmed update of face encoding.")
-                        user_id, existing_encoding_blob = existing
+                        logging.info("✅ User confirmed update of face encoding.")
+                        user_id, existing_encoding_bytea = existing
                         existing_encodings = (
-                            pickle.loads(existing_encoding_blob)
-                            if existing_encoding_blob
+                            pickle.loads(existing_encoding_bytea)
+                            if existing_encoding_bytea
                             else []
                         )
                         existing_encodings.append(encoding)
@@ -398,11 +412,14 @@ class FaceAuthSystem:
                             -MAX_ENCODINGS_PER_USER:
                         ]
                         cursor.execute(
-                            "UPDATE users SET face_encoding = ? WHERE user_id = ?",
-                            (pickle.dumps(existing_encodings), user_id),
+                            "UPDATE users SET face_encoding = %s WHERE user_id = %s",
+                            (
+                                psycopg2.Binary(pickle.dumps(existing_encodings)),
+                                user_id,
+                            ),
                         )
                         logging.info(
-                            "Face encoding updated for %s %s", first_name, last_name
+                            "✅ Face encoding updated for %s %s", first_name, last_name
                         )
                         # self._refresh_index()
                         # return
@@ -412,18 +429,18 @@ class FaceAuthSystem:
                     profile_image_path = str(FACE_CAPTURE_PATH / f"{liu_id}.jpg")
                     preferences = "{}"
                     user_interaction_memory = "[]"
-                    encoding_blob = pickle.dumps([encoding])
+                    face_blob = psycopg2.Binary(pickle.dumps([encoding]))
                     cursor.execute(
                         """INSERT INTO users
                            (first_name, last_name, liu_id, email, face_encoding,
                            preferences, profile_image_path, user_interaction_memory)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
                         (
                             first_name,
                             last_name,
                             liu_id,
                             email,
-                            encoding_blob,
+                            face_blob,
                             preferences,
                             profile_image_path,
                             user_interaction_memory,
@@ -443,15 +460,16 @@ class FaceAuthSystem:
                         )
                     except Exception as e:
                         logging.error(
-                            "Voice registration failed after face registration: %s", e
+                            "🔴 Voice registration failed after face registration: %s",
+                            e,
                         )
                     logging.info(
                         "User %s %s registered successfully", first_name, last_name
                     )
             self._refresh_index()
-        except sqlite3.Error as e:
-            self.db_handler.conn.rollback()
-            logging.error("Registration failed: %s", e)
+        except psycopg2.Error as e:
+            self.conn.rollback()
+            logging.error("🔴 Registration failed: %s", e)
             raise
 
         self._refresh_index()
@@ -470,6 +488,8 @@ class FaceAuthSystem:
 
         Inline Comment: The system uses multiple frames to improve reliability.
         """
+
+        logging.info("🟢 Starting face identification...")
         recognized_users = {}  # key: liu_id, value: count across frames
         unknown_found = False
 
@@ -477,7 +497,7 @@ class FaceAuthSystem:
             result = self._capture_face_multi()
             if result is None:
                 logging.error(
-                    "Frame %d: Failed to capture frame for identification.", i + 1
+                    "🔴 Frame %d: Failed to capture frame for identification.", i + 1
                 )
                 continue
             _, face_encodings, _ = result
@@ -504,7 +524,7 @@ class FaceAuthSystem:
                 best_liu = max(recognized_users, key=recognized_users.get)
                 user = self.known_encodings.get(best_liu)
                 if user:
-                    print(f"Welcome back, {user['first_name']} {user['last_name']}!")
+                    print(f"✅ Welcome back, {user['first_name']} {user['last_name']}!")
                     return user
         else:
             print("No known faces detected.")
@@ -524,6 +544,14 @@ class FaceAuthSystem:
             )
             if response == "y":
                 self.register_user()
+                # ✅ Re-identify after registration and return the user
+                user = self.identify_user()
+                if user:
+                    logger.info(
+                    f"✅ Authenticated after registration. Welcome {user['first_name']} {user['last_name']} (liu_id: {user['liu_id']})"
+                    )
+                    return user
+        return None
 
     def run(self) -> None:
         """
@@ -541,12 +569,16 @@ class FaceAuthSystem:
                     .lower()
                 )
                 if choice == "q":
-                    self.db_handler.close()
+                    self.close()
                     logging.info("Exiting...")
                     break
         except KeyboardInterrupt:
-            self.db_handler.close()
+            self.close()
             logging.info("Exiting auto-identification mode.")
+
+    def close(self):
+        self.cursor.close()
+        self.conn.close()
 
 
 def main() -> None:
@@ -558,6 +590,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    import time
-
     main()

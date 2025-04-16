@@ -9,7 +9,7 @@ import numpy as np
 import pyrealsense2 as rs
 
 from config.app_config import *
-from mini_project.database.db_handler_pgSQL import DatabaseHandler
+from mini_project.database.db_handler import DatabaseHandler
 
 
 def process_image(image_path, wait_key, db_handler):

@@ -1,25 +1,29 @@
 # langgraph_llm_main.py
 
-from langgraph.graph import StateGraph, END
-from typing import TypedDict
-from typing import Annotated
+import logging
+import os
+import random
+import re
+import string
+import time
+from datetime import datetime, timedelta
+from typing import Annotated, TypedDict
 
-from langchain_core.runnables import RunnableLambda
+import requests
 from langchain.memory import ConversationBufferMemory
-from langchain_ollama import ChatOllama
 from langchain_core.prompts import PromptTemplate
-from config.app_config import setup_logging
+from langchain_core.runnables import RunnableLambda
+from langchain_ollama import ChatOllama
+from langgraph.graph import END, StateGraph
 
+from config.app_config import setup_logging
 from mini_project.database.connection import get_connection
 from mini_project.modalities.FOR_SHAPES.command_processor import CommandProcessor
-from mini_project.modalities.FOR_SHAPES.voice_processor import (
-    VoiceProcessor,
-    SpeechSynthesizer,
-)
 from mini_project.modalities.FOR_SHAPES.prompt_utils import PromptBuilder
-from datetime import datetime
-import logging, os, re, string, random, requests, time
-from datetime import datetime, timedelta
+from mini_project.modalities.FOR_SHAPES.voice_processor import (
+    SpeechSynthesizer,
+    VoiceProcessor,
+)
 
 # === Setup ===
 logging.getLogger("comtypes").setLevel(logging.WARNING)

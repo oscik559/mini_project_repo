@@ -43,7 +43,7 @@ from config.app_config import (
     VOICE_DATA_PATH,
     setup_logging,
 )
-from mini_project.authentication.voice_auth import VoiceAuth
+from mini_project.authentication.voice_auth_SQLite import VoiceAuth
 from mini_project.database._db_handler_SQLite import DatabaseHandler
 
 
@@ -123,7 +123,7 @@ class FaceAuthSystem:
     def __init__(self) -> None:
         self.db_handler = DatabaseHandler(DB_PATH)
         # Instantiate the VoiceAuth module to integrate voice registration
-        from mini_project.authentication.voice_auth import VoiceAuth
+        from mini_project.authentication.voice_auth_SQLite import VoiceAuth
 
         self.voice_auth = VoiceAuth(DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH)
         self.face_utils = FaceUtils()

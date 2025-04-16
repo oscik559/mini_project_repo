@@ -8,9 +8,9 @@ import uuid
 from config.app_config import *
 from mini_project.modalities.gesture_processor import GestureDetector
 from mini_project.modalities.synchronizer import synchronize_and_unify
-from mini_project.modalities.voice_processor_SQLite import VoiceProcessor
+from mini_project.modalities.voice_processor import VoiceProcessor
 
-# Initialize logging with desired level (optional)
+# Initialize logging
 setup_logging(level=logging.INFO)
 logger = logging.getLogger("Orchestrator")
 
@@ -48,7 +48,9 @@ if __name__ == "__main__":
 
     logger.info("Session capture ended. Now running synchronizer/unifier...")
 
-    synchronize_and_unify(db_path=DB_PATH)
-    logger.info(
-        "Unification complete. Check the unified_instructions table in sequences.db."
-    )
+    try:
+        synchronize_and_unify(liu_id=None)
+        logger.info("Unification complete. Check the unified_instructions table.")
+    except Exception as e:
+        logger.error(f"Synchronization failed: {e}")
+        logger.debug("Exception details:", exc_info=True)

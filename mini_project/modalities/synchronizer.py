@@ -3,7 +3,8 @@
 
 import json
 import logging
-import sqlite3
+
+# import sqlite3
 import subprocess
 import uuid
 from datetime import datetime
@@ -12,13 +13,14 @@ from typing import Dict, List, Optional
 
 from config.app_config import (
     BATCH_SIZE,
-    DB_PATH,
+    # DB_PATH,
     LLM_MAX_RETRIES,
     LLM_MODEL,
     UNIFY_PROMPT_TEMPLATE,
     setup_logging,
 )
 from config.constants import GESTURE_TABLE, PROCESSED_COL, UNIFIED_TABLE, VOICE_TABLE
+from mini_project.database.connection import get_connection
 
 # Initialize logging with desired level
 setup_logging(level=logging.INFO)
@@ -27,9 +29,8 @@ DELIMITER = "\n"
 
 
 def get_instructions_by_session(
-    conn: sqlite3.Connection, limit: int, offset: int
+    cursor, limit: int, offset: int
 ) -> Dict[str, List[Dict]]:
-    cursor = conn.cursor()
     """
     Fetches unprocessed instructions from voice and gesture tables in batches.
 
@@ -40,26 +41,21 @@ def get_instructions_by_session(
     Returns:
         A dictionary mapping session IDs to lists of instruction records.
     """
-
-    sessions = {}
-    cursor = conn.cursor()
     query = f"""
         SELECT id, session_id, 'voice' AS modality, transcribed_text AS instruction_text, timestamp
-        FROM {VOICE_TABLE} WHERE {PROCESSED_COL} = 0
+        FROM {VOICE_TABLE} WHERE {PROCESSED_COL} = FALSE
         UNION ALL
         SELECT id, session_id, 'gesture' AS modality, gesture_text AS instruction_text, timestamp
-        FROM {GESTURE_TABLE} WHERE {PROCESSED_COL} = 0
-        LIMIT ? OFFSET ?
-        """
+        FROM {GESTURE_TABLE} WHERE {PROCESSED_COL} = FALSE
+        ORDER BY timestamp ASC
+        LIMIT %s OFFSET %s
+    """
     cursor.execute(query, (limit, offset))
     rows = cursor.fetchall()
+    sessions = {}
 
     for row in rows:
-        try:
-            ts = datetime.fromisoformat(row[4])
-        except Exception as e:
-            logger.error(f"Error parsing timestamp {row[4]}: {e}")
-            continue
+        ts = row[4] if isinstance(row[4], datetime) else datetime.fromisoformat(row[4])
         record = {
             "id": row[0],
             "session_id": row[1],
@@ -71,35 +67,8 @@ def get_instructions_by_session(
     return sessions
 
 
-def create_unified_table(conn: sqlite3.Connection) -> None:
-    """
-    Creates the unified_instructions table if it does not exist.
-
-    Args:
-        conn: SQLite database connection object.
-    """
-
-    cursor = conn.cursor()
-    cursor.execute(
-        f"""
-        CREATE TABLE IF NOT EXISTS {UNIFIED_TABLE} (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT,
-            timestamp DATETIME,
-            liu_id TEXT,
-            voice_command TEXT,
-            gesture_command TEXT,
-            unified_command TEXT,
-            processed INTEGER DEFAULT 0
-        )
-        """
-    )
-    conn.commit()
-    logger.info("Unified instructions table created or already exists.")
-
-
 def store_unified_instruction(
-    conn: sqlite3.Connection,
+    cursor,
     session_id: str,
     timestamp: datetime,
     voice_command: str,
@@ -119,28 +88,26 @@ def store_unified_instruction(
         liu_id: Optional user ID.
         db_path: Path to the SQLite database.
     """
-    cursor = conn.cursor()
     cursor.execute(
         f"""
         INSERT INTO {UNIFIED_TABLE} (session_id, timestamp, liu_id, voice_command, gesture_command, unified_command)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s)
         """,
         (
             session_id,
-            timestamp.isoformat(),
+            timestamp,
             liu_id,
             voice_command,
             gesture_command,
             unified_command,
         ),
     )
-    conn.commit()
     logger.info(
         f"Stored unified instruction for session {session_id}: {unified_command}"
     )
 
 
-def mark_instructions_as_processed(conn: sqlite3.Connection, session_id: str) -> None:
+def mark_instructions_as_processed(cursor, session_id: str) -> None:
     """
     Marks all voice and gesture instructions for the given session as processed.
 
@@ -148,16 +115,14 @@ def mark_instructions_as_processed(conn: sqlite3.Connection, session_id: str) ->
         conn: SQLite database connection object.
         session_id: The session identifier.
     """
-    cursor = conn.cursor()
     cursor.execute(
-        f"UPDATE {VOICE_TABLE} SET {PROCESSED_COL} = TRUE WHERE session_id = ? AND {PROCESSED_COL} = 0",
+        f"UPDATE {VOICE_TABLE} SET {PROCESSED_COL} = TRUE WHERE session_id = %s AND {PROCESSED_COL} = FALSE",
         (session_id,),
     )
     cursor.execute(
-        f"UPDATE {GESTURE_TABLE} SET {PROCESSED_COL} = TRUE WHERE session_id = ? AND {PROCESSED_COL} = 0",
+        f"UPDATE {GESTURE_TABLE} SET {PROCESSED_COL} = TRUE WHERE session_id = %s AND {PROCESSED_COL} = FALSE",
         (session_id,),
     )
-    conn.commit()
     logger.info(f"Marked instructions as processed for session {session_id}.")
 
 
@@ -189,7 +154,7 @@ def llm_unify(voice_text: str, gesture_text: str, max_retries=LLM_MAX_RETRIES) -
                 encoding="utf-8",
             )
             output = result.stdout.strip()
-            if output and len(output) > 3:  # Basic validation
+            if output and len(output) > 3:
                 return output
             logger.warning(f"Attempt {attempt + 1}: Invalid output '{output}'")
         except subprocess.CalledProcessError as e:
@@ -227,7 +192,7 @@ def merge_session_commands(
 
 
 def synchronize_and_unify(
-    db_path: str = DB_PATH, liu_id: Optional[str] = None, batch_size: int = BATCH_SIZE
+    liu_id: Optional[str] = None, batch_size: int = BATCH_SIZE
 ) -> None:
     """
     Synchronizes and unifies voice and gesture instructions in batches.
@@ -238,16 +203,21 @@ def synchronize_and_unify(
         batch_size: Number of records to process per batch.
     """
     offset = 0
-    with sqlite3.connect(str(db_path)) as conn:
+    try:
+        conn = get_connection()
+    except Exception as e:
+        logger.error(f"❌ Failed to connect to PostgreSQL: {e}")
+        raise
+    with conn:
+        cursor = conn.cursor()
         while True:
             sessions = get_instructions_by_session(
-                conn, limit=batch_size, offset=offset
+                cursor, limit=batch_size, offset=offset
             )
             if not sessions:
                 logger.info("No more unprocessed instructions found.")
                 break
 
-            create_unified_table(conn)
             for session_id, records in sessions.items():
                 merged = merge_session_commands(records)
                 voice_text = merged.get("voice", "")
@@ -255,7 +225,7 @@ def synchronize_and_unify(
                 session_timestamp = max(r["timestamp"] for r in records)
                 unified_command = llm_unify(voice_text, gesture_text)
                 store_unified_instruction(
-                    conn,
+                    cursor,
                     session_id,
                     session_timestamp,
                     voice_text,
@@ -263,9 +233,10 @@ def synchronize_and_unify(
                     unified_command,
                     liu_id,
                 )
-                mark_instructions_as_processed(conn, session_id)
+                mark_instructions_as_processed(cursor, session_id)
             offset += batch_size
             logger.info(f"Processed batch of {batch_size} records. Offset: {offset}")
+    conn.commit()
     logger.info("Synchronization and unification complete.")
 
 

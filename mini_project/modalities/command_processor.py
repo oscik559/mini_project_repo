@@ -10,7 +10,7 @@ from typing import Dict, List, Tuple
 
 import ollama
 import psycopg2
-from prompt_utils import PromptBuilder
+from mini_project.modalities.prompt_utils import PromptBuilder
 from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 from psycopg2.extras import DictCursor

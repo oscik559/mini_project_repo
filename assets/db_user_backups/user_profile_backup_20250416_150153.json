@@ -1,0 +1,58 @@
+[
+  {
+    "user_id": 2,
+    "first_name": "Rahul",
+    "last_name": "Chiramel",
+    "liu_id": "rahch515",
+    "email": "rahch515@student.liu.se",
+    "preferences": "{\"likes\": [\"Aeroplanes\", \"Automation\"]}",
+    "profile_image_path": "/images/rahul.jpg",
+    "interaction_memory": "{\"last_task\": \"Screw object\", \"successful_tasks\": 10}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-16T14:53:44.590897",
+    "last_updated": "2025-04-16T14:53:44.590897"
+  },
+  {
+    "user_id": 3,
+    "first_name": "Sanjay",
+    "last_name": "Nambiar",
+    "liu_id": "sanna58",
+    "email": "sanjay.nambiar@liu.se",
+    "preferences": "{\"likes\": [\"Programming\", \"Machine Learning\"]}",
+    "profile_image_path": "/images/sanjay.jpg",
+    "interaction_memory": "{\"last_task\": \"Slide object\", \"successful_tasks\": 7}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-16T14:53:44.590897",
+    "last_updated": "2025-04-16T14:53:44.590897"
+  },
+  {
+    "user_id": 4,
+    "first_name": "Mehdi",
+    "last_name": "Tarkian",
+    "liu_id": "mehta77",
+    "email": "mehdi.tarkian@liu.se",
+    "preferences": "{\"likes\": [\"Running\", \"Cats\"]}",
+    "profile_image_path": "/images/mehdi.jpg",
+    "interaction_memory": "{\"last_task\": \"Drop object\", \"successful_tasks\": 2}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-16T14:53:44.590897",
+    "last_updated": "2025-04-16T14:53:44.590897"
+  },
+  {
+    "user_id": 1,
+    "first_name": "Oscar",
+    "last_name": "Ikechukwu",
+    "liu_id": "oscik559",
+    "email": "oscik559@student.liu.se",
+    "preferences": "{\"likes\": [\"AI\", \"Robotics\"]}",
+    "profile_image_path": "/images/oscar.jpg",
+    "interaction_memory": "{\"last_task\": \"Pick object\", \"successful_tasks\": 5}",
+    "face_encoding": "8004958e040000000000005d948c156e756d70792e636f72652e6d756c74696172726179948c0c5f7265636f6e7374727563749493948c056e756d7079948c076e6461727261799493944b0085944301629487945294284b014b80859468048c0564747970659493948c02663894898887945294284b038c013c944e4e4e4affffffff4affffffff4b007494628942000400000000006095d2c4bf00000080f733bd3f000000605d98c63f00000000a0aa89bf000000c017bc8c3f000000e08e6bb9bf000000400830ac3f00000060b305b0bf000000e0f360bc3f000000e08b79b6bf00000020d4bccf3f000000e0185b74bf000000e0864ac9bf00000020e68dc3bf000000a0d31ab03f000000e0b0d2c03f000000a0e27ac5bf00000040c9afc2bf000000a0c97cb5bf000000607ee8c7bf00000040b55d8abf0000008020c1ae3f000000e02634a5bf000000e0294e963f0000000058d1aabf00000000d892cebf000000e001f8babf00000060909dc2bf000000a01c93ba3f000000c01d42c0bf0000000062d2a13f0000004098a6a5bf000000e02b79c3bf00000000ea8f51bf000000002b10b5bf000000c086048d3f000000006f8daa3f00000020db73b2bf000000e0ac8dc03f000000e05f14b03f000000204934b6bf000000a00f7cbabf00000060b1a8a2bf000000807e33d23f00000040e593c43f000000c0b170a8bf00000060399aa2bf00000000bdc6a83f000000a062edb33f00000060093dcdbf0000000087d28e3f000000605aadbb3f0000006062a6c33f000000805e48b13f000000a02b30a03f000000a05282b5bf000000a0f52196bf00000000ce926abf000000c05d90c9bf000000a058dda53f00000040e87eaa3f000000c0bbb3c0bf00000060e6bbbbbf000000c00ae587bf00000060fa92cc3f000000e02d98b93f00000020fe5cb5bf000000c0154abfbf000000606544cc3f0000000093fec1bf000000203112abbf0000004022ffb13f000000401841b7bf000000607032a5bf000000805a8dcbbf00000020c791c03f000000000a05d63f000000c06532b43f000000a08338c4bf000000e018d589bf000000e09ccacdbf000000407d687c3f00000000c606a1bf00000000ce5393bf000000803a85b9bf000000406db0a73f00000080cf66c1bf0000006063bba43f000000c0cb7cc03f000000402a0fa4bf00000000dbe995bf000000008abbc83f000000801c0493bf000000c072907f3f000000a00b7da03f00000020f748a6bf00000080dc4160bf000000e0c11fa8bf000000809935adbf000000e0a017a9bf000000c05bbfb93f00000020df27c1bf00000020ece070bf00000020c899b03f000000e04d2dc5bf0000004049c0c03f000000c0d413b23f00000040d78ea3bf000000008ba95d3f000000a09ad8aa3f000000c075a5c0bf000000004d45afbf000000404b1dc73f000000200aeec6bf00000060b7a9c73f000000801888c73f00000060fea0893f000000809bc4b93f00000020b285703f00000040b03fbc3f00000040ce83b8bf000000c0961fbbbf000000a0569ba1bf000000401834b2bf00000080abd4a13f000000200c81773f00000040c93093bf00000020c859a83f94749462612e",
+    "voice_embedding": null,
+    "created_at": "2025-04-16T14:53:44.590897",
+    "last_updated": "2025-04-16T14:53:44.590897"
+  }
+]

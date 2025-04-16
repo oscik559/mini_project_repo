@@ -54,6 +54,7 @@ from mini_project.database.connection import get_connection
 
 # Suppress warnings if desired
 warnings.filterwarnings("ignore", category=FutureWarning)
+logger = logging.getLogger("VoiceAutSystem")
 
 
 # Context manager for handling an audio recording session.
@@ -90,7 +91,7 @@ class VoiceAuth:
         """Ensure that the directories for voice data and temporary audio exist."""
         os.makedirs(self.voice_data_path, exist_ok=True)
         os.makedirs(self.temp_audio_path, exist_ok=True)
-        logging.info("🟢 Directories ensured for voice data and temporary audio.")
+        logger.info("🟢 Directories ensured for voice data and temporary audio.")
 
     def _record_audio(
         self, filename: str, prompt: str, duration: int = 5, sampling_rate: int = 16000
@@ -104,7 +105,7 @@ class VoiceAuth:
             duration (int): Duration of the recording in seconds.
             sampling_rate (int): Sampling rate for the audio recording.
         """
-        logging.info(prompt)
+        logger.info(prompt)
         try:
             with audio_session():
                 audio = sd.rec(
@@ -115,10 +116,10 @@ class VoiceAuth:
                 )
                 sd.wait()
             write(filename, sampling_rate, audio)
-            logging.info(f"Audio recorded and saved to {filename}")
+            logger.info(f"Audio recorded and saved to {filename}")
         except Exception as e:
-            msg = f"Error during audio recording: {e}"
-            logging.error(msg)
+            msg = f"🔴 Error during audio recording: {e}"
+            logger.error(msg)
             raise Exception(msg)
 
     def _transcribe_audio(self, filename: str) -> str:
@@ -139,19 +140,19 @@ class VoiceAuth:
             with AudioFile(filename) as source:
                 audio = recognizer.record(source)
                 text = recognizer.recognize_google(audio)
-                logging.info(f"Transcription: {text}")
+                logger.info(f"Transcription: {text}")
                 return text
         except UnknownValueError:
-            msg = "Audio transcription failed: speech was unintelligible."
-            logging.error(msg)
+            msg = "🔴 Audio transcription failed: speech was unintelligible."
+            logger.error(msg)
             raise Exception(msg)
         except RequestError as e:
-            msg = f"Audio transcription failed: API error: {e}"
-            logging.error(msg)
+            msg = f"🔴 Audio transcription failed: API error: {e}"
+            logger.error(msg)
             raise Exception(msg)
         except Exception as e:
-            msg = f"An unexpected error occurred during transcription: {e}"
-            logging.error(msg)
+            msg = f"🔴 An unexpected error occurred during transcription: {e}"
+            logger.error(msg)
             raise Exception(msg)
 
     def _capture_voice_embedding(self, audio_path: str) -> List[float]:
@@ -167,11 +168,11 @@ class VoiceAuth:
         try:
             wav = preprocess_wav(audio_path)
             embedding = self.encoder.embed_utterance(wav)
-            logging.info(f"Voice embedding captured, shape: {embedding.shape}")
+            logger.info(f"Voice embedding captured, shape: {embedding.shape}")
             return embedding.tolist()
         except Exception as e:
-            msg = f"Error capturing voice embedding: {e}"
-            logging.error(msg)
+            msg = f"🔴 Error capturing voice embedding: {e}"
+            logger.error(msg)
             raise Exception(msg)
 
     @staticmethod
@@ -220,13 +221,13 @@ class VoiceAuth:
             with open(voice_file, "wb") as file:
                 pickle.dump(voice_embedding, file)
 
-            logging.info(f"Voice embedding saved for LIU ID: {liu_id}")
+            logger.info(f"Voice embedding saved for LIU ID: {liu_id}")
         except psycopg2.Error as e:
             self.conn.rollback()
-            logging.error(f"Error saving voice embedding to database: {e}")
+            logger.error(f"🔴 Error saving voice embedding to database: {e}")
             raise
         except Exception as e:
-            logging.error(f"Error saving voice embedding to file: {e}")
+            logger.error(f"🔴 Error saving voice embedding to file: {e}")
             raise
 
     def register_user(self) -> None:
@@ -240,7 +241,7 @@ class VoiceAuth:
         - Captures the voice embedding.
         - Saves the embedding in the database and as a file.
         """
-        logging.info("🟡 Starting voice-driven user registration...")
+        logger.info("🟡 Starting voice-driven user registration...")
         try:
             first_name = input("Enter your first name: ").strip()
             if not first_name:
@@ -295,11 +296,11 @@ class VoiceAuth:
 
             # Save the voice embedding, passing first_name and last_name.
             self._save_voice_embedding(liu_id, embedding, first_name, last_name)
-            logging.info(
+            logger.info(
                 f"Registration complete for {first_name} {last_name} (LIU ID: {liu_id})."
             )
         except Exception as e:
-            logging.exception("Registration failed.")
+            logger.exception("Registration failed.")
             print(f"Registration failed: {e}")
 
     def _normalize_text(self, text: str) -> str:
@@ -336,7 +337,7 @@ class VoiceAuth:
 
             # (Optional) Transcribe the audio and log the transcription.
             transcription = self._transcribe_audio(voice_statement_audio)
-            logging.info("Voice transcription: %s", transcription)
+            logger.info("Voice transcription: %s", transcription)
 
             # Capture the voice embedding.
             embedding = self._capture_voice_embedding(voice_statement_audio)
@@ -345,9 +346,9 @@ class VoiceAuth:
 
             # Save the voice embedding: update the database and save the pickle file.
             self._save_voice_embedding(liu_id, embedding, first_name, last_name)
-            logging.info("Voice embedding recorded and saved for LIU ID: %s", liu_id)
+            logger.info("Voice embedding recorded and saved for LIU ID: %s", liu_id)
         except Exception as e:
-            logging.error("Voice registration for user failed: %s", e)
+            logger.error("🔴 Voice registration for user failed: %s", e)
             raise
 
     def verify_user_by_voice(self, liu_id: str, audio_path: str) -> bool:
@@ -367,7 +368,7 @@ class VoiceAuth:
             stored_path = os.path.join(self.voice_data_path, f"{liu_id}_voice.pkl")
             if not os.path.exists(stored_path):
                 raise FileNotFoundError(
-                    f"No stored voice data found for LIU ID: {liu_id}"
+                    f"🔴 No stored voice data found for LIU ID: {liu_id}"
                 )
 
             with open(stored_path, "rb") as f:
@@ -378,10 +379,10 @@ class VoiceAuth:
 
             # Compare using cosine similarity
             similarity = cosine_similarity([new_embedding], [stored_embedding])[0][0]
-            logging.info(f"Voice similarity score: {similarity:.4f}")
+            logger.info(f"Voice similarity score: {similarity:.4f}")
             return similarity >= VOICE_MATCH_THRESHOLD
         except Exception as e:
-            logging.error(f"Voice verification failed: {e}")
+            logger.error(f"🔴 Voice verification failed: {e}")
             return False
 
     def close(self):
@@ -407,7 +408,7 @@ class VoiceAuth:
             else:
                 print(f"❌ Verification failed. The voice does not match our records.")
         except Exception as e:
-            logging.exception("Login failed.")
+            logger.exception("Login failed.")
             print(f"Login failed: {e}")
 
 

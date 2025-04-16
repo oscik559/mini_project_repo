@@ -1,16 +1,18 @@
 # database/db_handler_postgreSQL.py
-
+import binascii
 import argparse
 import logging
 import os
 import subprocess
 import sys
+import pickle
+import psycopg2
 from datetime import datetime
-
+import json
 from dotenv import load_dotenv
 from psycopg2 import Error as Psycopg2Error
 
-from config.app_config import DB_BACKUP_PATH, setup_logging
+from config.app_config import PROFILE_BACKUP_PATH, DB_BACKUP_PATH, setup_logging
 from mini_project.database import populate_db, schema_sql
 from mini_project.database.connection import get_connection
 
@@ -22,6 +24,12 @@ load_dotenv()
 setup_logging(level=logging.INFO)
 logger = logging.getLogger("dbHandler")
 
+def json_serializer(obj):
+    if isinstance(obj, datetime):
+        return obj.isoformat()
+    if isinstance(obj, memoryview):
+        return obj.tobytes().hex()  # Hex string for JSON-safe backup
+    raise TypeError(f"Type {type(obj)} not serializable")
 
 class DatabaseHandler:
     """
@@ -36,6 +44,70 @@ class DatabaseHandler:
         except Psycopg2Error as e:
             logger.error(f"Error connecting to PostgreSQL database: {e}")
             raise
+
+
+
+    def backup_user_profiles(self, backup_dir=None):
+        """Backs up all user profiles from the 'users' table into a JSON file."""
+        backup_dir = PROFILE_BACKUP_PATH
+        backup_dir.mkdir(parents=True, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = backup_dir / f"user_profile_backup_{timestamp}.json"
+
+        self.cursor.execute("SELECT * FROM users")
+        rows = self.cursor.fetchall()
+        colnames = [desc[0] for desc in self.cursor.description]
+
+        users = [dict(zip(colnames, row)) for row in rows]
+
+        with open(backup_path, "w", encoding="utf-8") as f:
+            json.dump(users, f, indent=2, default=json_serializer)
+
+        logger.info(f"✅ Backed up {len(users)} users to: {backup_path}")
+        logger.info(f"✅ Backed up {len(users)} users to: {backup_path}")
+
+    def restore_user_profiles(self, backup_dir=None, latest_only=True):
+        """Restores user profiles from the most recent backup."""
+        backup_dir = PROFILE_BACKUP_PATH
+        if not backup_dir.exists():
+            logger.warning("⚠️ No backup folder found.")
+            return
+
+        backup_files = sorted(
+            backup_dir.glob("user_profile_backup_*.json"), reverse=True
+        )
+        if not backup_files:
+            logger.warning("⚠️ No backup files found.")
+            return
+
+        backup_path = backup_files[0] if latest_only else backup_files[-1]
+        with open(backup_path, "r", encoding="utf-8") as f:
+            users = json.load(f)
+
+        for user in users:
+            # 🔁 Decode binary fields
+            if "face_encoding" in user and isinstance(user["face_encoding"], str):
+                user["face_encoding"] = psycopg2.Binary(
+                    binascii.unhexlify(user["face_encoding"])
+                )
+
+            if "voice_embedding" in user and isinstance(user["voice_embedding"], str):
+                user["voice_embedding"] = psycopg2.Binary(
+                    binascii.unhexlify(user["voice_embedding"])
+                )
+
+            # ❌ Drop user_id so PostgreSQL can auto-generate it
+            user.pop("user_id", None)
+
+            placeholders = ", ".join(["%s"] * len(user))
+            columns = ", ".join(user.keys())
+            values = list(user.values())
+            sql = f"INSERT INTO users ({columns}) VALUES ({placeholders}) ON CONFLICT (liu_id) DO NOTHING"
+
+            self.cursor.execute(sql, values)
+            logger.info(f"✅ Inserted/Restored user: {user['liu_id']}")
+        self.conn.commit()
 
     def backup_database(self, backup_dir=DB_BACKUP_PATH):
 
@@ -155,7 +227,7 @@ class DatabaseHandler:
             populator = populate_db.DatabasePopulator(self.cursor)
 
             populator.populate_usd_data()
-            populator.populate_users()
+            # populator.populate_users()
             populator.populate_sequence_library()
             populator.populate_operation_library()
             populator.populate_task_templates()
@@ -222,11 +294,13 @@ def main_cli():
 
         if args.reset:
             print("🧠 Resetting the database (backup, drop, create, populate)...")
+            db.backup_user_profiles()  # 🔐 Backup BEFORE dropping
             db.backup_database()
             db.drop_all_tables()
             db.create_tables()
             db.create_indexes()
             db.populate_database()
+            db.restore_user_profiles()  # ♻️ Restore users after everything else
             db.print_status()
             print("✅  ALL GOOD!.")
         else:
