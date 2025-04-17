@@ -20,7 +20,7 @@ def get_connection():
 
     if db_url:
         # logger.info(f"🟡 Using DB: %s", db_url)
-        logger.info(f"🟡 Using DB: {db_url}")
+        logger.info(f"🟢 Using DB: {db_url}")
     else:
         logger.error("❌ DATABASE_URL not found in .env")
         raise EnvironmentError("DATABASE_URL not found in .env")

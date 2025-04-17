@@ -116,7 +116,7 @@ class VoiceAuth:
                 )
                 sd.wait()
             write(filename, sampling_rate, audio)
-            logger.info(f"Audio recorded and saved to {filename}")
+            logger.info(f"✅ Audio recorded and saved to {filename}")
         except Exception as e:
             msg = f"🔴 Error during audio recording: {e}"
             logger.error(msg)
@@ -140,7 +140,7 @@ class VoiceAuth:
             with AudioFile(filename) as source:
                 audio = recognizer.record(source)
                 text = recognizer.recognize_google(audio)
-                logger.info(f"Transcription: {text}")
+                logger.info(f"🟢 Transcription: {text}")
                 return text
         except UnknownValueError:
             msg = "🔴 Audio transcription failed: speech was unintelligible."
@@ -168,7 +168,7 @@ class VoiceAuth:
         try:
             wav = preprocess_wav(audio_path)
             embedding = self.encoder.embed_utterance(wav)
-            logger.info(f"Voice embedding captured, shape: {embedding.shape}")
+            logger.info(f"✅ Voice embedding captured, shape: {embedding.shape}")
             return embedding.tolist()
         except Exception as e:
             msg = f"🔴 Error capturing voice embedding: {e}"
@@ -221,7 +221,7 @@ class VoiceAuth:
             with open(voice_file, "wb") as file:
                 pickle.dump(voice_embedding, file)
 
-            logger.info(f"Voice embedding saved for LIU ID: {liu_id}")
+            logger.info(f"✅ Voice embedding saved for LIU ID: {liu_id}")
         except psycopg2.Error as e:
             self.conn.rollback()
             logger.error(f"🔴 Error saving voice embedding to database: {e}")
@@ -243,15 +243,15 @@ class VoiceAuth:
         """
         logger.info("🟡 Starting voice-driven user registration...")
         try:
-            first_name = input("Enter your first name: ").strip()
+            first_name = input("🟡 Enter your first name: ").strip()
             if not first_name:
                 raise Exception("First name cannot be empty.")
 
-            last_name = input("Enter your last name: ").strip()
+            last_name = input("🟡 Enter your last name: ").strip()
             if not last_name:
                 raise Exception("Last name cannot be empty.")
 
-            liu_id = input("Enter your LIU ID (e.g. abcxy123): ").strip()
+            liu_id = input("🟡 Enter your LIU ID (e.g. abcxy123): ").strip()
             if not self._validate_liu_id(liu_id):
                 raise Exception("Invalid LIU ID format.")
 
@@ -265,14 +265,14 @@ class VoiceAuth:
             for attempt in range(1, max_attempts + 1):
                 self._record_audio(
                     statement_audio,
-                    f"Please read the following sentence clearly: '{TRANSCRIPTION_SENTENCE}'",
+                    f"🟡 Please read the following sentence clearly: '{TRANSCRIPTION_SENTENCE}'",
                     duration=12,
                 )
 
                 # Transcribe the audio.
                 transcription = self._transcribe_audio(statement_audio)
                 if not transcription:
-                    print("Audio Transcription failed. Trying again...")
+                    logger.info("🔴 Audio Transcription failed. Trying again...")
                     continue
 
                 # Compare transcription
@@ -281,12 +281,12 @@ class VoiceAuth:
                 ):
                     break
                 else:
-                    print(
-                        f"Your transcription didn't match the expected sentence. Attempt {attempt}/{max_attempts}"
+                    logger.info(
+                        f"🔴 Your transcription didn't match the expected sentence. Attempt {attempt}/{max_attempts}"
                     )
             else:
                 raise Exception(
-                    "Maximum attempts reached. Registration failed due to mismatched transcription."
+                    "🔴 Maximum attempts reached. Registration failed due to mismatched transcription."
                 )
 
             # Capture the voice embedding.
@@ -297,11 +297,11 @@ class VoiceAuth:
             # Save the voice embedding, passing first_name and last_name.
             self._save_voice_embedding(liu_id, embedding, first_name, last_name)
             logger.info(
-                f"Registration complete for {first_name} {last_name} (LIU ID: {liu_id})."
+                f"✅ Registration complete for {first_name} {last_name} (LIU ID: {liu_id})."
             )
         except Exception as e:
-            logger.exception("Registration failed.")
-            print(f"Registration failed: {e}")
+            logger.exception("🔴 Registration failed.")
+            logger.info(f"🔴 Registration failed: {e}")
 
     def _normalize_text(self, text: str) -> str:
         """Lowercase, remove punctuation, and normalize whitespace."""
@@ -337,7 +337,7 @@ class VoiceAuth:
 
             # (Optional) Transcribe the audio and log the transcription.
             transcription = self._transcribe_audio(voice_statement_audio)
-            logger.info("Voice transcription: %s", transcription)
+            logger.info("🟢 Voice transcription: %s", transcription)
 
             # Capture the voice embedding.
             embedding = self._capture_voice_embedding(voice_statement_audio)
@@ -346,7 +346,7 @@ class VoiceAuth:
 
             # Save the voice embedding: update the database and save the pickle file.
             self._save_voice_embedding(liu_id, embedding, first_name, last_name)
-            logger.info("Voice embedding recorded and saved for LIU ID: %s", liu_id)
+            logger.info("✅ Voice embedding recorded and saved for LIU ID: %s", liu_id)
         except Exception as e:
             logger.error("🔴 Voice registration for user failed: %s", e)
             raise
@@ -379,7 +379,7 @@ class VoiceAuth:
 
             # Compare using cosine similarity
             similarity = cosine_similarity([new_embedding], [stored_embedding])[0][0]
-            logger.info(f"Voice similarity score: {similarity:.4f}")
+            logger.info(f"🟢 Voice similarity score: {similarity:.4f}")
             return similarity >= VOICE_MATCH_THRESHOLD
         except Exception as e:
             logger.error(f"🔴 Voice verification failed: {e}")
@@ -399,17 +399,19 @@ class VoiceAuth:
             login_audio = os.path.join(self.temp_audio_path, f"{liu_id}_login.wav")
             self._record_audio(
                 login_audio,
-                f"Please read your verification sentence: {TRANSCRIPTION_SENTENCE}",
+                f"📣 Please read your verification sentence: {TRANSCRIPTION_SENTENCE}",
                 duration=10,
             )
 
             if self.verify_user_by_voice(liu_id, login_audio):
-                print(f"✅ Verification successful for {liu_id}. Welcome back!")
+                logger.info(f"✅ Verification successful for {liu_id}. Welcome back!")
             else:
-                print(f"❌ Verification failed. The voice does not match our records.")
+                logger.info(
+                    f"❌ Verification failed. The voice does not match our records."
+                )
         except Exception as e:
-            logger.exception("Login failed.")
-            print(f"Login failed: {e}")
+            logger.exception("🔴 Login failed.")
+            logger.error(f"🔴 Login failed: {e}")
 
 
 if __name__ == "__main__":

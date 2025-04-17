@@ -214,6 +214,10 @@ class DatabasePopulator:
         self.cursor.executemany(insert_query, operation_library)
 
     def populate_users(self):
+        self.cursor.execute("SELECT COUNT(*) FROM users")
+        count = self.cursor.fetchone()[0]
+        if count > 0:
+            return
         users = [
             (
                 "Oscar",
@@ -254,7 +258,7 @@ class DatabasePopulator:
         ]
         insert_query = """
             INSERT INTO users (first_name, last_name, liu_id, email, preferences, profile_image_path, interaction_memory)
-            VALUES (%s, %s, %s, %s, %s, %s, %s);
+            VALUES (%s, %s, %s, %s, %s,%s, %s);
         """
         self.cursor.executemany(insert_query, users)
 

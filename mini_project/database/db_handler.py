@@ -24,12 +24,14 @@ load_dotenv()
 setup_logging(level=logging.INFO)
 logger = logging.getLogger("dbHandler")
 
+
 def json_serializer(obj):
     if isinstance(obj, datetime):
         return obj.isoformat()
     if isinstance(obj, memoryview):
         return obj.tobytes().hex()  # Hex string for JSON-safe backup
     raise TypeError(f"Type {type(obj)} not serializable")
+
 
 class DatabaseHandler:
     """
@@ -44,8 +46,6 @@ class DatabaseHandler:
         except Psycopg2Error as e:
             logger.error(f"Error connecting to PostgreSQL database: {e}")
             raise
-
-
 
     def backup_user_profiles(self, backup_dir=None):
         """Backs up all user profiles from the 'users' table into a JSON file."""
@@ -227,7 +227,7 @@ class DatabaseHandler:
             populator = populate_db.DatabasePopulator(self.cursor)
 
             populator.populate_usd_data()
-            # populator.populate_users()
+            populator.populate_users()
             populator.populate_sequence_library()
             populator.populate_operation_library()
             populator.populate_task_templates()
@@ -294,13 +294,13 @@ def main_cli():
 
         if args.reset:
             print("🧠 Resetting the database (backup, drop, create, populate)...")
-            db.backup_user_profiles()  # 🔐 Backup BEFORE dropping
+            # db.backup_user_profiles()  # 🔐 Backup BEFORE dropping
             db.backup_database()
             db.drop_all_tables()
             db.create_tables()
             db.create_indexes()
             db.populate_database()
-            db.restore_user_profiles()  # ♻️ Restore users after everything else
+            # db.restore_user_profiles()  # ♻️ Restore users after everything else
             db.print_status()
             print("✅  ALL GOOD!.")
         else:

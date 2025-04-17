@@ -22,7 +22,7 @@ from mini_project.modalities.prompt_utils import PromptBuilder
 debug_mode = os.getenv("DEBUG", "0") in ["1", "true", "True"]
 log_level = os.getenv("LOG_LEVEL", "DEBUG" if debug_mode else "INFO").upper()
 setup_logging(level=getattr(logging, log_level))
-logger = logging.getLogger("CommandProcessor")
+logger = logging.getLogger("CommandProcess")
 
 # models: "llama3.2:1b", "deepseek-r1:1.5b", "mistral:latest", "deepseek-r1:32b"
 OLLAMA_MODEL = "mistral:latest"
@@ -44,7 +44,7 @@ class CommandProcessor:
         """Fetch available sequence names from sequence_library in database"""
         self.cursor.execute("SELECT sequence_name FROM sequence_library")
         available_sequences = [row[0] for row in self.cursor.fetchall()]
-        logger.info(f"Available sequences: {available_sequences}")
+        logger.info(f"🟢 Available sequences: {available_sequences}")
         return available_sequences
 
     def fetch_column(self, table: str, column: str) -> list:
@@ -61,7 +61,7 @@ class CommandProcessor:
     def get_available_objects(self) -> List[str]:
         self.cursor.execute("SELECT object_name FROM camera_vision")
         available_objects = [row[0] for row in self.cursor.fetchall()]
-        logger.info(f"Available objects: {available_objects}")
+        logger.info(f"🟢 Available objects: {available_objects}")
         return available_objects
 
     def get_unprocessed_unified_command(self) -> Dict:
@@ -280,7 +280,7 @@ class CommandProcessor:
             return False, []
 
     def populate_operation_parameters(self):
-        logger.info("Populating operation-specific parameters...")
+        logger.info("🟢 Populating operation-specific parameters...")
 
         # Step 1: Get all unique sequence types planned
         self.cursor.execute("SELECT DISTINCT sequence_name FROM operation_sequence")
@@ -461,7 +461,7 @@ class CommandProcessor:
         """
         Process the latest unprocessed unified command
         """
-        logger.info("Checking for new unified_commands...")
+        logger.info("🟢 Checking for new unified_commands...")
         unified_command = self.get_unprocessed_unified_command()
 
         if unified_command:
@@ -475,14 +475,14 @@ class CommandProcessor:
                     f"Failed to process unified_command {unified_command['id']}"
                 )
         else:
-            logger.info("No unprocessed unified_commands found")
+            logger.info("🟡 No unprocessed unified_commands found")
 
     def close(self):
         """Close the persistent SQLite connection."""
         if self.conn:
             self.conn.close()
             self.conn = None
-            logger.info("Database connection closed.")
+            logger.info("🟢 Database connection closed.")
 
 
 if __name__ == "__main__":

@@ -51,7 +51,9 @@ class SessionManager:
                     logger.info(f"🟢 Initiating voice registration...")
                     if not self.authenticated_user.get("voice_embedding"):
                         try:
-                            logger.info(f"🟢 No voice embedding found. Starting voice registration...")
+                            logger.info(
+                                f"🟢 No voice embedding found. Starting voice registration..."
+                            )
                             self.voice_auth.register_voice_for_user(
                                 first_name=self.authenticated_user["first_name"],
                                 last_name=self.authenticated_user["last_name"],
@@ -61,7 +63,9 @@ class SessionManager:
                         except Exception as e:
                             logger.error(f"❌ Voice registration failed: {str(e)}")
                     else:
-                        logger.info("🟡 Voice embedding already exists. Skipping voice registration.")
+                        logger.info(
+                            "🟡 Voice embedding already exists. Skipping voice registration."
+                        )
 
                     logger.info("✅ Voice registration completed successfully.")
                 except Exception as e:
