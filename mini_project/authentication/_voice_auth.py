@@ -144,15 +144,15 @@ class VoiceAuth:
                 return text
         except UnknownValueError:
             msg = "🔴 Audio transcription failed: speech was unintelligible."
-            logger.error(msg)
+            logger.info(msg)
             raise Exception(msg)
         except RequestError as e:
             msg = f"🔴 Audio transcription failed: API error: {e}"
-            logger.error(msg)
+            logger.info(msg)
             raise Exception(msg)
         except Exception as e:
             msg = f"🔴 An unexpected error occurred during transcription: {e}"
-            logger.error(msg)
+            logger.info(msg)
             raise Exception(msg)
 
     def _capture_voice_embedding(self, audio_path: str) -> List[float]:
