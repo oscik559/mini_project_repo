@@ -29,14 +29,13 @@ from langchain_ollama import ChatOllama
 
 from config.app_config import BASE_DIR, setup_logging
 from mini_project.database.connection import get_connection
-from mini_project.workflow.session_manager import SessionManager
-
 from mini_project.modalities.FOR_SHAPES.command_processor import CommandProcessor
+from mini_project.modalities.FOR_SHAPES.prompt_utils import PromptBuilder
 from mini_project.modalities.FOR_SHAPES.voice_processor import (
     SpeechSynthesizer,
     VoiceProcessor,
 )
-from mini_project.modalities.FOR_SHAPES.prompt_utils import PromptBuilder
+from mini_project.workflow.session_manager import SessionManager
 
 # ========== Wake Word Setup ==========
 ACCESS_KEY = "E0O2AD01eT6cJ83n1yYf5bekfdIOEGUky9q6APkwdx9enDaMLZQtLw=="
@@ -541,7 +540,7 @@ if __name__ == "__main__":
     user = session.authenticate_user()
 
     if not user:
-        tts.speak("Authentication failed. Please try again.")
+        tts.speak("Authentication was skipped or failed. Goodbye.")
         exit()
 
     liu_id = user["liu_id"]

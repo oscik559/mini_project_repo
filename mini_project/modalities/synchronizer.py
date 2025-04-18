@@ -11,9 +11,8 @@ from datetime import datetime
 from functools import lru_cache
 from typing import Dict, List, Optional
 
-from config.app_config import (
+from config.app_config import (  # DB_PATH,
     BATCH_SIZE,
-    # DB_PATH,
     LLM_MAX_RETRIES,
     LLM_MODEL,
     UNIFY_PROMPT_TEMPLATE,

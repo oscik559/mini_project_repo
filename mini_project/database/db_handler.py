@@ -1,18 +1,20 @@
 # database/db_handler_postgreSQL.py
-import binascii
+
 import argparse
+import binascii
+import json
 import logging
 import os
+import pickle
 import subprocess
 import sys
-import pickle
-import psycopg2
 from datetime import datetime
-import json
+
+import psycopg2
 from dotenv import load_dotenv
 from psycopg2 import Error as Psycopg2Error
 
-from config.app_config import PROFILE_BACKUP_PATH, DB_BACKUP_PATH, setup_logging
+from config.app_config import DB_BACKUP_PATH, PROFILE_BACKUP_PATH, setup_logging
 from mini_project.database import populate_db, schema_sql
 from mini_project.database.connection import get_connection
 
@@ -22,7 +24,7 @@ load_dotenv()
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
-logger = logging.getLogger("dbHandler")
+logger = logging.getLogger("PgDBaseHandler")
 
 
 def json_serializer(obj):
@@ -49,6 +51,22 @@ class DatabaseHandler:
 
     def backup_user_profiles(self, backup_dir=None):
         """Backs up all user profiles from the 'users' table into a JSON file."""
+
+        # ✅ Check if 'users' table exists
+        self.cursor.execute(
+            """
+            SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_name = 'users'
+            );
+        """
+        )
+        exists = self.cursor.fetchone()[0]
+        if not exists:
+            logger.info(f"🔴 'users' table does not exist. Skipping profile backup.")
+            return
+
+        # Proceed with backup if table exists
         backup_dir = PROFILE_BACKUP_PATH
         backup_dir.mkdir(parents=True, exist_ok=True)
 
@@ -65,26 +83,26 @@ class DatabaseHandler:
             json.dump(users, f, indent=2, default=json_serializer)
 
         logger.info(f"✅ Backed up {len(users)} users to: {backup_path}")
-        logger.info(f"✅ Backed up {len(users)} users to: {backup_path}")
 
     def restore_user_profiles(self, backup_dir=None, latest_only=True):
         """Restores user profiles from the most recent backup."""
         backup_dir = PROFILE_BACKUP_PATH
         if not backup_dir.exists():
-            logger.warning("⚠️ No backup folder found.")
+            logger.info(f"⚠️ No backup folder found.")
             return
 
         backup_files = sorted(
             backup_dir.glob("user_profile_backup_*.json"), reverse=True
         )
         if not backup_files:
-            logger.warning("⚠️ No backup files found.")
+            logger.info(f"⚠️ No backup files found.")
             return
 
         backup_path = backup_files[0] if latest_only else backup_files[-1]
         with open(backup_path, "r", encoding="utf-8") as f:
             users = json.load(f)
 
+        restored_users = []
         for user in users:
             # 🔁 Decode binary fields
             if "face_encoding" in user and isinstance(user["face_encoding"], str):
@@ -103,11 +121,26 @@ class DatabaseHandler:
             placeholders = ", ".join(["%s"] * len(user))
             columns = ", ".join(user.keys())
             values = list(user.values())
-            sql = f"INSERT INTO users ({columns}) VALUES ({placeholders}) ON CONFLICT (liu_id) DO NOTHING"
-
+            # sql = f"INSERT INTO users ({columns}) VALUES ({placeholders}) ON CONFLICT (liu_id) DO NOTHING"
+            sql = f"""
+            INSERT INTO users ({columns}) VALUES ({placeholders})
+            ON CONFLICT (liu_id) DO UPDATE SET
+                face_encoding = EXCLUDED.face_encoding,
+                voice_embedding = EXCLUDED.voice_embedding,
+                preferences = EXCLUDED.preferences,
+                profile_image_path = EXCLUDED.profile_image_path,
+                interaction_memory = EXCLUDED.interaction_memory,
+                last_updated = CURRENT_TIMESTAMP
+            """
             self.cursor.execute(sql, values)
-            logger.info(f"✅ Inserted/Restored user: {user['liu_id']}")
+            restored_users.append(
+                user["liu_id"]
+            )  # ✅ Collect ID instead of logging every one
         self.conn.commit()
+        # ✅ One neat log line:
+        logger.info(
+            f"✅ Restored {len(restored_users)} user profile(s): {', '.join(restored_users)}"
+        )
 
     def backup_database(self, backup_dir=DB_BACKUP_PATH):
 
@@ -293,16 +326,18 @@ def main_cli():
         db = DatabaseHandler()
 
         if args.reset:
-            print("🧠 Resetting the database (backup, drop, create, populate)...")
+            logger.info(
+                f"🧠 Resetting the database (backup, drop, create, populate)..."
+            )
             # db.backup_user_profiles()  # 🔐 Backup BEFORE dropping
             db.backup_database()
             db.drop_all_tables()
             db.create_tables()
             db.create_indexes()
             db.populate_database()
-            # db.restore_user_profiles()  # ♻️ Restore users after everything else
+            db.restore_user_profiles()  # ♻️ Restore users after everything else
             db.print_status()
-            print("✅  ALL GOOD!.")
+            print("✅  Yay! All Good.")
         else:
             if args.backup:
                 print("Backing up database...")

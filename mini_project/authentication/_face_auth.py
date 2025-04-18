@@ -365,13 +365,13 @@ class FaceAuthSystem:
             return
 
         frame, encoding = frame_encoding
-        logger.info("Face captured for registration.")
+        logger.info("🟢 Face captured for registration.")
 
         # Gather registration details once.
-        first_name = input("Enter your first name: ").strip()
-        last_name = input("Enter your last name: ").strip()
-        liu_id = input("Enter your LIU ID (e.g. abcxy123): ").strip()
-        email = input("Enter your Email: ").strip()
+        first_name = input("🚫 Enter your first name: ").strip()
+        last_name = input("🚫 Enter your last name: ").strip()
+        liu_id = input("🚫 Enter your LIU ID (e.g. abcxy123): ").strip()
+        email = input("🚫 Enter your Email: ").strip()
 
         if not first_name or not last_name:
             logger.error("🔴 First name and last name cannot be empty.")
@@ -392,11 +392,11 @@ class FaceAuthSystem:
 
                 if existing:
                     logger.info(
-                        "User already exists. Prompting for update confirmation..."
+                        "🟢 User already exists. Prompting for update confirmation..."
                     )
-                    confirm = input("Update face encoding? (y/n): ").strip().lower()
+                    confirm = input("🚫 Update face encoding? (y/n): ").strip().lower()
                     if confirm != "y":
-                        logger.info("Registration aborted by user.")
+                        logger.info("🔴 Registration aborted by user.")
                         return
                     else:
                         logger.info("✅ User confirmed update of face encoding.")
@@ -489,7 +489,7 @@ class FaceAuthSystem:
         Inline Comment: The system uses multiple frames to improve reliability.
         """
 
-        logger.info("🟢 Starting face identification...")
+        logger.info("🟢 Starting face identification. Please look at the camera..")
         recognized_users = {}  # key: liu_id, value: count across frames
         unknown_found = False
 
@@ -534,24 +534,24 @@ class FaceAuthSystem:
         # Prompt if any unknown face was found.
         if unknown_found:
             logger.info(
-                "Note: If a face is unknown, the system will re-capture it during registration."
+                "🤝 A detected face is unknown, the system will re-capture it during registration."
             )
             response = (
-                input(
-                    "Some faces were not recognized. Would you like to register a user? (y/n): "
-                )
-                .strip()
-                .lower()
+                input("🚫 Would you like to register a user? (y/n): ").strip().lower()
             )
             if response == "y":
                 self.register_user()
+
                 # ✅ Re-identify after registration and return the user
                 user = self.identify_user()
                 if user:
                     logger.info(
-                        f"✅ Authenticated after registration. Welcome {user['first_name']} {user['last_name']} (liu_id: {user['liu_id']})"
+                        f"✅ User Authenticated after registration. Welcome {user['first_name']} {user['last_name']}, (liu_id: {user['liu_id']})"
                     )
                     return user
+            else:
+                logger.info("❌ Registration declined. Authentication aborted.")
+                return None
         return None
 
     def run(self) -> None:
@@ -571,7 +571,7 @@ class FaceAuthSystem:
                 )
                 if choice == "q":
                     self.close()
-                    logger.info("Exiting...")
+                    logger.info("🟢 Exiting...")
                     break
         except KeyboardInterrupt:
             self.close()

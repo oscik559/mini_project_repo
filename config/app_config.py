@@ -35,7 +35,7 @@ FACE_CAPTURE_PATH = BASE_DIR / "assets" / "face_capture"
 IDENTIFICATION_FRAMES = (
     2  # Constant to control how many frames are used for identification averaging.
 )
-TIMEDELAY = 1
+TIMEDELAY = 0.5  # Time delay between frames for face detection
 
 # Face recognition parameters
 FACE_MATCH_THRESHOLD = 0.6  # Threshold for face matching

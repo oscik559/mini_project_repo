@@ -1,0 +1,58 @@
+[
+  {
+    "user_id": 2,
+    "first_name": "Rahul",
+    "last_name": "Chiramel",
+    "liu_id": "rahch515",
+    "email": "rahch515@student.liu.se",
+    "preferences": "{\"likes\": [\"Aeroplanes\", \"Automation\"]}",
+    "profile_image_path": "/images/rahul.jpg",
+    "interaction_memory": "{\"last_task\": \"Screw object\", \"successful_tasks\": 10}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-18T11:11:16.338247",
+    "last_updated": "2025-04-18T11:11:16.338247"
+  },
+  {
+    "user_id": 3,
+    "first_name": "Sanjay",
+    "last_name": "Nambiar",
+    "liu_id": "sanna58",
+    "email": "sanjay.nambiar@liu.se",
+    "preferences": "{\"likes\": [\"Programming\", \"Machine Learning\"]}",
+    "profile_image_path": "/images/sanjay.jpg",
+    "interaction_memory": "{\"last_task\": \"Slide object\", \"successful_tasks\": 7}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-18T11:11:16.338247",
+    "last_updated": "2025-04-18T11:11:16.338247"
+  },
+  {
+    "user_id": 4,
+    "first_name": "Mehdi",
+    "last_name": "Tarkian",
+    "liu_id": "mehta77",
+    "email": "mehdi.tarkian@liu.se",
+    "preferences": "{\"likes\": [\"Running\", \"Cats\"]}",
+    "profile_image_path": "/images/mehdi.jpg",
+    "interaction_memory": "{\"last_task\": \"Drop object\", \"successful_tasks\": 2}",
+    "face_encoding": null,
+    "voice_embedding": null,
+    "created_at": "2025-04-18T11:11:16.338247",
+    "last_updated": "2025-04-18T11:11:16.338247"
+  },
+  {
+    "user_id": 1,
+    "first_name": "Oscar",
+    "last_name": "Ikechukwu",
+    "liu_id": "oscik559",
+    "email": "oscik559@student.liu.se",
+    "preferences": "{\"likes\": [\"AI\", \"Robotics\"]}",
+    "profile_image_path": "/images/oscar.jpg",
+    "interaction_memory": "{\"last_task\": \"Pick object\", \"successful_tasks\": 5}",
+    "face_encoding": "8004958e040000000000005d948c156e756d70792e636f72652e6d756c74696172726179948c0c5f7265636f6e7374727563749493948c056e756d7079948c076e6461727261799493944b0085944301629487945294284b014b80859468048c0564747970659493948c02663894898887945294284b038c013c944e4e4e4affffffff4affffffff4b00749462894200040000000000e00aa3c8bf000000c0ea07be3f000000a005a3c63f000000a0fe889cbf00000060ace59f3f000000a0682ab3bf00000060c81fb43f00000080a70a9fbf000000c069f1c33f000000601a1eb3bf00000080f082cf3f00000000d1ab7ebf00000080d710c4bf000000a03dcbbfbf0000000069e4ae3f000000e00df9c23f00000080b8eac5bf000000a0ed7fb8bf00000040b33cbdbf0000000064dcc4bf00000080f479933f00000000d73db83f0000002086a1a2bf000000a00c27b53f00000000ba239abf000000e0b3a2cdbf000000406167babf000000a0fcc2c1bf000000608dd4c03f000000e0f477b8bf00000000bd9c983f00000080797e86bf00000080d85fc1bf000000006e4686bf000000601d45b3bf000000803f457cbf00000060f111b13f000000c0f497b7bf00000020d46fc33f000000008392a73f00000080d423bcbf00000080c711b6bf000000e06339a8bf000000004cbbd03f000000c0e16ac63f000000a0ad02b1bf0000006085e595bf000000603c39a43f000000803b10b03f000000a0b790cabf00000040aaa795bf000000004921b93f00000060b4c3c13f000000001792a93f000000e027bb803f000000c09c52bdbf00000000d700adbf00000000a89c493f00000060e18cc6bf0000006044b9a03f000000607d17a83f000000409805c6bf000000e01f91c1bf00000040820eaabf00000080e0a7c63f000000a07776bb3f000000e0f224b9bf00000040af42c9bf000000801bf1cb3f000000c02714c4bf000000c066fa9abf00000040f09fbe3f000000403c06b6bf000000002fbea2bf00000060c1bbc9bf000000809a13c03f000000609c75d43f000000c06786b73f000000802774c7bf000000a0854b84bf000000a02210d0bf000000605bdda63f000000e05ecaa6bf000000602a6b8e3f000000a0ce1ab8bf000000206ca9a63f00000020eb27bfbf00000000e99f89bf000000c0179fb93f0000004033a274bf000000a0ee4b91bf0000000060dbcd3f00000000e587763f000000a07a3693bf000000c08932963f000000a0a48aa6bf00000080034c823f000000009c80a9bf000000c06402a6bf000000c0e9f299bf000000008704b73f000000c07b0fc0bf00000080e45e7d3f000000601c99b03f0000002078f5c7bf000000c03b3bc33f000000a01b3b9b3f000000402d6a75bf0000000020669f3f00000080e720ae3f0000004061c5c1bf000000a06587a8bf00000020fe7bca3f000000e0a10ac7bf000000001876bd3f000000a0f2b1c53f00000060bda88d3f00000040912ebe3f000000a0aa1ca23f000000e0a8d5c63f000000e02bb8babf000000608e32b3bf000000a0fe63b1bf00000020c59da9bf00000060f059b13f00000040aae790bf00000000362398bf000000a02e2da33f94749462612e",
+    "voice_embedding": null,
+    "created_at": "2025-04-18T11:11:16.338247",
+    "last_updated": "2025-04-18T11:11:16.338247"
+  }
+]
