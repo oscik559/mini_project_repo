@@ -28,51 +28,61 @@ class SessionManager:
         Following successful face registration, trigger voice registration.
         """
         logger.info("🟡 Attempting face authentication...")
-
         user = self.face_auth.identify_user()
-        if user:
-            self.authenticated_user = user
-            logger.info(
-                f"✅ Authenticated Face. Welcome {user['first_name']} {user['last_name']} (liu_id: {user['liu_id']})"
-            )
-        else:
+
+        # if user:
+        #     self.authenticated_user = user
+        #     logger.info(
+        #         f"✅ Successful face authentication. Welcome {user['first_name']} {user['last_name']} (liu_id: {user['liu_id']})"
+        #     )
+        if not user:
             logger.warning(
                 "🔴 Face not recognized. Initiating manual face registration..."
             )
-            self.face_auth.register_user()
+            # Attempt to register the user
+            registered = self.face_auth.register_user()
+            if not registered:
+                logger.warning("🚫 User declined registration. Session halted.")
+                return None
 
-            # Retry identification after registration
+            self.face_auth._refresh_index()
             user = self.face_auth.identify_user()
-            if user:
-                self.authenticated_user = user
+            if not user:
+                logger.error("❌ User authentication failed after registration.")
+                return None
 
-                # Trigger voice registration (this method should exist in VoiceAuth)
+        self.authenticated_user = user  # ✅ Set it in both branches
+        logger.info(
+            f"✅ Successful face authentication. Welcome {user['first_name']} {user['last_name']} (liu_id: {user['liu_id']})"
+        )
+        # ✅ ALWAYS run voice registration check here
+        logger.info(f"🟡 Initiating voice check...")
+        embedding = self.authenticated_user.get("voice_embedding")
+        logger.info(f"🟡 Checking for existing voice embedding...")
+
+        if not embedding or len(embedding) == 0:
+            logger.info(f"🟢 No voice embedding found for user...")
+            confirm = (
+                input("🎤 Would you like to register your voice now? (y/n): ")
+                .strip()
+                .lower()
+            )
+            if confirm == "y":
                 try:
-                    logger.info(f"🟢 Initiating voice registration...")
-                    if not self.authenticated_user.get("voice_embedding"):
-                        try:
-                            logger.info(
-                                f"🟢 No voice embedding found. Starting voice registration..."
-                            )
-                            self.voice_auth.register_voice_for_user(
-                                first_name=self.authenticated_user["first_name"],
-                                last_name=self.authenticated_user["last_name"],
-                                liu_id=self.authenticated_user["liu_id"],
-                            )
-                            logger.info("✅ Voice registration completed successfully.")
-                        except Exception as e:
-                            logger.error(f"❌ Voice registration failed: {str(e)}")
-                    else:
-                        logger.info(
-                            "🟡 Voice embedding already exists. Skipping voice registration."
-                        )
-
+                    self.voice_auth.register_voice_for_user(
+                        first_name=self.authenticated_user["first_name"],
+                        last_name=self.authenticated_user["last_name"],
+                        liu_id=self.authenticated_user["liu_id"],
+                    )
                     logger.info("✅ Voice registration completed successfully.")
                 except Exception as e:
                     logger.error(f"❌ Voice registration failed: {str(e)}")
             else:
-                logger.error("❌ User authentication failed after registration.")
-                return None
+                logger.info("🟡 Voice registration skipped by user request.")
+        else:
+            logger.info(
+                "✅ Voice embedding already exists. Skipping voice registration."
+            )
         return self.authenticated_user
 
     def create_session(self):

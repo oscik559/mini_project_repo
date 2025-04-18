@@ -346,7 +346,7 @@ class VoiceAuth:
 
             # Save the voice embedding: update the database and save the pickle file.
             self._save_voice_embedding(liu_id, embedding, first_name, last_name)
-            logger.info("✅ Voice embedding recorded and saved for LIU ID: %s", liu_id)
+            logger.info("✅ Voice authentication register for: %s", liu_id)
         except Exception as e:
             logger.error("🔴 Voice registration for user failed: %s", e)
             raise

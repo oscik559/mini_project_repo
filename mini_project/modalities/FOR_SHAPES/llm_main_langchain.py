@@ -1,3 +1,48 @@
+# modalities/llm_main_langchain.py
+
+""" This script implements a voice-controlled robotic assistant using LangChain,
+Ollama, and other libraries for natural language processing, voice synthesis,
+and wake word detection. The assistant can classify user commands into
+scene-related queries or task-oriented instructions, interact with a database
+to fetch or store information, and provide responses using a conversational
+LLM model.
+Modules and Features:
+- **Wake Word Detection**: Uses Porcupine to detect predefined wake words and
+    trigger the assistant's active listening mode.
+- **Voice Interaction**: Captures user voice input, processes it, and provides
+    responses using text-to-speech synthesis.
+- **Command Classification**: Classifies user input into "scene" or "task"
+    commands using both rule-based and LLM-based approaches.
+- **Scene Query**: Fetches and formats object data from a database to answer
+    scene-related questions.
+- **Task Processing**: Handles task-related commands by storing them in a
+    database and invoking a command processor for execution.
+- **Persistent Chat Memory**: Saves and loads chat history to maintain
+    conversational context across sessions.
+- **Greeting Generation**: Generates personalized greetings using the LLM
+    model and fallback mechanisms.
+- **Weather Information**: Fetches current weather data for a specified
+    location.
+Key Components:
+- `VoiceProcessor`: Handles voice input capture and processing.
+- `SpeechSynthesizer`: Converts text responses into speech.
+- `SessionManager`: Manages user authentication and session data.
+- `CommandProcessor`: Processes task-related commands and interacts with the
+    database.
+- `PromptBuilder`: Constructs prompts for the LLM model.
+Entry Point:
+- The script starts by setting up logging, initializing components, and
+    authenticating the user. It then enters a loop to listen for wake words,
+    process user commands, and provide responses.
+Dependencies:
+- Requires external libraries such as LangChain, Porcupine, Pyttsx3, and
+    requests, as well as custom modules for database interaction and prompt
+    building.
+Usage:
+- Run the script as a standalone application. The assistant listens for wake
+    words and responds to user commands in real-time.
+"""
+
 import json
 import logging
 import os
@@ -9,6 +54,8 @@ import threading
 import time
 import uuid
 import warnings
+import random
+
 from datetime import datetime
 from pathlib import Path
 from typing import Literal
@@ -66,14 +113,11 @@ porcupine = pvporcupine.create(
     keyword_paths=[WAKEWORD],
 )
 wake_word_triggered = threading.Event()
-
-import random
-
 # =====================================
 
-
-# CHAT_MEMORY_PATH = Path("chat_memory.json")
-# CHAT_MEMORY_PATH = BASE_DIR / "assets" / "chat_memory" / "chat_memory.json"
+CHAT_MEMORY_FOLDER = BASE_DIR / "assets" / "chat_memory"
+CHAT_MEMORY_FOLDER.mkdir(parents=True, exist_ok=True)
+# =====================================
 
 warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 
@@ -120,34 +164,6 @@ CONFIRM_WORDS = {
 }
 CANCEL_WORDS = {"no", "cancel", "not now", "stop", "never mind", "don't"}
 # ==========================ADD MORE
-
-# SCENE_PROMPT_TEMPLATE = """
-# You are an intelligent robotic assistant, with the camera as your eye. Based on the objects in the scene, listed in a camera_vision database table, respond concisely and clearly to the user question. One line answers are acceptable.
-# if there are any, the objects here are sitting on a table. Do not assume objects unless they are listed.
-# ---
-# Each object has the following fields:
-# # - object_name: the name of the object in the scene.
-# # - object_color: the color of the object in the scene
-# # - pos_x, pos_y, pos_z: the 3D position of the object in the scene relative to table (0,0). You can use the object position to imagine the relative distances of the objects from each other
-# # - rot_x, rot_y, rot_z: the orientation of the object in the scene
-
-# ---
-# if the object is a slide, it will have a usd_name of slide.usd, and the holder object will have a usd_name of holder.usd
-# any objects with object_name that does not start with \"slide...\" are not slides
-# ---
-
-# Avoid technical terms like rot_x or pos_y. Instead, describe in natural language (e.g., "position x", "rotation y").
-# Assume the pos_x, pos_y, pos_z are coordinates of the objects on the table with respect to a 0,0,0 3D cordinate which is thereference ( the far right edge of the table top rectangle). the values are tenth of an mm unit.
-# ---
-# Previous conversation:
-# {chat_history}
-
-# User question: {question}
-# Objects in scene:
-# {data}
-# ---
-# Answer:
-# """
 
 
 # === LangChain Setup ===
@@ -540,7 +556,8 @@ if __name__ == "__main__":
     user = session.authenticate_user()
 
     if not user:
-        tts.speak("Authentication was skipped or failed. Goodbye.")
+        logger.info(f"🔴 Authentication failed.")
+        tts.speak("Authentication was aborted or failed. Goodbye..")
         exit()
 
     liu_id = user["liu_id"]
@@ -548,8 +565,9 @@ if __name__ == "__main__":
     last_name = user["last_name"]
 
     # Load personalized memory
+
     CHAT_MEMORY_PATH = (
-        BASE_DIR / "assets" / "chat_memory" / f"chat_memory_{liu_id}.json"
+        CHAT_MEMORY_FOLDER / f"chat_memory_{liu_id}.json"
     )
     load_chat_history()
 

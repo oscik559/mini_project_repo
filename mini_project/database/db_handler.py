@@ -1,5 +1,70 @@
 # database/db_handler_postgreSQL.py
-
+"""
+DatabaseHandler Class and CLI Tool for PostgreSQL Database Management
+This module provides a `DatabaseHandler` class to manage PostgreSQL database operations
+such as creating tables, backing up data, restoring data, and populating the database
+with sample data. It also includes a CLI tool for interacting with the database.
+Classes:
+--------
+- DatabaseHandler:
+Functions:
+----------
+- json_serializer(obj):
+    Serializes datetime and memoryview objects for JSON compatibility.
+- main_cli():
+    Command-line interface for managing the PostgreSQL database.
+DatabaseHandler Methods:
+------------------------
+- __init__():
+    Initializes the database connection and cursor.
+- backup_user_profiles(backup_dir=None):
+    Backs up all user profiles from the 'users' table into a JSON file.
+- restore_user_profiles(backup_dir=None, latest_only=True):
+    Restores user profiles from the most recent backup.
+- backup_database(backup_dir=DB_BACKUP_PATH):
+    Creates a backup of the entire database using `pg_dump`.
+- print_status():
+    Logs the status of all tables in the database, including row counts.
+- create_tables():
+    Creates all tables defined in the schema.
+- create_indexes():
+    Creates all indexes defined in the schema.
+- update_table_schemas():
+    Placeholder for schema validation and dynamic alteration (not implemented).
+- clear_tables():
+    Truncates all tables and resets their identities.
+- drop_all_tables():
+    Drops all tables in the database.
+- clear_camera_vision():
+    Deletes all rows from the `camera_vision` table.
+- populate_database():
+    Populates the database with sample data using the `populate_db` module.
+- close():
+    Closes the database connection and cursor.
+CLI Arguments:
+--------------
+- --clear:
+    Truncate all tables and reset identities.
+- --drop:
+    Drop all tables.
+- --create:
+    Create all tables.
+- --populate:
+    Populate tables with sample data.
+- --reset:
+    Drop, create, and populate all tables (default action if no arguments are provided).
+- --backup:
+    Backup the database before making changes.
+- --status:
+    Show table row counts and status.
+Usage:
+------
+Run the script with the desired CLI arguments to perform database operations.
+If no arguments are provided, the script defaults to the `--reset` operation.
+Example:
+--------
+$ python db_handler.py --reset
+"""
 import argparse
 import binascii
 import json
@@ -329,7 +394,7 @@ def main_cli():
             logger.info(
                 f"🧠 Resetting the database (backup, drop, create, populate)..."
             )
-            # db.backup_user_profiles()  # 🔐 Backup BEFORE dropping
+            db.backup_user_profiles()  # 🔐 Backup BEFORE dropping
             db.backup_database()
             db.drop_all_tables()
             db.create_tables()
@@ -337,7 +402,8 @@ def main_cli():
             db.populate_database()
             db.restore_user_profiles()  # ♻️ Restore users after everything else
             db.print_status()
-            print("✅  Yay! All Good.")
+            print("\n🎉 All Done! Database is healthy and ready.\n")
+
         else:
             if args.backup:
                 print("Backing up database...")
@@ -345,7 +411,6 @@ def main_cli():
             if args.status:
                 db.print_status()
                 return
-
             if args.drop:
                 print("Dropping all tables...")
                 db.drop_all_tables()

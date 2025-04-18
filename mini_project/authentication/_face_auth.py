@@ -139,7 +139,6 @@ class FaceAuthSystem:
     def __init__(self) -> None:
         self.conn = get_connection()
         self.cursor = self.conn.cursor()
-        # self.voice_auth = VoiceAuth()
         self.face_utils = FaceUtils()
         self.known_encodings: Dict[str, dict] = self._preload_encodings()
         self.faiss_index: Optional[faiss.IndexFlatL2] = self._build_faiss_index()
@@ -149,7 +148,7 @@ class FaceAuthSystem:
         encodings: Dict[str, dict] = {}
         try:
             self.cursor.execute(
-                "SELECT user_id, first_name, last_name, liu_id, face_encoding FROM users"
+                "SELECT user_id, first_name, last_name, liu_id, face_encoding, voice_embedding FROM users"
             )
             users = self.cursor.fetchall()
             for user in users:
@@ -160,6 +159,9 @@ class FaceAuthSystem:
                         "last_name": user[2],
                         "liu_id": user[3],
                         "encodings": pickle.loads(user[4].tobytes()),
+                        "voice_embedding": (
+                            pickle.loads(user[5].tobytes())[0] if user[5] else None
+                        ),
                     }
         except psycopg2.Error as e:
             logger.error("🔴 Database error during encoding preload: %s", e)
@@ -350,19 +352,34 @@ class FaceAuthSystem:
 
     def register_user(self) -> None:
         """
-        Handle new user registration (manual capture) and integrate voice registration.
-        If a user with the given LIU ID or email exists, prompt for update confirmation.
-
-        This method:
-         - Captures a face (manual capture).
-         - Prompts for registration details (first name, last name, liu_id, email).
-         - Saves the face encoding to the database.
-         - Then calls a helper to capture the user's voice and update the same record with the voice embedding.
+        Registers a new user or updates an existing user's face encoding in the database.
+        This method captures a user's face, collects their personal details, and stores
+        the information in the database. If the user already exists (based on LIU ID or email),
+        it prompts the user to confirm whether to update their face encoding.
+        Steps:
+        1. Captures the user's face encoding.
+        2. Collects user details: first name, last name, LIU ID, and email.
+        3. Validates the user input.
+        4. Checks if the user already exists in the database:
+           - If the user exists, prompts for confirmation to update the face encoding.
+           - If the user does not exist, creates a new user record.
+        5. Updates or inserts the user's face encoding and other details in the database.
+        6. Refreshes the face recognition index.
+        Returns:
+            None
+        Raises:
+            psycopg2.Error: If there is a database error during the registration process.
+        Logs:
+            - Logs success or failure messages for each step of the process.
+            - Logs errors if face capture fails or if required inputs are missing.
+        Notes:
+            - The maximum number of face encodings stored per user is enforced.
+            - The face image is saved to a predefined path for the user's profile.
         """
         frame_encoding = self._capture_face("manual")
         if not frame_encoding:
             logger.error("🔴 Face capture failed during registration.")
-            return
+            return False
 
         frame, encoding = frame_encoding
         logger.info("🟢 Face captured for registration.")
@@ -375,10 +392,10 @@ class FaceAuthSystem:
 
         if not first_name or not last_name:
             logger.error("🔴 First name and last name cannot be empty.")
-            return
+            return False
 
         if not self._validate_user_input(liu_id, email):
-            return
+            return False
 
         try:
             with self.conn:
@@ -397,7 +414,7 @@ class FaceAuthSystem:
                     confirm = input("🚫 Update face encoding? (y/n): ").strip().lower()
                     if confirm != "y":
                         logger.info("🔴 Registration aborted by user.")
-                        return
+                        return False
                     else:
                         logger.info("✅ User confirmed update of face encoding.")
                         user_id, existing_encoding_bytea = existing
@@ -428,12 +445,12 @@ class FaceAuthSystem:
                 else:
                     profile_image_path = str(FACE_CAPTURE_PATH / f"{liu_id}.jpg")
                     preferences = "{}"
-                    user_interaction_memory = "[]"
+                    interaction_memory = "[]"
                     face_blob = psycopg2.Binary(pickle.dumps([encoding]))
                     cursor.execute(
                         """INSERT INTO users
                            (first_name, last_name, liu_id, email, face_encoding,
-                           preferences, profile_image_path, user_interaction_memory)
+                           preferences, profile_image_path, interaction_memory)
                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
                         (
                             first_name,
@@ -443,36 +460,26 @@ class FaceAuthSystem:
                             face_blob,
                             preferences,
                             profile_image_path,
-                            user_interaction_memory,
+                            interaction_memory,
                         ),
                     )
                     cv2.imwrite(profile_image_path, frame)
                     user_row_id = cursor.lastrowid
-                    try:
-                        # Call the public method from the separate VoiceAuth module.
-                        self.voice_auth.register_voice_for_user(
-                            first_name, last_name, liu_id
-                        )
-                        logger.info(
-                            "Voice registration completed for user %s %s",
-                            first_name,
-                            last_name,
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "🔴 Voice registration failed after face registration: %s",
-                            e,
-                        )
                     logger.info(
-                        "User %s %s registered successfully", first_name, last_name
+                        "✅ User %s %s registered successfully with LIU ID: %s",
+                        first_name,
+                        last_name,
+                        liu_id,
                     )
             self._refresh_index()
         except psycopg2.Error as e:
             self.conn.rollback()
             logger.error("🔴 Registration failed: %s", e)
             raise
-
+        # On success:
         self._refresh_index()
+        logger.info("✅ User registered successfully.")
+        return True
 
     def identify_user(self) -> None:
         """
@@ -592,3 +599,23 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+# try:
+#                         # Call the public method from the separate VoiceAuth module.
+#                         self.voice_auth.register_voice_for_user(
+#                             first_name, last_name, liu_id
+#                         )
+#                         logger.info(
+#                             "Voice registration completed for user %s %s",
+#                             first_name,
+#                             last_name,
+#                         )
+#                     except Exception as e:
+#                         logger.error(
+#                             "🔴 Voice registration failed after face registration: %s",
+#                             e,
+#                         )
+#                     logger.info(
+#                         "User %s %s registered successfully", first_name, last_name
+#                     )
