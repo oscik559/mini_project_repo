@@ -204,12 +204,40 @@ class DatabasePopulator:
 
     def populate_operation_library(self):
         operation_library = [
-            ("slide_sorting", "pick, travel, drop"),
-            ("shape_stacking", "pick, travel, drop"),
+            (
+                "slide_sorting",  # operation_name	Internal task name
+                "pick, travel, drop",  # List of phases like pick/travel/drop
+                "Sort slides by shape and color into trays",  # Human-readable explanation
+                [
+                    "sort",
+                    "slide",
+                    "sorting",
+                    "arrange",
+                ],  # trigger_keywords	Voice-trigger words
+                "detect_slides_pgSQL.py",  # Path to run on vision system
+                True,  # is_triggerable, Whether LLM can set trigger = TRUE
+                False,  # trigger,  Defaults to FALSE (used as flag)
+                "idle",  # status, 'idle' initially
+                None,  # last_triggered_time, None until first run
+            ),
+            (
+                "shape_stacking",
+                "pick, travel, drop",
+                "Stack blocks of shapes based on their type and color",
+                ["stack", "shape", "pile"],
+                "detect_shapes_pgSQL.py",
+                True,
+                False,
+                "idle",
+                None,
+            ),
         ]
         insert_query = """
-            INSERT INTO operation_library (operation_name, task_order)
-            VALUES (%s, %s)
+            INSERT INTO operation_library (
+                operation_name, task_order, description, trigger_keywords,
+                script_path, is_triggerable, trigger, status, last_triggered
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
         """
         self.cursor.executemany(insert_query, operation_library)
 
@@ -376,22 +404,7 @@ class DatabasePopulator:
             (9, 3, "drop", "Slide_3"),
             (10, 6, "go_home", ""),
         ]
-        # for operation_id, sequence_name, object_name in operation_sequence:
-        #     self.cursor.execute(
-        #         "SELECT sequence_id FROM sequence_library WHERE sequence_name = %s",
-        #         (sequence_name,),
-        #     )
-        #     result = self.cursor.fetchone()
-        #     if result:
-        #         sequence_id = result[0]
-        #         self.cursor.execute(
-        #             """
-        #             INSERT INTO operation_sequence (
-        #                 operation_id, sequence_id, sequence_name, object_name
-        #             ) VALUES (%s, %s, %s, %s)
-        #             """,
-        #             (operation_id, sequence_id, sequence_name, object_name),
-        #         )
+
         insert_query = """
             INSERT INTO operation_sequence (
                 operation_id, sequence_id, sequence_name, object_name

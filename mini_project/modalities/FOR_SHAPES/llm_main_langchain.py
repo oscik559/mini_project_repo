@@ -1,6 +1,6 @@
 # modalities/llm_main_langchain.py
 
-""" This script implements a voice-controlled robotic assistant using LangChain,
+"""This script implements a voice-controlled robotic assistant using LangChain,
 Ollama, and other libraries for natural language processing, voice synthesis,
 and wake word detection. The assistant can classify user commands into
 scene-related queries or task-oriented instructions, interact with a database
@@ -126,6 +126,7 @@ warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 logging.getLogger("comtypes").setLevel(logging.WARNING)
 logging.getLogger("faster_whisper").setLevel(logging.WARNING)
 logger = logging.getLogger("VoiceAssistant")
+trigger_logger = logging.getLogger("LLMTrigger")
 
 # === Configuration ===
 OLLAMA_MODEL = "llama3.2:latest"
@@ -215,16 +216,23 @@ chain = (
 
 
 # === Command Classification ===
-def classify_command(command_text: str, llm) -> Literal["scene", "task"]:
+def classify_command(command_text: str, llm) -> Literal["scene", "task", "trigger"]:
     lowered = command_text.lower().strip()
 
-    # # === Try LLM-based classification ===
+    # === Keyword-based override for trigger commands ===
+    TRIGGER_WORDS = {"detect", "scan", "refresh", "capture", "update camera", "see what's there"}
+    if any(trigger in lowered for trigger in TRIGGER_WORDS):
+        return "trigger"
+
+    #  === Try LLM-based classification ===
     try:
         classification_prompt = """
         Classify the following user command as either:
         - 'scene' if it is a question about the current camera scene (e.g., object positions, colors, etc.)
         - 'task' if it is a command to take action (e.g., sort, move, place, etc.)
-        Just return one word: either 'scene' or 'task'.
+        - 'trigger' if it is a request to capture a fresh view or run an object detection script
+
+        Return one word: 'scene', 'task', or 'trigger'.
 
         Command: {command}
         Answer:
@@ -234,10 +242,10 @@ def classify_command(command_text: str, llm) -> Literal["scene", "task"]:
         )
         result = classification_chain.invoke({"command": command_text})
         classification = result.get("text", "").strip().lower()
-        if classification in {"scene", "task"}:
+        if classification in {"scene", "task", "trigger"}:
             return classification
     except Exception as e:
-        print(f"[⚠️] LLM failed, using rule-based fallback: {e}")
+        logger.warning(f"[⚠️] LLM failed, using rule-based fallback: {e}")
 
     # === Rule-based fallback ===
     if any(lowered.startswith(q) for q in QUESTION_WORDS):
@@ -245,6 +253,9 @@ def classify_command(command_text: str, llm) -> Literal["scene", "task"]:
 
     if re.search(r"\b(is|are|how many|what|which|where|who)\b", lowered):
         return "scene"
+
+    if any(trigger in lowered for trigger in TRIGGER_WORDS):
+        return "trigger"
 
     if any(verb in lowered for verb in TASK_VERBS):
         return "task"
@@ -272,6 +283,71 @@ def load_chat_history():
             logger.info("🧠 Loaded past chat history.")
         except Exception as e:
             logger.warning(f"Could not load chat memory: {e}")
+
+from datetime import datetime
+
+def trigger_remote_vision_task(command_text: str) -> str:
+    """
+    Checks if the command matches any known operation and triggers its script
+    by updating the trigger flag in the operation_library table.
+    """
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    logger.info("🔍 Checking if command matches a remote vision task: '%s'", command_text)
+    try:
+        cursor.execute("""
+            SELECT operation_name, trigger_keywords, trigger, status
+            FROM operation_library
+            WHERE is_triggerable = TRUE
+        """)
+        rows = cursor.fetchall()
+
+        lowered = command_text.lower()
+        matched_operation = None
+        is_already_triggered = False
+
+        for operation_name, keywords, is_triggered, _ in rows:
+            if keywords and any(k in lowered for k in keywords):
+                matched_operation = operation_name
+                is_already_triggered = is_triggered
+                break
+
+        if not matched_operation:
+            logger.info("❌ No matching operation found.")
+            return "Sorry, I couldn't match any known remote task to your request."
+
+        if is_already_triggered:
+            logger.info("⚠️ Operation '%s' already triggered. No action taken.", matched_operation)
+            return f"The task '{matched_operation}' is already triggered."
+
+        # 🔁 Reset all other triggers first
+        cursor.execute("""
+            UPDATE operation_library
+            SET trigger = FALSE
+            WHERE trigger = TRUE
+        """)
+
+        # ✅ Now trigger only the matched one
+        cursor.execute("""
+            UPDATE operation_library
+            SET trigger = TRUE,
+                status = 'triggered',
+                last_triggered = %s
+            WHERE operation_name = %s
+        """, (datetime.now(), matched_operation))
+
+        conn.commit()
+        logger.info("✅ Remote task triggered exclusively: %s", matched_operation)
+        return f"✅ The task '{matched_operation}' has been triggered remotely."
+
+    except Exception as e:
+        logger.error("❌ Triggering vision task failed: %s", str(e), exc_info=True)
+        return "An error occurred while trying to trigger the remote task."
+
+    finally:
+        cursor.close()
+        conn.close()
 
 
 # === Scene Description ===
@@ -315,6 +391,29 @@ def query_scene(question: str) -> str:
 
 # === Task Processing ===
 def process_task(command_text: str) -> str:
+    """Processes a given command text by storing it in a database, clearing any
+    existing operation sequences, and invoking a command processor to handle
+    the task.
+    Args:
+        command_text (str): The command text to be processed.
+    Returns:
+        str: A message indicating whether the task was successfully planned
+        and added or if the task could not be understood.
+    Raises:
+        Exception: Logs an error and returns a failure message if any
+        exception occurs during the process.
+    Database Operations:
+        - Inserts the command into the `unified_instructions` table with
+          relevant metadata.
+        - Clears the `operation_sequence` table.
+    Notes:
+        - Assumes the existence of a `get_connection` function to establish
+          a database connection.
+        - Assumes a `CommandProcessor` class is available for processing
+          commands.
+        - Logs errors using the `logging` module.
+    """
+
     try:
         conn = get_connection()
         cursor = conn.cursor()
@@ -404,6 +503,15 @@ def listen_for_wake_word(vp, tts):
 
 # === Greeting ===
 def generate_llm_greeting():
+    """
+    Generates a dynamic greeting message using a language model (LLM).
+    The function constructs a greeting based on the current time of day, day of the week,
+    and month. It uses a predefined set of base greetings as inspiration and prompts the
+    LLM to generate a creative, short, and voice-friendly message. If the LLM invocation
+    fails, a fallback greeting is returned.
+    Returns:
+        str: A greeting message, either generated by the LLM or a fallback message.
+    """
     now = datetime.now()
     weekday = now.strftime("%A")
     month = now.strftime("%B")
@@ -464,8 +572,26 @@ def fallback_llm_greeting(seed_greeting: str) -> str:
 def voice_to_scene_response(
     vp: VoiceProcessor, tts: SpeechSynthesizer, conversational: bool = True
 ):
-    # logger.info(f"🟠 Speak your request (scene question or task)...")
-
+    """
+    Processes voice input to generate a response, either by querying a scene or planning a task.
+    This function captures voice input, classifies the command, and performs actions based on the
+    command type. It supports conversational interactions, handles memory reset requests, and
+    confirms task execution before proceeding.
+    Args:
+        vp (VoiceProcessor): The voice processor instance used to capture and process voice input.
+        tts (SpeechSynthesizer): The text-to-speech synthesizer instance used to provide audio feedback.
+        conversational (bool, optional): Indicates whether the voice capture should be conversational.
+                                          Defaults to True.
+    Behavior:
+        - Captures voice input and processes it.
+        - Handles specific commands like "exit", "reset memory", or "clear memory".
+        - Classifies the command type (e.g., "scene" or "task").
+        - Queries a scene or plans a task based on the command type.
+        - Confirms task execution with the user before proceeding.
+        - Provides audio feedback for all interactions.
+    Returns:
+        None
+    """
     result = vp.capture_voice(conversational=conversational)
     if result is None:
         logger.info(f"🟡 No speech detected. Try again.")
@@ -490,10 +616,17 @@ def voice_to_scene_response(
 
     logger.info(f"🤖 Thinking...")
 
-    if cmd_type == "scene":
+    if cmd_type == "trigger":
+        answer = trigger_remote_vision_task(request)
+        logger.info(f"🧠 Trigger Result: {answer}")
+        tts.speak(answer)
+        return
+
+    elif cmd_type == "scene":
         answer = query_scene(request)
         logger.info(f"🤖 (Scene Response): {answer}")
-    else:
+
+    else: # task
         # Confirm before executing
         tts.speak("Should I plan this task?")
         confirm_result = vp.capture_voice()
@@ -566,9 +699,7 @@ if __name__ == "__main__":
 
     # Load personalized memory
 
-    CHAT_MEMORY_PATH = (
-        CHAT_MEMORY_FOLDER / f"chat_memory_{liu_id}.json"
-    )
+    CHAT_MEMORY_PATH = CHAT_MEMORY_FOLDER / f"chat_memory_{liu_id}.json"
     load_chat_history()
 
     # Greet user

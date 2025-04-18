@@ -76,8 +76,21 @@ tables = OrderedDict(
             """
             CREATE TABLE IF NOT EXISTS operation_library (
                 id SERIAL PRIMARY KEY,
-                operation_name TEXT,
-                task_order TEXT
+
+                -- Core operation metadata
+                operation_name TEXT UNIQUE NOT NULL,       -- e.g., 'tray_holder_detection'
+                task_order TEXT,                           -- e.g., 'detect, pick, place'
+                description TEXT,                          -- Human-readable label
+
+                -- Script & trigger metadata
+                trigger_keywords TEXT[],                   -- Words that trigger this operation
+                script_path TEXT,                          -- e.g., 'camera_vision_pgSQL_rs.py'
+                is_triggerable BOOLEAN DEFAULT TRUE,       -- Can be triggered from LLM
+
+                -- Trigger state tracking
+                trigger BOOLEAN DEFAULT FALSE,             -- Used by LLM to trigger script
+                status TEXT DEFAULT 'idle',                -- idle | triggered | running | completed | failed
+                last_triggered TIMESTAMP                   -- When it was last set to TRUE
             );
     """,
         ),
