@@ -18,6 +18,7 @@ tables = OrderedDict(
                 interaction_memory TEXT,
                 face_encoding BYTEA,
                 voice_embedding BYTEA,
+                role TEXT CHECK(role IN ('robot','team', 'guest', 'admin')) DEFAULT 'guest',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );

@@ -131,7 +131,11 @@ trigger_logger = logging.getLogger("LLMTrigger")
 # === Configuration ===
 OLLAMA_MODEL = "llama3.2:latest"
 voice_speed = 180  # 165
-
+GENERAL_TRIGGERS = {
+    "weather", "who is", "linköping", "university", "say something", "remind", "recap", "explain", "lab",
+    "appreciate", "motivate", "how are we doing", "tell us about", "introduce",
+    "location", "where is", "project", "working on", "colleague", "summary"
+}
 TASK_VERBS = {
     "sort",
     "move",
@@ -164,6 +168,15 @@ CONFIRM_WORDS = {
     "please do",
 }
 CANCEL_WORDS = {"no", "cancel", "not now", "stop", "never mind", "don't"}
+TRIGGER_WORDS = {
+    "detect",
+    "scan",
+    "refresh",
+    "capture",
+    "update camera",
+    "see what's there",
+}
+
 # ==========================ADD MORE
 
 
@@ -216,33 +229,26 @@ chain = (
 
 
 # === Command Classification ===
-def classify_command(command_text: str, llm) -> Literal["scene", "task", "trigger"]:
+def classify_command(command_text: str, llm) -> Literal["general", "scene", "task", "trigger"]:
     lowered = command_text.lower().strip()
 
-    # === Keyword-based override for trigger commands ===
-    TRIGGER_WORDS = {"detect", "scan", "refresh", "capture", "update camera", "see what's there"}
+    # === Rule-based classification ===
+    # === Rule-based check for "trigger" ===
     if any(trigger in lowered for trigger in TRIGGER_WORDS):
         return "trigger"
 
+    # === Rule-based check for "general" ===
+    if any(word in command_text.lower() for word in GENERAL_TRIGGERS):
+        return "general"
+
     #  === Try LLM-based classification ===
     try:
-        classification_prompt = """
-        Classify the following user command as either:
-        - 'scene' if it is a question about the current camera scene (e.g., object positions, colors, etc.)
-        - 'task' if it is a command to take action (e.g., sort, move, place, etc.)
-        - 'trigger' if it is a request to capture a fresh view or run an object detection script
-
-        Return one word: 'scene', 'task', or 'trigger'.
-
-        Command: {command}
-        Answer:
-        """
         classification_chain = LLMChain(
-            llm=llm, prompt=PromptTemplate.from_template(classification_prompt)
+            llm=llm, prompt=PromptBuilder.classify_command_prompt()
         )
         result = classification_chain.invoke({"command": command_text})
         classification = result.get("text", "").strip().lower()
-        if classification in {"scene", "task", "trigger"}:
+        if classification in {"general", "scene", "task", "trigger"}:
             return classification
     except Exception as e:
         logger.warning(f"[⚠️] LLM failed, using rule-based fallback: {e}")
@@ -284,51 +290,191 @@ def load_chat_history():
         except Exception as e:
             logger.warning(f"Could not load chat memory: {e}")
 
-from datetime import datetime
+def get_user_roles():
+    conn = get_connection()
+    cursor = conn.cursor()
 
+    cursor.execute("""
+        SELECT first_name, role
+        FROM users
+    """)
+    result = cursor.fetchall()
+    conn.close()
+
+    return {name: role for name, role in result}
+
+
+def get_team_names():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT first_name FROM users WHERE role = 'team'")
+    names = [row[0] for row in cursor.fetchall()]
+    conn.close()
+
+    return names
+
+
+
+def handle_general_query(command_text: str, llm) -> str:
+    user = session.authenticated_user
+    first_name = user["first_name"]
+    liu_id = user["liu_id"]
+    role = user.get("role", "guest")
+
+    team_names = get_team_names()
+    env = get_environment_context()
+
+    chat_history = memory.load_memory_variables({})["chat_history"]
+
+    prompt = PromptBuilder.general_conversation_prompt(
+        first_name=first_name,
+        liu_id=liu_id,
+        role=role,
+        team_names=team_names,
+        weather=env["weather"],
+        part_of_day=env["part_of_day"],
+        full_time=env["datetime"],
+        chat_history=chat_history
+    )
+
+    chain = LLMChain(llm=llm, prompt=prompt)
+    result = chain.invoke({"command": command_text})
+    # return result["text"].strip()
+    cleaned = result["text"].strip().strip('"').strip("“”").strip("'")
+    return cleaned
+
+
+
+# working
+# def trigger_remote_vision_task(command_text: str) -> str:
+#     """
+#     Checks if the command matches any known operation and triggers its script
+#     by updating the trigger flag in the operation_library table.
+#     """
+#     conn = get_connection()
+#     cursor = conn.cursor()
+
+#     logger.info("🔍 Checking if command matches a remote vision task: '%s'", command_text)
+#     try:
+#         cursor.execute("""
+#             SELECT operation_name, trigger_keywords, trigger, status
+#             FROM operation_library
+#             WHERE is_triggerable = TRUE
+#         """)
+#         rows = cursor.fetchall()
+
+#         lowered = command_text.lower()
+#         matched_operation = None
+#         is_already_triggered = False
+
+#         for operation_name, keywords, is_triggered, _ in rows:
+#             if keywords and any(k in lowered for k in keywords):
+#                 matched_operation = operation_name
+#                 is_already_triggered = is_triggered
+#                 break
+
+#         if not matched_operation:
+#             logger.info("❌ No matching operation found.")
+#             return "Sorry, I couldn't match any known remote task to your request."
+
+#         if is_already_triggered:
+#             logger.info("⚠️ Operation '%s' already triggered. No action taken.", matched_operation)
+#             return f"The task '{matched_operation}' is already triggered."
+
+#         # 🔁 Reset all other triggers first
+#         cursor.execute("""
+#             UPDATE operation_library
+#             SET trigger = FALSE
+#             WHERE trigger = TRUE
+#         """)
+
+#         # ✅ Now trigger only the matched one
+#         cursor.execute("""
+#             UPDATE operation_library
+#             SET trigger = TRUE,
+#                 status = 'triggered',
+#                 last_triggered = %s
+#             WHERE operation_name = %s
+#         """, (datetime.now(), matched_operation))
+
+#         conn.commit()
+#         logger.info("✅ Remote task triggered exclusively: %s", matched_operation)
+#         return f"✅ The task '{matched_operation}' has been triggered remotely."
+
+#     except Exception as e:
+#         logger.error("❌ Triggering vision task failed: %s", str(e), exc_info=True)
+#         return "An error occurred while trying to trigger the remote task."
+
+#     finally:
+#         cursor.close()
+#         conn.close()
+
+# === Trigger Remote Vision Task ===
 def trigger_remote_vision_task(command_text: str) -> str:
     """
-    Checks if the command matches any known operation and triggers its script
-    by updating the trigger flag in the operation_library table.
+    Uses LLM-based reasoning to match the user's command to a known operation,
+    and triggers that operation by updating the DB. Falls back to trigger_keywords.
     """
     conn = get_connection()
     cursor = conn.cursor()
 
-    logger.info("🔍 Checking if command matches a remote vision task: '%s'", command_text)
+    logger.info("🔍 Using LLM to match command: '%s'", command_text)
+
     try:
         cursor.execute("""
-            SELECT operation_name, trigger_keywords, trigger, status
+            SELECT operation_name, description, trigger_keywords, trigger
             FROM operation_library
             WHERE is_triggerable = TRUE
         """)
         rows = cursor.fetchall()
 
-        lowered = command_text.lower()
-        matched_operation = None
-        is_already_triggered = False
+        if not rows:
+            return "No triggerable operations are available."
 
-        for operation_name, keywords, is_triggered, _ in rows:
-            if keywords and any(k in lowered for k in keywords):
-                matched_operation = operation_name
-                is_already_triggered = is_triggered
-                break
+        # === Step 1: Try LLM-based matching using descriptions ===
+        options_text = "\n".join(
+            f"{op_name}: {desc or '[no description]'}"
+            for op_name, desc, *_ in rows
+        )
+
+        llm_chain = LLMChain(llm=llm, prompt=PromptBuilder.match_operation_prompt())
+        result = llm_chain.invoke({"command": command_text, "options": options_text})
+        matched_operation = result["text"].strip()
+
+        # === Step 2: Check LLM result validity ===
+        row_map = {
+            op_name: {"trigger": trig, "keywords": kws}
+            for op_name, _, kws, trig in rows
+        }
+
+        if matched_operation not in row_map:
+            logger.warning("❌ LLM returned unknown operation: %s", matched_operation)
+            matched_operation = None  # fallback to keyword
+
+        # === Step 3: Fallback to keyword match if LLM fails ===
+        if not matched_operation:
+            lowered = command_text.lower()
+            for op_name, _, keywords, is_triggered in rows:
+                if keywords and any(k in lowered for k in keywords):
+                    matched_operation = op_name
+                    break
 
         if not matched_operation:
-            logger.info("❌ No matching operation found.")
-            return "Sorry, I couldn't match any known remote task to your request."
+            logger.info("❌ No matching operation found (LLM + keyword).")
+            return "Sorry, I couldn't match any known vision task to your request."
 
+        is_already_triggered = row_map[matched_operation]["trigger"]
         if is_already_triggered:
-            logger.info("⚠️ Operation '%s' already triggered. No action taken.", matched_operation)
+            logger.info("⚠️ Operation '%s' already triggered. Skipping.", matched_operation)
             return f"The task '{matched_operation}' is already triggered."
 
-        # 🔁 Reset all other triggers first
+        # === Step 4: Exclusively trigger this operation ===
         cursor.execute("""
             UPDATE operation_library
             SET trigger = FALSE
             WHERE trigger = TRUE
         """)
-
-        # ✅ Now trigger only the matched one
         cursor.execute("""
             UPDATE operation_library
             SET trigger = TRUE,
@@ -375,6 +521,17 @@ def format_camera_data(objects: list) -> str:
 
 # === Scene Query ===
 def query_scene(question: str) -> str:
+    """
+    Queries the current scene based on the provided question and returns a response.
+    This function fetches objects visible to the camera, formats the data, and uses
+    a chain to process the input and generate a response. If no objects are visible,
+    it returns a default message. In case of an error, it logs the error and returns
+    a failure message.
+    Args:
+        question (str): The question to ask about the current scene.
+    Returns:
+        str: The response to the question, or an error message if the query fails.
+    """
     try:
         objects = fetch_camera_objects()
         if not objects:
@@ -461,7 +618,6 @@ def process_task(command_text: str) -> str:
         return "[Task execution failed.]"
 
 
-# === Simple LLM Greeting ===
 def get_weather_description(latitude=58.41, longitude=15.62) -> str:
     try:
         url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current_weather=true"
@@ -476,6 +632,25 @@ def get_weather_description(latitude=58.41, longitude=15.62) -> str:
         print(f"Weather fetch failed: {e}")
         return "mysterious skies"
 
+def get_environment_context():
+    weather = get_weather_description()  # Already returns something like "Partly cloudy, 11°C"
+    now = datetime.now()
+    hour = now.hour
+
+    if 5 <= hour < 12:
+        part_of_day = "morning"
+    elif 12 <= hour < 17:
+        part_of_day = "afternoon"
+    elif 17 <= hour < 21:
+        part_of_day = "evening"
+    else:
+        part_of_day = "night"
+
+    return {
+        "weather": weather,
+        "part_of_day": part_of_day,
+        "datetime": now.strftime("%A, %B %d at %I:%M %p")  # e.g., "Tuesday, April 18 at 10:30 AM"
+    }
 
 # ========== Wake Word Listener ==========
 def listen_for_wake_word(vp, tts):
@@ -626,7 +801,11 @@ def voice_to_scene_response(
         answer = query_scene(request)
         logger.info(f"🤖 (Scene Response): {answer}")
 
-    else: # task
+    elif cmd_type == "general":
+        answer = handle_general_query(request, llm)
+        logger.info(f"🤖 (General Response): {answer}")
+
+    else:  # task
         # Confirm before executing
         tts.speak("Should I plan this task?")
         confirm_result = vp.capture_voice()

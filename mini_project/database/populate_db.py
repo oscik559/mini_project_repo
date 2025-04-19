@@ -203,6 +203,10 @@ class DatabasePopulator:
         self.cursor.executemany(insert_query, usd_data)
 
     def populate_operation_library(self):
+        self.cursor.execute("SELECT COUNT(*) FROM operation_library")
+        count = self.cursor.fetchone()[0]
+        if count > 0:
+            return
         operation_library = [
             (
                 "slide_sorting",  # operation_name	Internal task name
@@ -248,6 +252,16 @@ class DatabasePopulator:
             return
         users = [
             (
+                "Yumi",
+                "Robot",
+                "yumi100",
+                "yumi100@lab.liu.ai",
+                '{"likes": ["AI", "Robotics"]}',
+                "/images/yumi001.jpg",
+                '{"last_task": "Assistance", "successful_tasks": 100}',
+                "robot",
+            ),
+            (
                 "Oscar",
                 "Ikechukwu",
                 "oscik559",
@@ -255,6 +269,7 @@ class DatabasePopulator:
                 '{"likes": ["AI", "Robotics"]}',
                 "/images/oscik559.jpg",
                 '{"last_task": "Pick object", "successful_tasks": 5}',
+                "admin",
             ),
             (
                 "Rahul",
@@ -264,6 +279,7 @@ class DatabasePopulator:
                 '{"likes": ["Aeroplanes", "Automation"]}',
                 "/images/rahch515.jpg",
                 '{"last_task": "Screw object", "successful_tasks": 10}',
+                "admin",
             ),
             (
                 "Sanjay",
@@ -273,51 +289,7 @@ class DatabasePopulator:
                 '{"likes": ["Programming", "Machine Learning"]}',
                 "/images/sanna58.jpg",
                 '{"last_task": "Slide object", "successful_tasks": 7}',
-            ),
-            (
-                "Aref",
-                "Aghaee",
-                "areag806",
-                "areag806@student.liu.se",
-                '{"likes": ["CATIA", "Turbine Blades"]}',
-                "/images/areag806.jpg",
-                '{"last_task": "Pick object", "successful_tasks": 5}',
-            ),
-            (
-                "Thomson",
-                "Kalliyath",
-                "thoka981",
-                "thoka981@student.liu.se",
-                '{"likes": ["Omniverse", "Aeronautics"]}',
-                "/images/thoka981.jpg",
-                '{"last_task": "Pick object", "successful_tasks": 5}',
-            ),
-            (
-                "Hamideh",
-                "Pourrasoul",
-                "hampo845",
-                "hampo845@student.liu.se",
-                '{"likes": ["CATIA", "Turbine Blades"]}',
-                "/images/hampo845.jpg",
-                '{"last_task": "Pick object", "successful_tasks": 5}',
-            ),
-            (
-                "John",
-                "Ashish",
-                "johas759",
-                "johas759@student.liu.se",
-                '{"likes": ["python", "aircraft wings"]}',
-                "/images/johas759.jpg",
-                '{"last_task": "Pick object", "successful_tasks": 5}',
-            ),
-            (
-                "Danial",
-                "Nikpey",
-                "danni741",
-                "danni741@student.liu.se",
-                '{"likes": ["vb.net", "aircraft wings"]}',
-                "/images/danni741.jpg",
-                '{"last_task": "Pick object", "successful_tasks": 5}',
+                "admin",
             ),
             (
                 "Mehdi",
@@ -327,11 +299,72 @@ class DatabasePopulator:
                 '{"likes": ["Running", "Cats"]}',
                 "/images/mehta77.jpg",
                 '{"last_task": "Drop object", "successful_tasks": 2}',
+                "team",
+            ),
+            (
+                "Marie",
+                "Jonsson",
+                "marjo33",
+                "marie.s.jonsson@liu.se",
+                '{"likes": ["Robots", "Composites"]}',
+                "/images/marjo33.jpg",
+                '{"last_task": "Fix robot battery", "successful_tasks": 2}',
+                "team",
+            ),
+            (
+                "Aref",
+                "Aghaee",
+                "areag806",
+                "areag806@student.liu.se",
+                '{"likes": ["CATIA", "Turbine Blades"]}',
+                "/images/areag806.jpg",
+                '{"last_task": "Pick object", "successful_tasks": 5}',
+                "guest",
+            ),
+            (
+                "Thomson",
+                "Kalliyath",
+                "thoka981",
+                "thoka981@student.liu.se",
+                '{"likes": ["Omniverse", "Aeronautics"]}',
+                "/images/thoka981.jpg",
+                '{"last_task": "Pick object", "successful_tasks": 5}',
+                "guest",
+            ),
+            (
+                "Hamideh",
+                "Pourrasoul",
+                "hampo845",
+                "hampo845@student.liu.se",
+                '{"likes": ["CATIA", "Turbine Blades"]}',
+                "/images/hampo845.jpg",
+                '{"last_task": "Pick object", "successful_tasks": 5}',
+                "guest",
+            ),
+            (
+                "John",
+                "Ashish",
+                "johas759",
+                "johas759@student.liu.se",
+                '{"likes": ["python", "aircraft wings"]}',
+                "/images/johas759.jpg",
+                '{"last_task": "Pick object", "successful_tasks": 5}',
+                "guest",
+            ),
+            (
+                "Danial",
+                "Nikpey",
+                "danni741",
+                "danni741@student.liu.se",
+                '{"likes": ["vb.net", "aircraft wings"]}',
+                "/images/danni741.jpg",
+                '{"last_task": "Pick object", "successful_tasks": 5}',
+                "guest",
             ),
         ]
         insert_query = """
-            INSERT INTO users (first_name, last_name, liu_id, email, preferences, profile_image_path, interaction_memory)
-            VALUES (%s, %s, %s, %s, %s,%s, %s);
+            INSERT INTO users (first_name, last_name, liu_id, email, preferences, profile_image_path, interaction_memory, role)
+            VALUES (%s, %s, %s, %s, %s,%s,%s, %s);
         """
         self.cursor.executemany(insert_query, users)
 

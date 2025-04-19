@@ -95,6 +95,13 @@ VOICE_TTS_SETTINGS = {
 }
 
 
+
+# LLM Settings
+
+
+
+
+
 # === Gesture Recognition Settings ===
 MIN_DETECTION_CONFIDENCE = 0.7
 MIN_TRACKING_CONFIDENCE = 0.5

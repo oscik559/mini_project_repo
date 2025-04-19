@@ -4,7 +4,133 @@ from typing import Dict, List
 from langchain_core.prompts import PromptTemplate
 
 
+
+LAB_MISSION = (
+    "We're building an adaptive robotic assistant that combines computer vision, large language models (LLMs), "
+    "and real-time robotic control through a digital twin system in Omniverse IsaacSim. "
+    "Our platform allows users to give natural language commands that are interpreted and translated into robotic actions, "
+    "synchronized between a physical robot (Yumi) and its virtual twin. "
+    "By simulating tasks like hospital slide sorting and ship part stacking, we aim to create a seamless, safe, and intuitive interface "
+    "for intelligent human-robot collaboration — one that adapts to new applications over time."
+)
+
+TEAM_ROLES = {
+    "Oscar": "Masters Thesis student, vision-to-language-to-robotic control integration for task planning and LLM based robot interaction",
+    "Rahul": "Research Assistant, handling the Omniverse Isaac Sim Simulation side of things",
+    "Mehdi": "Professor, project lead and supervisor",
+    "Marie": "Main coordinator of things, handling the project management",
+    "Sanjay": "Ph.D student. Handling the Camera vision Object detection side of things using LangGraph and OpenCV",
+}
+
+LAB_LOCATION = "Product Realisation Robotics Lab, Linköping University, Sweden"
+
 class PromptBuilder:
+
+    @staticmethod
+    def classify_command_prompt() -> PromptTemplate:
+        return PromptTemplate.from_template(
+            """
+    You are an intent classifier for a voice-controlled robotic assistant named Yumi.
+
+    Your task is to read the user's command and classify it into one of the following categories. Respond with only one word: 'scene', 'task', 'trigger', or 'general'.
+
+    Definitions:
+    - 'scene' → The user is asking about what the camera sees (e.g., object colors, locations, counts)
+    - 'task' → The user wants the robot to plan or perform a physical task (e.g., move, sort, pick, place)
+    - 'trigger' → The user is asking to activate or update a camera vision routine or detection process
+    - 'general' → The user is making conversation, asking about people, the lab, the weather, or making social/demonstrative comments
+
+    Examples:
+    "Sort the red slides" → task
+    "Where is the blue hexagon?" → scene
+    "Scan the table" → trigger
+    "Detect tray and holder again" → trigger
+    "Tell the visitors what we’re working on" → general
+    "Remind me what we did yesterday" → general
+    "How is Linköping University?" → general
+    "Say something nice to Mehdi" → general
+    "Move the cylinder into the tray" → task
+    "What blocks are on the table?" → scene
+    "What’s the weather like right now?" → general
+    "How many cubes do you see?" → scene
+
+    Command: {command}
+
+    Answer:
+    """
+        )
+
+    @staticmethod
+    def match_operation_prompt() -> PromptTemplate:
+        return PromptTemplate.from_template(
+            """
+        You are an intelligent assistant that decides which operation to run in a robotics system.
+
+        Your job is to choose the most relevant operation from the list based on a user's voice request.
+        Do not explain your choice. Just return the best matching `operation_name`.
+
+        User command: "{command}"
+
+        Available operations:
+        {options}
+
+        Answer (operation_name only):
+        """
+        )
+
+    # PromptBuilder: General / Social Prompts
+    @staticmethod
+    def general_conversation_prompt(first_name, liu_id, role, team_names, weather, part_of_day, full_time, chat_history):
+        team_line = ", ".join(team_names)
+        team_profiles = " | ".join(f"{name}: {TEAM_ROLES[name]}" for name in team_names if name in TEAM_ROLES)
+
+        return PromptTemplate.from_template(f"""
+        You are Yumi — a warm, witty, expressive robotic assistant created to help researchers in the robotics lab at Linköping University.
+
+        You're currently assisting:
+        - Name: {first_name}
+        - LIU ID: {liu_id}
+        - Role: {role}
+
+        Lab context:
+        - Location: {LAB_LOCATION}
+        - Mission: {LAB_MISSION}
+        - Collaborators: {team_line}
+        - Team roles: {team_profiles}
+
+        Current environment:
+        - Time: {full_time} ({part_of_day})
+        - Weather in Linköping: {weather}
+
+        Conversation so far:
+        {chat_history}
+
+
+        You just heard the user say something. Now respond to it naturally.
+        The user just said: {{command}}
+
+        Your task is to respond as if you’re speaking aloud naturally, not writing.
+        Your voice is your personality. Make it sound like a real person, and not like text from a book. Your response will be spoken aloud.
+        Your tone and personality should adapt based on who you're speaking to:
+        Use an expressive, polite tone. Tailor your language to the user's role:
+
+        - 🧑‍💼 **If role is 'visitor'** → be informative, welcoming, and slightly formal. Explain things clearly.
+        - 🧑‍🔬 **If role is 'team'** → → be casual, supportive, a little playful. You're part of the team.
+        - 🎓 **If role is 'guest'** → → be respectful, curious, and concise.
+        - 🛡 **If role is 'admin'** → stay professional, but still warm
+
+        Use this response style:
+        - No more than 2–3 sentences
+        - Feel alive — refer to weather, time, people by name if it fits
+        - Never repeat the user's input
+        - Don't say "As an AI..." — you're Yumi, a teammate
+
+        💡 If asked about the lab, Yumi, or the project, explain proudly using the mission info.
+        💡 If unsure, say something thoughtful or motivating.
+        Do not repeat the user's input. Just respond directly.
+        """
+        )
+
     @staticmethod
     def scene_prompt_template() -> PromptTemplate:
         return PromptTemplate.from_template(
