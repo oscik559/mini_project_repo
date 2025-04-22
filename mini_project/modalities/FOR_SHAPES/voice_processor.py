@@ -1,4 +1,44 @@
-# modalities/voice_processor.py
+# modalities/FOR_SHAPES/voice_processor.py
+"""This module provides classes and functionality for voice processing, including
+speech synthesis, audio recording, transcription, and storage of voice instructions.
+Classes:
+    SpeechSynthesizer:
+        A singleton class for text-to-speech synthesis using either gTTS or pyttsx3.
+        Provides methods to play notification sounds and speak text.
+    AudioRecorder:
+        Handles audio recording with noise calibration and voice activity detection (VAD).
+        Records audio to a temporary file and detects speech presence.
+    Transcriber:
+        Uses the Whisper model to transcribe audio files into text.
+        Supports language detection and translation to English.
+    Storage:
+        Manages storage of transcribed voice instructions in a PostgreSQL database.
+        Handles retries and error handling for database operations.
+    VoiceProcessor:
+        Orchestrates the voice processing pipeline, including audio recording,
+        transcription, and storage. Provides a method to capture voice instructions.
+Constants:
+    MAX_TRANSCRIPTION_RETRIES:
+        Maximum number of retries for transcription in case of failure.
+    MIN_DURATION_SEC:
+        Minimum duration of a valid audio recording in seconds.
+    VOICE_PROCESSING_CONFIG:
+        Configuration dictionary for voice processing settings.
+    VOICE_TTS_SETTINGS:
+        Configuration dictionary for text-to-speech settings.
+    WHISPER_LANGUAGE_NAMES:
+        Mapping of language codes to language names.
+Usage:
+    The `VoiceProcessor` class can be used as the main entry point for capturing
+    and processing voice instructions. It integrates audio recording, transcription,
+    and storage functionalities.
+Example:
+    result = vp.capture_voice()
+    if result:
+        text, language = result
+        print(f"Transcribed Text: {text}, Language: {language}")
+
+"""
 
 import logging
 import os

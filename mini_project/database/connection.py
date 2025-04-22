@@ -1,12 +1,13 @@
 # database/connection.py
 
 
-import os
-import psycopg2
-from psycopg2 import sql
-from urllib.parse import urlparse
-from dotenv import load_dotenv
 import logging
+import os
+from urllib.parse import urlparse
+
+import psycopg2
+from dotenv import load_dotenv
+from psycopg2 import sql
 
 from config.app_config import setup_logging
 

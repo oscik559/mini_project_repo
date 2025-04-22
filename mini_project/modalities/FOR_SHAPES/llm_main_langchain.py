@@ -1,47 +1,52 @@
-# modalities/llm_main_langchain.py
-
-"""This script implements a voice-controlled robotic assistant using LangChain,
-Ollama, and other libraries for natural language processing, voice synthesis,
-and wake word detection. The assistant can classify user commands into
-scene-related queries or task-oriented instructions, interact with a database
-to fetch or store information, and provide responses using a conversational
-LLM model.
-Modules and Features:
-- **Wake Word Detection**: Uses Porcupine to detect predefined wake words and
-    trigger the assistant's active listening mode.
-- **Voice Interaction**: Captures user voice input, processes it, and provides
-    responses using text-to-speech synthesis.
-- **Command Classification**: Classifies user input into "scene" or "task"
-    commands using both rule-based and LLM-based approaches.
-- **Scene Query**: Fetches and formats object data from a database to answer
-    scene-related questions.
-- **Task Processing**: Handles task-related commands by storing them in a
-    database and invoking a command processor for execution.
-- **Persistent Chat Memory**: Saves and loads chat history to maintain
-    conversational context across sessions.
-- **Greeting Generation**: Generates personalized greetings using the LLM
-    model and fallback mechanisms.
-- **Weather Information**: Fetches current weather data for a specified
-    location.
+# modalities/FOR_SHAPES/llm_main_langchain.py
+"""This script implements a voice assistant system for a research lab environment. It integrates
+various functionalities such as wake word detection, voice command processing, scene querying,
+task execution, and conversational interactions using an LLM (Language Learning Model). The
+assistant is designed to interact with users through voice input and provide responses or
+execute tasks based on the commands received.
+Modules and Functionalities:
+- **Wake Word Detection**: Uses Porcupine to detect predefined wake words and trigger the assistant.
+- **Voice Command Processing**: Captures voice input, classifies commands, and performs actions
+    such as querying a scene, handling general queries, or executing tasks.
+- **LLM Integration**: Utilizes LangChain and ChatOllama for natural language understanding,
+    reasoning, and generating responses.
+- **Scene Querying**: Fetches and formats data from a camera vision database to answer questions
+    about the current scene.
+- **Task Execution**: Processes task-related commands, stores them in a database, and invokes
+    a command processor to handle the task.
+- **Persistent Chat Memory**: Maintains a conversation history for context-aware interactions
+    and saves it to disk for persistence across sessions.
+- **Environment Context**: Provides dynamic context such as weather, time of day, and user roles
+    to enhance interactions.
+- **Voice Interaction**: Handles conversational interactions, including confirmation for task
+    execution and memory reset requests.
+- **Greeting Generation**: Dynamically generates personalized greetings based on the time of day
+    and user information.
 Key Components:
-- `VoiceProcessor`: Handles voice input capture and processing.
+- `VoiceProcessor`: Captures and processes voice input.
 - `SpeechSynthesizer`: Converts text responses into speech.
 - `SessionManager`: Manages user authentication and session data.
-- `CommandProcessor`: Processes task-related commands and interacts with the
-    database.
-- `PromptBuilder`: Constructs prompts for the LLM model.
-Entry Point:
-- The script starts by setting up logging, initializing components, and
-    authenticating the user. It then enters a loop to listen for wake words,
-    process user commands, and provide responses.
-Dependencies:
-- Requires external libraries such as LangChain, Porcupine, Pyttsx3, and
-    requests, as well as custom modules for database interaction and prompt
-    building.
+- `CommandProcessor`: Handles task-related commands and processes them.
+- `PromptBuilder`: Constructs prompts for LLM-based reasoning and responses.
+- `ConversationBufferMemory`: Maintains chat history for context-aware interactions.
+Database Integration:
+- Fetches user roles, team names, and camera vision data from a database.
+- Stores unified instructions and operation sequences for task execution.
+- Updates operation triggers in the database for remote vision tasks.
+CLI Entry Point:
+- Authenticates the user and initializes the assistant.
+- Listens for wake words and processes voice commands in a loop.
+- Saves chat history and cleans up resources on exit.
 Usage:
-- Run the script as a standalone application. The assistant listens for wake
-    words and responds to user commands in real-time.
+- Run the script to start the voice assistant.
+- Interact with the assistant using voice commands after the wake word is detected.
+- Use commands like "reset memory" or "exit" for specific actions.
+Note:
+- Ensure the required dependencies and database configurations are set up before running the script.
+- The script is designed for a specific research lab environment and may require customization
+    for other use cases.
 """
+
 
 import json
 import logging
@@ -54,11 +59,11 @@ import threading
 import time
 import uuid
 import warnings
-import random
-
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional, TypedDict
+from mini_project.workflow.session_manager import SessionManager
+
 
 import ollama
 import pvporcupine
@@ -85,7 +90,7 @@ from mini_project.modalities.FOR_SHAPES.voice_processor import (
 from mini_project.workflow.session_manager import SessionManager
 
 # ========== Wake Word Setup ==========
-ACCESS_KEY = "E0O2AD01eT6cJ83n1yYf5bekfdIOEGUky9q6APkwdx9enDaMLZQtLw=="
+PICOVOICE_ACCESS_KEY = "E0O2AD01eT6cJ83n1yYf5bekfdIOEGUky9q6APkwdx9enDaMLZQtLw=="
 WAKEWORD = (
     r"C:\Users\oscik559\Projects\mini_project_repo\assets\robot_wakewords\hey_yummy.ppn"
 )
@@ -105,7 +110,7 @@ WAKE_RESPONSES = [
 ]
 # Use built-in or custom model path
 porcupine = pvporcupine.create(
-    access_key=ACCESS_KEY,
+    access_key=PICOVOICE_ACCESS_KEY,
     keywords=[
         "jarvis",
         "computer",  # Built-in wake word
@@ -132,9 +137,26 @@ trigger_logger = logging.getLogger("LLMTrigger")
 OLLAMA_MODEL = "llama3.2:latest"
 voice_speed = 180  # 165
 GENERAL_TRIGGERS = {
-    "weather", "who is", "linköping", "university", "say something", "remind", "recap", "explain", "lab",
-    "appreciate", "motivate", "how are we doing", "tell us about", "introduce",
-    "location", "where is", "project", "working on", "colleague", "summary"
+    "weather",
+    "who is",
+    "linköping",
+    "university",
+    "say something",
+    "remind",
+    "recap",
+    "explain",
+    "lab",
+    "appreciate",
+    "motivate",
+    "how are we doing",
+    "tell us about",
+    "introduce",
+    "location",
+    "where is",
+    "project",
+    "working on",
+    "colleague",
+    "summary",
 }
 TASK_VERBS = {
     "sort",
@@ -229,7 +251,9 @@ chain = (
 
 
 # === Command Classification ===
-def classify_command(command_text: str, llm) -> Literal["general", "scene", "task", "trigger"]:
+def classify_command(
+    command_text: str, llm
+) -> Literal["general", "scene", "task", "trigger"]:
     lowered = command_text.lower().strip()
 
     # === Rule-based classification ===
@@ -290,14 +314,17 @@ def load_chat_history():
         except Exception as e:
             logger.warning(f"Could not load chat memory: {e}")
 
+
 def get_user_roles():
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT first_name, role
         FROM users
-    """)
+    """
+    )
     result = cursor.fetchall()
     conn.close()
 
@@ -315,9 +342,10 @@ def get_team_names():
     return names
 
 
-
-def handle_general_query(command_text: str, llm) -> str:
-    user = session.authenticated_user
+def handle_general_query(command_text: str, llm, user: Optional[dict] = None) -> str:
+    if user is None:
+        session = SessionManager()
+        user = session.authenticated_user
     first_name = user["first_name"]
     liu_id = user["liu_id"]
     role = user.get("role", "guest")
@@ -335,7 +363,7 @@ def handle_general_query(command_text: str, llm) -> str:
         weather=env["weather"],
         part_of_day=env["part_of_day"],
         full_time=env["datetime"],
-        chat_history=chat_history
+        chat_history=chat_history,
     )
 
     chain = LLMChain(llm=llm, prompt=prompt)
@@ -344,71 +372,6 @@ def handle_general_query(command_text: str, llm) -> str:
     cleaned = result["text"].strip().strip('"').strip("“”").strip("'")
     return cleaned
 
-
-
-# working
-# def trigger_remote_vision_task(command_text: str) -> str:
-#     """
-#     Checks if the command matches any known operation and triggers its script
-#     by updating the trigger flag in the operation_library table.
-#     """
-#     conn = get_connection()
-#     cursor = conn.cursor()
-
-#     logger.info("🔍 Checking if command matches a remote vision task: '%s'", command_text)
-#     try:
-#         cursor.execute("""
-#             SELECT operation_name, trigger_keywords, trigger, status
-#             FROM operation_library
-#             WHERE is_triggerable = TRUE
-#         """)
-#         rows = cursor.fetchall()
-
-#         lowered = command_text.lower()
-#         matched_operation = None
-#         is_already_triggered = False
-
-#         for operation_name, keywords, is_triggered, _ in rows:
-#             if keywords and any(k in lowered for k in keywords):
-#                 matched_operation = operation_name
-#                 is_already_triggered = is_triggered
-#                 break
-
-#         if not matched_operation:
-#             logger.info("❌ No matching operation found.")
-#             return "Sorry, I couldn't match any known remote task to your request."
-
-#         if is_already_triggered:
-#             logger.info("⚠️ Operation '%s' already triggered. No action taken.", matched_operation)
-#             return f"The task '{matched_operation}' is already triggered."
-
-#         # 🔁 Reset all other triggers first
-#         cursor.execute("""
-#             UPDATE operation_library
-#             SET trigger = FALSE
-#             WHERE trigger = TRUE
-#         """)
-
-#         # ✅ Now trigger only the matched one
-#         cursor.execute("""
-#             UPDATE operation_library
-#             SET trigger = TRUE,
-#                 status = 'triggered',
-#                 last_triggered = %s
-#             WHERE operation_name = %s
-#         """, (datetime.now(), matched_operation))
-
-#         conn.commit()
-#         logger.info("✅ Remote task triggered exclusively: %s", matched_operation)
-#         return f"✅ The task '{matched_operation}' has been triggered remotely."
-
-#     except Exception as e:
-#         logger.error("❌ Triggering vision task failed: %s", str(e), exc_info=True)
-#         return "An error occurred while trying to trigger the remote task."
-
-#     finally:
-#         cursor.close()
-#         conn.close()
 
 # === Trigger Remote Vision Task ===
 def trigger_remote_vision_task(command_text: str) -> str:
@@ -422,11 +385,13 @@ def trigger_remote_vision_task(command_text: str) -> str:
     logger.info("🔍 Using LLM to match command: '%s'", command_text)
 
     try:
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT operation_name, description, trigger_keywords, trigger
             FROM operation_library
             WHERE is_triggerable = TRUE
-        """)
+        """
+        )
         rows = cursor.fetchall()
 
         if not rows:
@@ -434,8 +399,7 @@ def trigger_remote_vision_task(command_text: str) -> str:
 
         # === Step 1: Try LLM-based matching using descriptions ===
         options_text = "\n".join(
-            f"{op_name}: {desc or '[no description]'}"
-            for op_name, desc, *_ in rows
+            f"{op_name}: {desc or '[no description]'}" for op_name, desc, *_ in rows
         )
 
         llm_chain = LLMChain(llm=llm, prompt=PromptBuilder.match_operation_prompt())
@@ -466,26 +430,34 @@ def trigger_remote_vision_task(command_text: str) -> str:
 
         is_already_triggered = row_map[matched_operation]["trigger"]
         if is_already_triggered:
-            logger.info("⚠️ Operation '%s' already triggered. Skipping.", matched_operation)
+            logger.info(
+                "⚠️ Operation '%s' already triggered. Skipping.", matched_operation
+            )
             return f"The task '{matched_operation}' is already triggered."
 
         # === Step 4: Exclusively trigger this operation ===
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE operation_library
-            SET trigger = FALSE
-            WHERE trigger = TRUE
-        """)
-        cursor.execute("""
+            SET trigger = FALSE,
+                state = 'idle'
+            WHERE trigger = TRUE OR state = 'triggered'
+        """
+        )
+        cursor.execute(
+            """
             UPDATE operation_library
             SET trigger = TRUE,
-                status = 'triggered',
+                state = 'triggered',
                 last_triggered = %s
             WHERE operation_name = %s
-        """, (datetime.now(), matched_operation))
+        """,
+            (datetime.now(), matched_operation),
+        )
 
         conn.commit()
         logger.info("✅ Remote task triggered exclusively: %s", matched_operation)
-        return f"✅ The task '{matched_operation}' has been triggered remotely."
+        return f" Now running the script '{matched_operation}' remotely."
 
     except Exception as e:
         logger.error("❌ Triggering vision task failed: %s", str(e), exc_info=True)
@@ -609,9 +581,9 @@ def process_task(command_text: str) -> str:
         processor.close()
 
         return (
-            "The task has been planned and added successfully."
+            "Yes! task has successfully been planned."
             if success
-            else "Sorry, I couldn't understand the task."
+            else "Sorry, I couldn't understand you."
         )
     except Exception as e:
         logging.error(f"Task processing failed: {e}")
@@ -632,8 +604,11 @@ def get_weather_description(latitude=58.41, longitude=15.62) -> str:
         print(f"Weather fetch failed: {e}")
         return "mysterious skies"
 
+
 def get_environment_context():
-    weather = get_weather_description()  # Already returns something like "Partly cloudy, 11°C"
+    weather = (
+        get_weather_description()
+    )  # Already returns something like "Partly cloudy, 11°C"
     now = datetime.now()
     hour = now.hour
 
@@ -649,8 +624,11 @@ def get_environment_context():
     return {
         "weather": weather,
         "part_of_day": part_of_day,
-        "datetime": now.strftime("%A, %B %d at %I:%M %p")  # e.g., "Tuesday, April 18 at 10:30 AM"
+        "datetime": now.strftime(
+            "%A, %B %d at %I:%M %p"
+        ),  # e.g., "Tuesday, April 18 at 10:30 AM"
     }
+
 
 # ========== Wake Word Listener ==========
 def listen_for_wake_word(vp, tts):
@@ -802,12 +780,12 @@ def voice_to_scene_response(
         logger.info(f"🤖 (Scene Response): {answer}")
 
     elif cmd_type == "general":
-        answer = handle_general_query(request, llm)
+        answer = handle_general_query(request, llm, user)
         logger.info(f"🤖 (General Response): {answer}")
 
     else:  # task
         # Confirm before executing
-        tts.speak("Should I plan this task?")
+        tts.speak("Should I go ahead with a task plan?")
         confirm_result = vp.capture_voice()
         if confirm_result is None:
             tts.speak("No confirmation heard. Skipping the task.")
@@ -825,7 +803,7 @@ def voice_to_scene_response(
 
         # Match positive intent
         if any(word in cleaned for word in CONFIRM_WORDS):
-            tts.speak("Okay, planning task...")
+            tts.speak("Okay, give me a second...")
 
             # Only now store it in the database
             vp.storage.store_instruction(vp.session_id, lang, request)

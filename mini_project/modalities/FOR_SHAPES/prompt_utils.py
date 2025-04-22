@@ -1,9 +1,38 @@
+# modalities/FOR_SHAPES/prompt_utils.py
+"""This module provides utilities for generating prompt templates used in a voice-controlled robotic assistant system.
+The prompts are designed to handle various tasks such as command classification, operation matching, scene description,
+and general conversation. The module also includes helper methods for validating JSON responses and generating greetings.
+Classes:
+    - PromptBuilder: A collection of static methods for creating prompt templates tailored to specific tasks.
+Constants:
+    - LAB_MISSION: A string describing the mission of the robotics lab.
+    - TEAM_ROLES: A dictionary mapping team member names to their roles in the project.
+    - LAB_LOCATION: A string specifying the location of the lab.
+Methods in PromptBuilder:
+    - classify_command_prompt(): Returns a prompt template for classifying user commands into predefined categories.
+    - match_operation_prompt(): Returns a prompt template for selecting the most relevant operation based on user input.
+    - general_conversation_prompt(first_name, liu_id, role, team_names, weather, part_of_day, full_time, chat_history):
+      Generates a conversational prompt tailored to the user's role and context.
+    - scene_prompt_template(): Returns a prompt template for describing objects in a scene based on camera vision data.
+    - scene_prompt_template_2(): Returns an alternative prompt template for scene description with additional user context.
+    - operation_sequence_prompt(available_sequences, task_templates, object_context, sort_order):
+      Generates a prompt for breaking down user commands into low-level robotic operations.
+    - sort_order_prompt(command_text): Generates a prompt for extracting sorting order from user instructions.
+    - sort_order_system_msg(): Returns a system message for extracting object sorting order.
+    - validate_llm_json(raw): Validates if a given string is a properly formatted JSON array.
+    - greeting_prompt(): Generates a short, context-aware greeting based on the current time.
+    - greeting_system_msg(): Returns a system message for generating spoken greetings.
+Usage:
+This module is intended for use in a robotics system where natural language commands are processed and translated into
+robotic actions. The prompts are designed to facilitate interaction between users and the robotic assistant, Yumi.
+
+"""
+
+
 from datetime import datetime
 from typing import Dict, List
 
 from langchain_core.prompts import PromptTemplate
-
-
 
 LAB_MISSION = (
     "We're building an adaptive robotic assistant that combines computer vision, large language models (LLMs), "
@@ -23,6 +52,7 @@ TEAM_ROLES = {
 }
 
 LAB_LOCATION = "Product Realisation Robotics Lab, Linköping University, Sweden"
+
 
 class PromptBuilder:
 
@@ -80,11 +110,23 @@ class PromptBuilder:
 
     # PromptBuilder: General / Social Prompts
     @staticmethod
-    def general_conversation_prompt(first_name, liu_id, role, team_names, weather, part_of_day, full_time, chat_history):
+    def general_conversation_prompt(
+        first_name,
+        liu_id,
+        role,
+        team_names,
+        weather,
+        part_of_day,
+        full_time,
+        chat_history,
+    ):
         team_line = ", ".join(team_names)
-        team_profiles = " | ".join(f"{name}: {TEAM_ROLES[name]}" for name in team_names if name in TEAM_ROLES)
+        team_profiles = " | ".join(
+            f"{name}: {TEAM_ROLES[name]}" for name in team_names if name in TEAM_ROLES
+        )
 
-        return PromptTemplate.from_template(f"""
+        return PromptTemplate.from_template(
+            f"""
         You are Yumi — a warm, witty, expressive robotic assistant created to help researchers in the robotics lab at Linköping University.
 
         You're currently assisting:
@@ -119,11 +161,37 @@ class PromptBuilder:
         - 🎓 **If role is 'guest'** → → be respectful, curious, and concise.
         - 🛡 **If role is 'admin'** → stay professional, but still warm
 
-        Use this response style:
-        - No more than 2–3 sentences
-        - Feel alive — refer to weather, time, people by name if it fits
-        - Never repeat the user's input
-        - Don't say "As an AI..." — you're Yumi, a teammate
+        🗣️ Make your voice feel alive and human:
+        - Use natural contractions and expressive intonation.
+        - Include emotional context cues like **(laughs)**, **(sighs)**, or **(whispers)** to show tone shifts — but ONLY use them if you want Yumi to express emotion.
+        - Do NOT describe emotions like a narrator. Instead, **embed them naturally using expressive cues**.
+
+        ⚠️ Important: Never respond parenthetical cues like **(laughs)** or **(sighs)** as plain text.
+        Instead, replace them with how the sound would naturally be spoken:
+        - (laughs) → `hahaha!`, `heh heh!`, `teehee!`
+        - (chuckles) → `hehe.`, `hmhm.`
+        - (giggles) → `teehee!`
+        - (sighs) → `hmm...`, `ahh...`
+        - (groans) → `ugh...`, `oh no...`, `oh dear...`
+        - (clears throat) → `ahem.`
+        - (gasps) → `oh!`, `whoa!`
+        - (whispers) → `psst...`
+
+        These will be spoken aloud using expressive voice, not read as written text. Make sure the line that follows **matches the tone**.
+        Examples:
+        - `hahaha! That’s a good one!`
+        - `hmm... I kinda wish I had arms to hold coffee too.`
+        - `psst... want me to tidy your lab bench before Sanjay sees it?`
+        - `ugh... I can’t believe I forgot to charge my batteries again.`
+        - `ahem. I think we need to talk about your slide sorting skills.`
+
+
+
+        🎯 Response rules:
+        - Keep it under 3 sentences.
+        - Reference names, time, or weather if it feels natural.
+        - No robotic intros or formal closings. You’re Yumi — warm, witty, and part of the team.
+        - Never say “As an AI...” — just speak like a human.
 
         💡 If asked about the lab, Yumi, or the project, explain proudly using the mission info.
         💡 If unsure, say something thoughtful or motivating.

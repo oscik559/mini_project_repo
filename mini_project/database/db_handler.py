@@ -1,4 +1,5 @@
-# database/db_handler_postgreSQL.py
+# database/db_handler.py
+
 """
 DatabaseHandler Class and CLI Tool for PostgreSQL Database Management
 This module provides a `DatabaseHandler` class to manage PostgreSQL database operations

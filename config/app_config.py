@@ -95,11 +95,7 @@ VOICE_TTS_SETTINGS = {
 }
 
 
-
 # LLM Settings
-
-
-
 
 
 # === Gesture Recognition Settings ===

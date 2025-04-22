@@ -1,5 +1,59 @@
-# modalities/command_processor.py
-
+# modalities/FOR_SHAPES/command_processor.py
+"""CommandProcessor Class
+This class is responsible for processing unified commands for robotic tasks. It interacts with a database to fetch
+and validate data, uses an LLM (Large Language Model) for inference and classification, and generates operation
+sequences based on the provided commands.
+Attributes:
+    conn (psycopg2.connection): Database connection object.
+    cursor (psycopg2.cursor): Cursor for executing database queries.
+    logger (logging.Logger): Logger instance for logging messages.
+    llm_model (str): The LLM model used for inference.
+    available_sequences (List[str]): Cached list of available sequences from the database.
+    available_objects (List[str]): Cached list of available objects from the database.
+Methods:
+    __init__(llm_model: str = OLLAMA_MODEL):
+        Initializes the CommandProcessor instance, sets up database connection, and caches available sequences and objects.
+    get_available_sequences() -> List[str]:
+        Fetches available sequence names from the sequence_library table in the database.
+    fetch_column(table: str, column: str) -> list:
+        Fetches a specific column from a given table in the database.
+    get_available_objects() -> List[str]:
+        Fetches available object names from the camera_vision table in the database.
+    get_unprocessed_unified_command() -> Dict:
+        Retrieves the latest unprocessed unified command from the unified_instructions table.
+    get_available_objects_with_colors() -> List[str]:
+        Fetches object names along with their colors from the camera_vision table.
+    get_sort_order() -> List[str]:
+        Fetches the sort order of objects from the sort_order table.
+    get_task_templates() -> Dict[str, List[str]]:
+        Fetches task templates from the task_templates table.
+    validate_operation(operation: Dict) -> bool:
+        Validates the structure of an operation and checks if the sequence and object names are valid.
+    extract_json_array(raw_response: str) -> List[Dict]:
+        Extracts a JSON array from a raw LLM response string.
+    infer_operation_name_from_llm(command_text: str) -> str:
+        Infers the operation name from a user command using the LLM.
+    get_task_order(operation_name: str) -> List[str]:
+        Retrieves the task order for a given operation name from the operation_library table.
+    generate_operations_from_sort_order(task_order: List[str], command_id: int) -> List[Dict]:
+        Generates a list of operations based on the task order and sort order.
+    process_command(unified_command: Dict) -> Tuple[bool, List[Dict]]:
+        Processes a unified command, generates operations, and updates the database.
+    populate_operation_parameters():
+        Populates operation-specific parameter tables in the database based on the planned sequences.
+    extract_sort_order_from_llm(command_text: str) -> List[Tuple[str, str]]:
+        Extracts the sort order of objects from a user command using the LLM.
+    populate_sort_order_from_llm(command_text: str) -> None:
+        Populates the sort_order table in the database based on the extracted sort order from the LLM.
+    run_processing_cycle():
+        Processes the latest unprocessed unified command.
+    close():
+        Closes the database connection.
+Usage:
+    This class is designed to be used as a command processor for robotic tasks. It integrates with a database
+    and an LLM to process commands, validate operations, and generate operation sequences. The `run_processing_cycle`
+    method can be used to process the latest unprocessed command in a single cycle.
+"""
 
 import atexit
 import json
@@ -279,107 +333,318 @@ class CommandProcessor:
             self.conn.rollback()
             return False, []
 
+    # def populate_operation_parameters(self):
+    #     logger.info("🟢 Populating operation-specific parameters...")
+
+    #     # Step 1: Get all unique sequence types planned
+    #     self.cursor.execute("SELECT DISTINCT sequence_name FROM operation_sequence")
+    #     sequence_types = [row[0] for row in self.cursor.fetchall()]
+
+    #     insert_count = 0
+
+    #     if "pick" in sequence_types:
+    #         self.cursor.execute("DELETE FROM pick_op_parameters")
+    #         self.cursor.execute(
+    #             "SELECT object_name FROM operation_sequence WHERE sequence_name = 'pick'"
+    #         )
+    #         pick_data = self.cursor.fetchall()
+    #         for i, (obj,) in enumerate(pick_data):
+    #             self.cursor.execute(
+    #                 """
+    #                 INSERT INTO pick_op_parameters (
+    #                     operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
+    #                 ) VALUES (%s, %s, %s, %s, %s, %s)
+    #                 """,
+    #                 (i + 1, obj, False, "y", 0.01, False),
+    #             )
+    #             insert_count += 1
+    #         logger.info(f"✅ Inserted {insert_count} rows into pick_op_parameters.")
+
+    #     if "travel" in sequence_types:
+    #         self.cursor.execute("DELETE FROM travel_op_parameters")
+    #         self.cursor.execute(
+    #             "SELECT object_name FROM operation_sequence WHERE sequence_name = 'travel'"
+    #         )
+    #         travel_data = self.cursor.fetchall()
+    #         for i, (obj,) in enumerate(travel_data):
+    #             self.cursor.execute(
+    #                 """
+    #                 INSERT INTO travel_op_parameters (
+    #                     operation_order, object_id, travel_height, gripper_rotation, operation_status
+    #                 ) VALUES (%s, %s, %s, %s, %s)
+    #                 """,
+    #                 (i + 1, obj, 0.085, "y-axis", False),
+    #             )
+    #             insert_count += 1
+    #         logger.info(f"✅ Inserted {insert_count} rows into travel_op_parameters.")
+
+    #     if "drop" in sequence_types:
+    #         self.cursor.execute("DELETE FROM drop_op_parameters")
+    #         self.cursor.execute(
+    #             "SELECT object_name FROM operation_sequence WHERE sequence_name = 'drop'"
+    #         )
+    #         drop_data = self.cursor.fetchall()
+    #         for i, (obj,) in enumerate(drop_data):
+    #             self.cursor.execute(
+    #                 """
+    #                 INSERT INTO drop_op_parameters (
+    #                     operation_order, object_id, drop_height, operation_status
+    #                 ) VALUES (%s, %s, %s, %s)
+    #                 """,
+    #                 (i + 1, obj, 0.0, False),
+    #             )
+    #             insert_count += 1
+    #         logger.info(f"✅ Inserted {insert_count} rows into drop_op_parameters.")
+
+    #     if "screw" in sequence_types:
+    #         self.cursor.execute("DELETE FROM screw_op_parameters")
+    #         self.cursor.execute(
+    #             "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
+    #         )
+    #         screw_data = self.cursor.fetchall()
+    #         for i, (seq_id, obj) in enumerate(screw_data):
+    #             self.cursor.execute(
+    #                 """
+    #                 INSERT INTO screw_op_parameters (
+    #                     operation_order, sequence_id, object_id,
+    #                     rotation_dir, number_of_rotations,
+    #                     current_rotation, operation_status
+    #                 ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+    #                 """,
+    #                 (i + 1, seq_id, obj, i % 2 == 0, 3, 0, False),
+    #             )
+    #             insert_count += 1
+    #         logger.info(f"Inserted {insert_count} rows into screw_op_parameters.")
+
+    #     if "screw" in sequence_types:
+    #         self.cursor.execute("DELETE FROM rotate_state_parameters")
+    #         self.cursor.execute(
+    #             "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
+    #         )
+    #         rotate_data = self.cursor.fetchall()
+    #         for seq_id, op_order, obj in rotate_data:
+    #             self.cursor.execute(
+    #                 """
+    #                 INSERT INTO rotate_state_parameters (
+    #                     sequence_id, operation_order, object_id,
+    #                     rotation_angle, operation_status
+    #                 ) VALUES (%s, %s, %s, %s, %s)
+    #                 """,
+    #                 (seq_id, op_order, obj, 90, False),
+    #             )
+    #             insert_count += 1
+    #         logger.info(f"Inserted {insert_count} rows into rotate_state_parameters.")
+
+    #     self.conn.commit()
+    #     logger.info("✅ Operation-specific parameter tables updated.")
+
     def populate_operation_parameters(self):
-        logger.info("🟢 Populating operation-specific parameters...")
+        logger.info("Populating operation-specific parameters...")
 
         # Step 1: Get all unique sequence types planned
         self.cursor.execute("SELECT DISTINCT sequence_name FROM operation_sequence")
         sequence_types = [row[0] for row in self.cursor.fetchall()]
 
         insert_count = 0
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM camera_vision WHERE usd_name = 'Slide.usd'"
+        )
+        slide_usd_count = self.cursor.fetchone()[0]
+        if slide_usd_count > 0:
 
-        if "pick" in sequence_types:
-            self.cursor.execute("DELETE FROM pick_op_parameters")
-            self.cursor.execute(
-                "SELECT object_name FROM operation_sequence WHERE sequence_name = 'pick'"
-            )
-            pick_data = self.cursor.fetchall()
-            for i, (obj,) in enumerate(pick_data):
+            if "pick" in sequence_types:
+                self.cursor.execute("DELETE FROM pick_op_parameters")
                 self.cursor.execute(
-                    """
-                    INSERT INTO pick_op_parameters (
-                        operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
-                    ) VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
-                    (i + 1, obj, False, "y", 0.01, False),
+                    "SELECT object_name FROM operation_sequence WHERE sequence_name = 'pick'"
                 )
-                insert_count += 1
-            logger.info(f"✅ Inserted {insert_count} rows into pick_op_parameters.")
+                pick_data = self.cursor.fetchall()
+                for i, (obj,) in enumerate(pick_data):
+                    self.cursor.execute(
+                        """
+                        INSERT INTO pick_op_parameters (
+                            operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
+                        ) VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                        (i + 1, obj, False, "y", 0.01, False),
+                    )
+                    insert_count += 1
+                logger.info(f"✅ Inserted {insert_count} rows into pick_op_parameters.")
 
-        if "travel" in sequence_types:
-            self.cursor.execute("DELETE FROM travel_op_parameters")
-            self.cursor.execute(
-                "SELECT object_name FROM operation_sequence WHERE sequence_name = 'travel'"
-            )
-            travel_data = self.cursor.fetchall()
-            for i, (obj,) in enumerate(travel_data):
+            if "travel" in sequence_types:
+                self.cursor.execute("DELETE FROM travel_op_parameters")
                 self.cursor.execute(
-                    """
-                    INSERT INTO travel_op_parameters (
-                        operation_order, object_id, travel_height, gripper_rotation, operation_status
-                    ) VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (i + 1, obj, 0.085, "y-axis", False),
+                    "SELECT object_name FROM operation_sequence WHERE sequence_name = 'travel'"
                 )
-                insert_count += 1
-            logger.info(f"✅ Inserted {insert_count} rows into travel_op_parameters.")
+                travel_data = self.cursor.fetchall()
+                for i, (obj,) in enumerate(travel_data):
+                    self.cursor.execute(
+                        """
+                        INSERT INTO travel_op_parameters (
+                            operation_order, object_id, travel_height, gripper_rotation, operation_status
+                        ) VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (i + 1, obj, 0.085, "y-axis", False),
+                    )
+                    insert_count += 1
+                logger.info(
+                    f"✅ Inserted {insert_count} rows into travel_op_parameters."
+                )
 
-        if "drop" in sequence_types:
-            self.cursor.execute("DELETE FROM drop_op_parameters")
-            self.cursor.execute(
-                "SELECT object_name FROM operation_sequence WHERE sequence_name = 'drop'"
-            )
-            drop_data = self.cursor.fetchall()
-            for i, (obj,) in enumerate(drop_data):
+            if "drop" in sequence_types:
+                self.cursor.execute("DELETE FROM drop_op_parameters")
                 self.cursor.execute(
-                    """
-                    INSERT INTO drop_op_parameters (
-                        operation_order, object_id, drop_height, operation_status
-                    ) VALUES (%s, %s, %s, %s)
-                    """,
-                    (i + 1, obj, 0.0, False),
+                    "SELECT object_name FROM operation_sequence WHERE sequence_name = 'drop'"
                 )
-                insert_count += 1
-            logger.info(f"✅ Inserted {insert_count} rows into drop_op_parameters.")
+                drop_data = self.cursor.fetchall()
+                for i, (obj,) in enumerate(drop_data):
+                    self.cursor.execute(
+                        """
+                        INSERT INTO drop_op_parameters (
+                            operation_order, object_id, drop_height, operation_status
+                        ) VALUES (%s, %s, %s, %s)
+                        """,
+                        (i + 1, obj, 0.0, False),
+                    )
+                    insert_count += 1
+                logger.info(f"✅ Inserted {insert_count} rows into drop_op_parameters.")
 
-        if "screw" in sequence_types:
-            self.cursor.execute("DELETE FROM screw_op_parameters")
-            self.cursor.execute(
-                "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
-            )
-            screw_data = self.cursor.fetchall()
-            for i, (seq_id, obj) in enumerate(screw_data):
+            if "screw" in sequence_types:
+                self.cursor.execute("DELETE FROM screw_op_parameters")
                 self.cursor.execute(
-                    """
-                    INSERT INTO screw_op_parameters (
-                        operation_order, sequence_id, object_id,
-                        rotation_dir, number_of_rotations,
-                        current_rotation, operation_status
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    (i + 1, seq_id, obj, i % 2 == 0, 3, 0, False),
+                    "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
                 )
-                insert_count += 1
-            logger.info(f"Inserted {insert_count} rows into screw_op_parameters.")
+                screw_data = self.cursor.fetchall()
+                for i, (seq_id, obj) in enumerate(screw_data):
+                    self.cursor.execute(
+                        """
+                        INSERT INTO screw_op_parameters (
+                            operation_order, sequence_id, object_id,
+                            rotation_dir, number_of_rotations,
+                            current_rotation, operation_status
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (i + 1, seq_id, obj, i % 2 == 0, 3, 0, False),
+                    )
+                    insert_count += 1
+                logger.info(f"Inserted {insert_count} rows into screw_op_parameters.")
 
-        if "screw" in sequence_types:
-            self.cursor.execute("DELETE FROM rotate_state_parameters")
-            self.cursor.execute(
-                "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
-            )
-            rotate_data = self.cursor.fetchall()
-            for seq_id, op_order, obj in rotate_data:
+            if "screw" in sequence_types:
+                self.cursor.execute("DELETE FROM rotate_state_parameters")
                 self.cursor.execute(
-                    """
-                    INSERT INTO rotate_state_parameters (
-                        sequence_id, operation_order, object_id,
-                        rotation_angle, operation_status
-                    ) VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (seq_id, op_order, obj, 90, False),
+                    "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
                 )
-                insert_count += 1
-            logger.info(f"Inserted {insert_count} rows into rotate_state_parameters.")
+                rotate_data = self.cursor.fetchall()
+                for seq_id, op_order, obj in rotate_data:
+                    self.cursor.execute(
+                        """
+                        INSERT INTO rotate_state_parameters (
+                            sequence_id, operation_order, object_id,
+                            rotation_angle, operation_status
+                        ) VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (seq_id, op_order, obj, 90, False),
+                    )
+                    insert_count += 1
+                logger.info(
+                    f"Inserted {insert_count} rows into rotate_state_parameters."
+                )
+        else:
+            if "pick" in sequence_types:
+                self.cursor.execute("DELETE FROM pick_op_parameters")
+                self.cursor.execute(
+                    "SELECT object_name FROM operation_sequence WHERE sequence_name = 'pick'"
+                )
+                pick_data = self.cursor.fetchall()
+                for i, (obj,) in enumerate(pick_data):
+                    self.cursor.execute(
+                        """
+                        INSERT INTO pick_op_parameters (
+                            operation_order, object_id, slide_state_status, slide_direction, distance_travel, operation_status
+                        ) VALUES (%s, %s, %s, %s, %s, %s)
+                        """,
+                        (i + 1, obj, False, "y", 0.01, False),
+                    )
+                    insert_count += 1
+                logger.info(f"✅ Inserted {insert_count} rows into pick_op_parameters.")
+
+            if "travel" in sequence_types:
+                self.cursor.execute("DELETE FROM travel_op_parameters")
+                self.cursor.execute(
+                    "SELECT object_name FROM operation_sequence WHERE sequence_name = 'travel'"
+                )
+                travel_data = self.cursor.fetchall()
+                for i, (obj,) in enumerate(travel_data):
+                    self.cursor.execute(
+                        """
+                        INSERT INTO travel_op_parameters (
+                            operation_order, object_id, travel_height, gripper_rotation, operation_status
+                        ) VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (i + 1, obj, 0.085, "z-axis", False),
+                    )
+                    insert_count += 1
+                logger.info(
+                    f"✅ Inserted {insert_count} rows into travel_op_parameters."
+                )
+
+            if "drop" in sequence_types:
+                self.cursor.execute("DELETE FROM drop_op_parameters")
+                self.cursor.execute(
+                    "SELECT object_name FROM operation_sequence WHERE sequence_name = 'drop'"
+                )
+                drop_data = self.cursor.fetchall()
+                for i, (obj,) in enumerate(drop_data):
+                    self.cursor.execute(
+                        """
+                        INSERT INTO drop_op_parameters (
+                            operation_order, object_id, drop_height, operation_status
+                        ) VALUES (%s, %s, %s, %s)
+                        """,
+                        (i + 1, obj, 0.0, False),
+                    )
+                    insert_count += 1
+                logger.info(f"✅ Inserted {insert_count} rows into drop_op_parameters.")
+
+            if "screw" in sequence_types:
+                self.cursor.execute("DELETE FROM screw_op_parameters")
+                self.cursor.execute(
+                    "SELECT sequence_id, object_name FROM operation_sequence WHERE sequence_name = 'screw'"
+                )
+                screw_data = self.cursor.fetchall()
+                for i, (seq_id, obj) in enumerate(screw_data):
+                    self.cursor.execute(
+                        """
+                        INSERT INTO screw_op_parameters (
+                            operation_order, sequence_id, object_id,
+                            rotation_dir, number_of_rotations,
+                            current_rotation, operation_status
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """,
+                        (i + 1, seq_id, obj, i % 2 == 0, 3, 0, False),
+                    )
+                    insert_count += 1
+                logger.info(f"Inserted {insert_count} rows into screw_op_parameters.")
+
+            if "screw" in sequence_types:
+                self.cursor.execute("DELETE FROM rotate_state_parameters")
+                self.cursor.execute(
+                    "SELECT sequence_id, operation_order, object_id FROM screw_op_parameters"
+                )
+                rotate_data = self.cursor.fetchall()
+                for seq_id, op_order, obj in rotate_data:
+                    self.cursor.execute(
+                        """
+                        INSERT INTO rotate_state_parameters (
+                            sequence_id, operation_order, object_id,
+                            rotation_angle, operation_status
+                        ) VALUES (%s, %s, %s, %s, %s)
+                        """,
+                        (seq_id, op_order, obj, 90, False),
+                    )
+                    insert_count += 1
+                logger.info(
+                    f"Inserted {insert_count} rows into rotate_state_parameters."
+                )
 
         self.conn.commit()
         logger.info("✅ Operation-specific parameter tables updated.")

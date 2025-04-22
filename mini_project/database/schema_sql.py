@@ -1,5 +1,13 @@
-# Just a dict of table creation SQL strings
-
+# database/schema_sql.py
+"""This module defines the database schema and indexes for a project. It uses an
+OrderedDict to organize the SQL statements for creating tables and indexes.
+Tables:
+- `users`: Stores user information, including personal details, preferences, and roles.
+- `usd_data`: Contains data related to USD (Universal Scene Description) objects.
+- `isaac_sim_gui`: Tracks GUI features and their operation statuses.
+- `sequence_library`: Stores sequences with metadata, conditions, and runnability.
+- `operation_library`: Defines operations, their metadata,
+"""
 from collections import OrderedDict
 
 tables = OrderedDict(
@@ -90,7 +98,7 @@ tables = OrderedDict(
 
                 -- Trigger state tracking
                 trigger BOOLEAN DEFAULT FALSE,             -- Used by LLM to trigger script
-                status TEXT DEFAULT 'idle',                -- idle | triggered | running | completed | failed
+                state TEXT DEFAULT 'idle',                -- idle | triggered | running
                 last_triggered TIMESTAMP                   -- When it was last set to TRUE
             );
     """,

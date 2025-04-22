@@ -1,3 +1,32 @@
+# database/populate_db.py
+"""This module contains the `DatabasePopulator` class, which is responsible for populating various database tables
+with predefined data. The class provides methods to populate tables such as `sequence_library`, `usd_data`,
+`operation_library`, `users`, `skills`, `instructions`, `states`, `operation_sequence`, `sort_order`,
+`task_templates`, `task_preferences`, `interaction_memory`, `simulation_results`, and `manual_operations`.
+Each method in the class corresponds to a specific table in the database and inserts predefined data into it.
+The methods ensure that data is inserted only when necessary, avoiding duplication by checking existing records
+where applicable.
+Classes:
+    - DatabasePopulator: A class that provides methods to populate database tables with predefined data.
+Methods:
+    - populate_sequence_library: Populates the `sequence_library` table with predefined sequences.
+    - populate_usd_data: Populates the `usd_data` table with predefined USD data.
+    - populate_operation_library: Populates the `operation_library` table with predefined operations.
+    - populate_users: Populates the `users` table with predefined user data.
+    - populate_skills: Populates the `skills` table with predefined skill data.
+    - populate_instructions: Populates the `instructions` table with predefined instruction data.
+    - populate_states: Populates the `states` table with predefined state data.
+    - populate_operation_sequence: Populates the `operation_sequence` table with predefined operation sequences.
+    - populate_sort_order: Populates the `sort_order` table with predefined object sorting orders.
+    - populate_task_templates: Populates the `task_templates` table with predefined task templates.
+    - populate_task_preferences: Populates the `task_preferences` table with predefined user task preferences.
+    - populate_interaction_memory: Populates the `interaction_memory` table with predefined interaction data.
+    - populate_simulation_results: Populates the `simulation_results` table with predefined simulation results.
+    - populate_manual_operations: Populates various operation parameter tables with predefined manual operation data.
+
+"""
+
+
 class DatabasePopulator:
     def __init__(self, cursor):
         self.cursor = cursor
@@ -121,7 +150,7 @@ class DatabasePopulator:
                 0.016,
                 1,
                 1,
-                0.1,
+                0.06,
                 "/World/fixtureprim/Fixture",
                 0.0,
                 0.0,
@@ -221,7 +250,7 @@ class DatabasePopulator:
                 "detect_slides_pgSQL.py",  # Path to run on vision system
                 True,  # is_triggerable, Whether LLM can set trigger = TRUE
                 False,  # trigger,  Defaults to FALSE (used as flag)
-                "idle",  # status, 'idle' initially
+                "idle",  # state, 'idle' initially
                 None,  # last_triggered_time, None until first run
             ),
             (
@@ -239,7 +268,7 @@ class DatabasePopulator:
         insert_query = """
             INSERT INTO operation_library (
                 operation_name, task_order, description, trigger_keywords,
-                script_path, is_triggerable, trigger, status, last_triggered
+                script_path, is_triggerable, trigger, state, last_triggered
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
         """
