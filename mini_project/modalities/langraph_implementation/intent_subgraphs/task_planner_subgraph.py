@@ -1,69 +1,16 @@
-# modalities/FOR_SHAPES/command_processor.py
-"""CommandProcessor Class
-This class is responsible for processing unified commands for robotic tasks. It interacts with a database to fetch
-and validate data, uses an LLM (Large Language Model) for inference and classification, and generates operation
-sequences based on the provided commands.
-Attributes:
-    conn (psycopg2.connection): Database connection object.
-    cursor (psycopg2.cursor): Cursor for executing database queries.
-    logger (logging.Logger): Logger instance for logging messages.
-    llm_model (str): The LLM model used for inference.
-    available_sequences (List[str]): Cached list of available sequences from the database.
-    available_objects (List[str]): Cached list of available objects from the database.
-Methods:
-    __init__(llm_model: str = OLLAMA_MODEL):
-        Initializes the CommandProcessor instance, sets up database connection, and caches available sequences and objects.
-    get_available_sequences() -> List[str]:
-        Fetches available sequence names from the sequence_library table in the database.
-    fetch_column(table: str, column: str) -> list:
-        Fetches a specific column from a given table in the database.
-    get_available_objects() -> List[str]:
-        Fetches available object names from the camera_vision table in the database.
-    get_unprocessed_unified_command() -> Dict:
-        Retrieves the latest unprocessed unified command from the unified_instructions table.
-    get_available_objects_with_colors() -> List[str]:
-        Fetches object names along with their colors from the camera_vision table.
-    get_sort_order() -> List[str]:
-        Fetches the sort order of objects from the sort_order table.
-    get_task_templates() -> Dict[str, List[str]]:
-        Fetches task templates from the task_templates table.
-    validate_operation(operation: Dict) -> bool:
-        Validates the structure of an operation and checks if the sequence and object names are valid.
-    extract_json_array(raw_response: str) -> List[Dict]:
-        Extracts a JSON array from a raw LLM response string.
-    infer_operation_name_from_llm(command_text: str) -> str:
-        Infers the operation name from a user command using the LLM.
-    get_task_order(operation_name: str) -> List[str]:
-        Retrieves the task order for a given operation name from the operation_library table.
-    generate_operations_from_sort_order(task_order: List[str], command_id: int) -> List[Dict]:
-        Generates a list of operations based on the task order and sort order.
-    process_command(unified_command: Dict) -> Tuple[bool, List[Dict]]:
-        Processes a unified command, generates operations, and updates the database.
-    populate_operation_parameters():
-        Populates operation-specific parameter tables in the database based on the planned sequences.
-    extract_sort_order_from_llm(command_text: str) -> List[Tuple[str, str]]:
-        Extracts the sort order of objects from a user command using the LLM.
-    populate_sort_order_from_llm(command_text: str) -> None:
-        Populates the sort_order table in the database based on the extracted sort order from the LLM.
-    run_processing_cycle():
-        Processes the latest unprocessed unified command.
-    close():
-        Closes the database connection.
-Usage:
-    This class is designed to be used as a command processor for robotic tasks. It integrates with a database
-    and an LLM to process commands, validate operations, and generate operation sequences. The `run_processing_cycle`
-    method can be used to process the latest unprocessed command in a single cycle.
-"""
+# modalities/FOR_SHAPES/command_processor_langgraph.py
 
 import atexit
+import datetime
 import json
 import logging
 import os
 from collections import defaultdict, deque
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple, TypedDict
 
 import ollama
 import psycopg2
+from langgraph.graph import END, StateGraph
 from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 from psycopg2.extras import DictCursor
@@ -146,16 +93,8 @@ class CommandProcessor:
         self.cursor.execute("SELECT task_name, default_sequence FROM task_templates")
         return {row[0]: row[1] for row in self.cursor.fetchall()}
 
-    def refresh_cache(self):
-        """Refreshes cached sequences and objects from the database."""
-        self.available_sequences = self.get_available_sequences()
-        self.available_objects = self.get_available_objects()
-        logger.info("🟢 Cache refreshed: sequences and objects updated.")
-
     def validate_operation(self, operation: Dict) -> bool:
         """Validate operation structure"""
-        self.refresh_cache()  # Ensure we're using the latest data
-
         if operation["sequence_name"] not in self.available_sequences:
             logger.error(f"Invalid sequence name: {operation['sequence_name']}")
             return False
@@ -653,8 +592,126 @@ class CommandProcessor:
             logger.info("🟢 Database connection closed.")
 
 
+class CommandState(TypedDict, total=False):
+    command_id: int
+    command_text: str
+    task_order: list
+    operations: list
+    success: bool
+    reply: str
+
+
+# ✅ Initialize globally so all nodes can access it
+processor = CommandProcessor()
+atexit.register(processor.close)
+
+
+def fetch_unprocessed_command_node(state):
+    if "command_text" not in state:
+        # 🧠 Fallback for external invocations (like from lang_chain_graph)
+        state["command_text"] = state.get("transcribed_text")
+
+    result = processor.get_unprocessed_unified_command()
+    if result:
+        return {
+            "command_id": result["id"],
+            "command_text": result["unified_command"],
+        }
+    return {"reply": "No unprocessed unified command."}
+
+
+def infer_sort_order_node(state):
+    processor.populate_sort_order_from_llm(state["command_text"])
+    return {}
+
+
+def infer_operation_name_node(state):
+    try:
+        op_name = processor.infer_operation_name_from_llm(state["command_text"])
+        return {"operation_name": op_name}
+    except Exception as e:
+        logger.warning(f"❌ LLM failed to classify valid operation_name: {e}")
+        return {"reply": f"❌ Operation classification failed: {e}"}
+
+
+def get_task_order_node(state):
+    if "operation_name" not in state:
+        return {"reply": "❌ Missing operation_name from prior step."}
+    order = processor.get_task_order(state["operation_name"])
+    return {"task_order": order}
+
+
+def generate_operations_node(state):
+    try:
+        task_order = state.get("task_order")
+        command_id = state.get("command_id")
+        if not task_order or not command_id:
+            return {"reply": "❌ Missing task_order or command_id"}
+
+        operations = processor.generate_operations_from_sort_order(
+            task_order, command_id
+        )
+        state["operations"] = operations
+        return {"operations": operations}
+    except Exception as e:
+        logger.error("Failed to generate operations: %s", e, exc_info=True)
+        return {"reply": "❌ Error during operation generation"}
+
+
+def populate_parameters_node(state):
+    try:
+        processor.populate_operation_parameters()
+        return {"reply": "✅ Operation parameters populated."}
+    except Exception as e:
+        logger.error("Failed to populate operation parameters: %s", e, exc_info=True)
+        return {"reply": "❌ Parameter population failed."}
+
+
+def finalize_command_node(state):
+    try:
+        command_id = state.get("command_id")
+        if command_id:
+            processor.cursor.execute(
+                "UPDATE unified_instructions SET processed = TRUE WHERE id = %s",
+                (command_id,),
+            )
+            processor.conn.commit()
+            return {"reply": f"✅ Finalized command {command_id}"}
+        return {"reply": "❌ No command ID to finalize."}
+    except Exception as e:
+        logger.error("Failed to finalize command: %s", e, exc_info=True)
+        processor.conn.rollback()
+        return {"reply": "❌ Finalization error."}
+
+
+graph = StateGraph(CommandState)
+graph.add_node("fetch_command", fetch_unprocessed_command_node)
+graph.add_node("infer_sort_order", infer_sort_order_node)
+graph.add_node("infer_operation_name", infer_operation_name_node)
+graph.add_node("get_task_order", get_task_order_node)
+graph.add_node("generate_operations", generate_operations_node)
+graph.add_node("populate_parameters", populate_parameters_node)
+graph.add_node("finalize", finalize_command_node)
+
+graph.set_entry_point("fetch_command")
+graph.add_edge("fetch_command", "infer_sort_order")
+graph.add_edge("infer_sort_order", "infer_operation_name")
+graph.add_edge("infer_operation_name", "get_task_order")
+graph.add_edge("get_task_order", "generate_operations")
+graph.add_edge("generate_operations", "populate_parameters")
+graph.add_edge("populate_parameters", "finalize")
+graph.add_edge("finalize", END)
+
+compiled = graph.compile()
+# print(compiled.get_graph().draw_mermaid())
+
+
+def get_task_planner_subgraph():
+    return compiled
+
+
 if __name__ == "__main__":
-    processor = CommandProcessor(llm_model="mistral:latest")
-    # Register the close method so it gets called when the program exits
-    atexit.register(processor.close)
-    processor.run_processing_cycle()
+    print(compiled.get_graph().draw_mermaid())
+    result = compiled.invoke({})
+    print("✅ Final result:")
+    print(result)

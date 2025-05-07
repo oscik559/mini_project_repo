@@ -11,6 +11,7 @@ including paths, thresholds, and validation patterns.
 
 import logging.config
 import os
+import tempfile
 from pathlib import Path
 
 import yaml
@@ -71,7 +72,7 @@ VOICE_PROCESSING_CONFIG = {
         "max_duration": 60,  # Maximum recording duration (seconds)
         "initial_silence_duration": 15,  # Silence allowed before speech starts (seconds)
         "post_speech_silence_duration": 2,  # Silence allowed after speech ends (seconds)
-        "calibration_duration": 2,  # Duration for ambient noise calibration (seconds)
+        "calibration_duration": 0.5,  # Duration for ambient noise calibration (seconds)
         "amplitude_margin": 100,  # Margin above noise floor for speech detection
         "frame_duration": 0.03,  # Duration of each audio frame (seconds)
     },
@@ -93,6 +94,11 @@ VOICE_TTS_SETTINGS = {
     "ding_sound_path": str(BASE_DIR / "assets" / "sound_effects" / "ding.wav"),
     "voice_index": 2,  # 0 = Hazel, 1 = David, 2 = Zira (example for Windows)
 }
+import json
+
+NOISE_CACHE_PATH = BASE_DIR / "assets" / "config_cache" / "noise_floor_cache.json"
+CHAT_MEMORY_FOLDER = BASE_DIR / "assets" / "chat_memory"
+WAKEWORD_PATH = BASE_DIR / "assets" / "robot_wakewords" / "hey_yummy.ppn"
 
 
 # LLM Settings
@@ -138,6 +144,9 @@ def validate_paths() -> None:
         TEMP_AUDIO_PATH,
         CAMERA_DATA_PATH,
         DB_PATH.parent,
+        NOISE_CACHE_PATH,
+        DB_BACKUP_PATH,
+        PROFILE_BACKUP_PATH,
     ]
 
     for path in paths_to_check:
@@ -172,7 +181,17 @@ def load_logging_config():
 
 # Set up logging
 load_logging_config()
-logger = logging.getLogger("mini_project")
+logger = logging.getLogger("App_CONFIG")
 
 # Automatically validate paths when this module is imported
-validate_paths()
+# validate_paths()
+
+
+if __name__ == "__main__":
+    setup_logging()
+    logger.info("🟡 Checking paths...")
+    try:
+        validate_paths()
+        logger.info(f"✅ All paths are valid.")
+    except RuntimeError as e:
+        logger.error(f"Path validation failed: {e}")

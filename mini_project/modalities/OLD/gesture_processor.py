@@ -2,15 +2,12 @@
 
 
 import logging
-# import sqlite3
+import sqlite3
 import threading
 import time
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-from psycopg2 import Error as Psycopg2Error
-
-from mini_project.database.connection import get_connection
 
 import cv2
 import mediapipe as mp
@@ -25,6 +22,7 @@ logger = logging.getLogger("GestureProcessor")
 class GestureDetector:
     def __init__(
         self,
+        db_path: str = DB_PATH,
         min_detection_confidence: float = MIN_DETECTION_CONFIDENCE,
         min_tracking_confidence: float = MIN_TRACKING_CONFIDENCE,
         max_num_hands: int = MAX_NUM_HANDS,
@@ -41,8 +39,7 @@ class GestureDetector:
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
 
-        self.conn = get_connection()
-
+        self.conn = sqlite3.connect(db_path, check_same_thread=False)
         self._init_db()
         self.cursor = self.conn.cursor()
 
@@ -53,7 +50,15 @@ class GestureDetector:
         loaded_gestures = self.load_gesture_definitions()
         if loaded_gestures:
             self.gesture_map = loaded_gestures
-
+        # else:
+        #     self.gesture_map = {
+        #         "thumbs_up": {"func": self._is_thumbs_up, "text": "Approval"},
+        #         "open_hand": {"func": self._is_open_hand, "text": "Stop"},
+        #         "pointing": {"func": self._is_pointing, "text": "Select Object"},
+        #         "closed_fist": {"func": self._is_closed_fist, "text": "Grab"},
+        #         "victory": {"func": self._is_victory, "text": "Confirm"},
+        #         "ok_sign": {"func": self._is_ok_sign, "text": "OK"},
+        #     }
 
         self.last_gesture: Optional[str] = None
         self.last_log_time: float = 0
@@ -61,25 +66,21 @@ class GestureDetector:
         self.last_detection: Optional[List[Dict[str, Any]]] = None
 
     def _init_db(self):
-        with self.conn.cursor() as cursor:
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS gesture_instructions (
-                    id SERIAL PRIMARY KEY,
-                    session_id TEXT NOT NULL,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    gesture_text TEXT NOT NULL,
-                    natural_description TEXT,
-                    confidence REAL,
-                    hand_label TEXT,
-                    processed BOOLEAN DEFAULT FALSE
-                )
-                """
+        self.conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gesture_instructions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT NOT NULL,
+                timestamp DATETIME DEFAULT (datetime('now','localtime')),
+                gesture_text TEXT NOT NULL,
+                natural_description TEXT,
+                confidence REAL,
+                hand_label TEXT
             )
+            """
+        )
         self.conn.commit()
-        logger.info("Gesture table (PostgreSQL) initialized.")
-
-
+        logger.info("Gesture database initialized with gesture_instructions table.")
 
     def _log_gesture(
         self,
@@ -89,14 +90,13 @@ class GestureDetector:
         confidence: float,
         hand_label: str,
     ):
-        timestamp = datetime.now()
+        timestamp = datetime.now().isoformat()
         try:
-            with self.conn.cursor() as cursor:
-                cursor.execute(
+            with self.conn:
+                self.conn.execute(
                     """
-                    INSERT INTO gesture_instructions
-                    (session_id, timestamp, gesture_text, natural_description, confidence, hand_label)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO gesture_instructions (session_id, timestamp, gesture_text, natural_description, confidence, hand_label)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
                     (
                         self.session_id,
@@ -107,14 +107,11 @@ class GestureDetector:
                         hand_label,
                     ),
                 )
-            self.conn.commit()
-
             logger.info(
                 f"Gesture: [{gesture_text}], Hand: [{hand_label}], Confidence: [{confidence:.2f}], Description: [{natural_description}]"
             )
-        except Psycopg2Error as e:
-            logger.error(f"[DB:PostgreSQL] Gesture logging failed: {e}", exc_info=True)
-            self.conn.rollback()
+        except sqlite3.Error as e:
+            logger.error(f"Database error: {e}")
 
     def _get_landmark_coords(
         self, landmarks, landmark_id: int
@@ -380,22 +377,21 @@ class GestureDetector:
 
     def load_gesture_definitions(self) -> Dict[str, Dict[str, Any]]:
         try:
-            with self.conn.cursor() as cursor:
-                query = "SELECT gesture_type, gesture_text, natural_description, config FROM gesture_library"
-                cursor.execute(query)
-                definitions = {}
-                for row in cursor.fetchall():
-                    gesture_type, gesture_text, natural_description, config = row
-                    definitions[gesture_type] = {
-                        "text": gesture_text,
-                        "description": natural_description,
-                        # You can parse the JSON config if needed:
-                        "config": config,
-                        # Map to your detection function via gesture_map_functions:
-                        "func": self.gesture_map_functions().get(gesture_type),
-                    }
+            query = "SELECT gesture_type, gesture_text, natural_description, config FROM gesture_library"
+            self.cursor.execute(query)
+            definitions = {}
+            for row in self.cursor.fetchall():
+                gesture_type, gesture_text, natural_description, config = row
+                definitions[gesture_type] = {
+                    "text": gesture_text,
+                    "description": natural_description,
+                    # You can parse the JSON config if needed:
+                    "config": config,
+                    # Map to your detection function via gesture_map_functions:
+                    "func": self.gesture_map_functions().get(gesture_type),
+                }
             return definitions
-        except Psycopg2Error as e:
+        except sqlite3.Error as e:
             logger.error(f"Error loading gesture definitions: {e}")
             return {}
 

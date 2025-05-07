@@ -165,7 +165,7 @@ class DatabasePopulator:
                 0.025,
                 0.015,
                 0.1,
-                0.1,
+                0.11,
                 0.1,
                 "/World/fixtureprim",
                 0.55475,
@@ -243,9 +243,11 @@ class DatabasePopulator:
                 "Sort slides by shape and color into trays",  # Human-readable explanation
                 [
                     "sort",
+                    "slides",
                     "slide",
                     "sorting",
-                    "arrange",
+                    "tray",
+                    "sort slides",
                 ],  # trigger_keywords	Voice-trigger words
                 "detect_slides_pgSQL.py",  # Path to run on vision system
                 True,  # is_triggerable, Whether LLM can set trigger = TRUE
@@ -257,7 +259,7 @@ class DatabasePopulator:
                 "shape_stacking",
                 "pick, travel, drop",
                 "Stack blocks of shapes based on their type and color",
-                ["stack", "shape", "pile"],
+                ["stack", "stacking", "shapes", "shape", "shape stacking"],
                 "detect_shapes_pgSQL.py",
                 True,
                 False,

@@ -110,3 +110,80 @@ WHISPER_LANGUAGE_NAMES = {
     "su": "sundanese",
     "yue": "cantonese",
 }
+
+
+WAKE_RESPONSES = [
+    "yes?",
+    "I'm listening",
+    "what's up?",
+    "go ahead.",
+    "at your service.",
+    "hello?",
+    "I'm here!",
+    "you called?",
+    "what do you want?",
+    "I'm listening.",
+    "hi?",
+    "what is it?",
+]
+GENERAL_TRIGGERS = {
+    "weather",
+    "who is",
+    "linköping",
+    "university",
+    "say something",
+    "remind",
+    "recap",
+    "explain",
+    "lab",
+    "appreciate",
+    "motivate",
+    "how are we doing",
+    "tell us about",
+    "introduce",
+    "location",
+    "where is",
+    "project",
+    "working on",
+    "colleague",
+    "summary",
+}
+TASK_VERBS = {
+    "sort",
+    "move",
+    "place",
+    "assemble",
+    "pick",
+    "drop",
+    "grab",
+    "stack",
+    "push",
+    "pull",
+}
+QUESTION_WORDS = {
+    "what",
+    "where",
+    "which",
+    "who",
+    "how many",
+    "is there",
+    "are there",
+}
+CONFIRM_WORDS = {
+    "yes",
+    "sure",
+    "okay",
+    "go ahead",
+    "absolutely",
+    "yep",
+    "definitely",
+    "please do",
+}
+CANCEL_WORDS = {"no", "cancel", "not now", "stop", "never mind", "don't"}
+TRIGGER_WORDS = {
+    "detect",
+    "refresh",
+    "capture",
+    "scan",
+    "trigger",
+}

@@ -1,44 +1,4 @@
-# modalities/FOR_SHAPES/voice_processor.py
-"""This module provides classes and functionality for voice processing, including
-speech synthesis, audio recording, transcription, and storage of voice instructions.
-Classes:
-    SpeechSynthesizer:
-        A singleton class for text-to-speech synthesis using either gTTS or pyttsx3.
-        Provides methods to play notification sounds and speak text.
-    AudioRecorder:
-        Handles audio recording with noise calibration and voice activity detection (VAD).
-        Records audio to a temporary file and detects speech presence.
-    Transcriber:
-        Uses the Whisper model to transcribe audio files into text.
-        Supports language detection and translation to English.
-    Storage:
-        Manages storage of transcribed voice instructions in a PostgreSQL database.
-        Handles retries and error handling for database operations.
-    VoiceProcessor:
-        Orchestrates the voice processing pipeline, including audio recording,
-        transcription, and storage. Provides a method to capture voice instructions.
-Constants:
-    MAX_TRANSCRIPTION_RETRIES:
-        Maximum number of retries for transcription in case of failure.
-    MIN_DURATION_SEC:
-        Minimum duration of a valid audio recording in seconds.
-    VOICE_PROCESSING_CONFIG:
-        Configuration dictionary for voice processing settings.
-    VOICE_TTS_SETTINGS:
-        Configuration dictionary for text-to-speech settings.
-    WHISPER_LANGUAGE_NAMES:
-        Mapping of language codes to language names.
-Usage:
-    The `VoiceProcessor` class can be used as the main entry point for capturing
-    and processing voice instructions. It integrates audio recording, transcription,
-    and storage functionalities.
-Example:
-    result = vp.capture_voice()
-    if result:
-        text, language = result
-        print(f"Transcribed Text: {text}, Language: {language}")
-
-"""
+# modalities/voice_processor.py
 
 import logging
 import os
@@ -103,7 +63,7 @@ class SpeechSynthesizer:
         try:
             if not self.ping_path.exists():
                 raise FileNotFoundError(f"Ping sound file not found: {self.ping_path}")
-            # playsound(str(self.ping_path))
+            playsound(str(self.ping_path))
         except Exception as e:
             logger.warning(f"[Ping Sound] Failed to play: {e}")
 
@@ -176,7 +136,7 @@ class AudioRecorder:
             )
         return noise_floor
 
-    def record_audio(self, speak_prompt: bool = False, play_ding: bool = True) -> None:
+    def record_audio(self) -> None:
         # 🔸 Use cached noise floor if available
         if self.noise_floor is None:
             self.noise_floor = self.calibrate_noise()
@@ -192,22 +152,18 @@ class AudioRecorder:
         )
 
         # 🗣️ Speak the instruction aloud
-        if speak_prompt:
-            try:
-                self.synthesizer.speak("Tell me, how can I help you?")
-            except Exception as e:
-                logger.warning(f"[Recorder] Failed to speak instruction: {e}")
+        try:
+            self.synthesizer.speak("Please speak now.")
+        except Exception as e:
+            logger.warning(f"[Recorder] Failed to speak instruction: {e}")
 
-        logger.info("📢 Voice recording: Speak now...🟢🟢🟢")
+        logger.info("🟢 Voice recording: Please speak now...")
 
         # 🔔 Play ding sound immediately after prompt
-        if play_ding:
-            try:
-                self.synthesizer.play_ding()
-            except Exception as e:
-                logger.warning(f"[Recorder] Failed to play ding: {e}")
-
-        # logger.info("🟢 Listening...")
+        try:
+            self.synthesizer.play_ding()
+        except Exception as e:
+            logger.warning(f"[Recorder] Failed to play ding: {e}")
 
         audio = []
         start_time = time.time()
@@ -301,9 +257,9 @@ class Transcriber:
             detected_language = info.language
             language_prob = info.language_probability
 
-            if language_prob < 0.3:
+            if language_prob < 0.5:
                 logger.warning(
-                    f"🔴 Low language detection confidence: {language_prob:.2f} for '{detected_language}'"
+                    f"❗ Low language detection confidence: {language_prob:.2f} for '{detected_language}'"
                 )
                 raise ValueError("Unclear speech or unsupported language.")
 
@@ -327,7 +283,7 @@ class Transcriber:
             logger.error(f"Error loading Whisper model: {e}")
             raise
         except Exception as e:
-            logger.warning(f"🔴 Unexpected error during transcription: {e}")
+            logger.error(f"Unexpected error during transcription: {e}")
             raise
 
 
@@ -389,70 +345,21 @@ class VoiceProcessor:
         self.synthesizer = SpeechSynthesizer()
         self.recorder = AudioRecorder(self.synthesizer)
 
-    # def capture_voice(self, conversational: bool = True) -> -> Optional[Tuple[str, str]]:
-    #     try:
-    #         logger.info("🟠 Starting voice capture process...")
-    #          # conversational = True ➝ just play ding
-    #         self.recorder.record_audio(speak_prompt=not conversational, play_ding=True)
-    #         # self.recorder.record_audio()
-
-    #         if not self.recorder.speech_detected:
-    #             logger.info("No speech detected. Skipping transcription and storage.")
-    #             try:
-    #                 os.remove(self.recorder.temp_audio_path)
-    #                 logger.info(
-    #                     f"Deleted temporary audio file: {self.recorder.temp_audio_path}"
-    #                 )
-    #             except Exception as e:
-    #                 logger.error(f"Error deleting temporary audio file: {e}")
-    #             return
-
-    #         logger.info("📥 Audio recording completed. Starting transcription...")
-
-    #         for attempt in range(MAX_TRANSCRIPTION_RETRIES):
-    #             try:
-    #                 text, language = self.transcriber.transcribe_audio(
-    #                     self.recorder.temp_audio_path
-    #                 )
-    #                 break  # success
-    #             except ValueError as e:
-    #                 logger.warning(f"Attempt {attempt+1}: {e}")
-    #                 if attempt == MAX_TRANSCRIPTION_RETRIES - 1:
-    #                     logger.info(
-    #                         "❌ Failed to transcribe clearly after retries. Skipping."
-    #                     )
-    #                     return
-    #                 else:
-    #                     time.sleep(1)
-
-    #         logger.info(f"✅ Transcription completed. Detected language: {language}")
-    #         logger.info("✅ Storing voice instruction in the database...")
-    #         self.storage.store_instruction(self.session_id, language, text)
-    #         logger.info("✅ Voice instruction captured and stored successfully!")
-
-    #     except KeyboardInterrupt:
-    #         logger.info("Voice capture process interrupted by user.")
-    #     except ValueError as e:
-    #         logger.info(f"📌 Skipping transcription: {e}")
-    #         return
-    #     except Exception as e:
-    #         logger.error(f"Error in voice capture process: {e}")
-
-    def capture_voice(self, conversational: bool = True) -> Optional[Tuple[str, str]]:
+    def capture_voice(self) -> None:
         try:
-            # logger.info("🟠 Starting voice capture process...")
-            self.recorder.record_audio(speak_prompt=not conversational, play_ding=True)
+            logger.info("🟠 Starting voice capture process...")
+            self.recorder.record_audio()
 
             if not self.recorder.speech_detected:
-                logger.info("🟡 No speech detected. Skipping transcription.")
+                logger.info("No speech detected. Skipping transcription and storage.")
                 try:
                     os.remove(self.recorder.temp_audio_path)
                     logger.info(
-                        f"✅ Deleted temporary audio file: {self.recorder.temp_audio_path}"
+                        f"Deleted temporary audio file: {self.recorder.temp_audio_path}"
                     )
                 except Exception as e:
                     logger.error(f"Error deleting temporary audio file: {e}")
-                return None
+                return
 
             logger.info("📥 Audio recording completed. Starting transcription...")
 
@@ -461,29 +368,29 @@ class VoiceProcessor:
                     text, language = self.transcriber.transcribe_audio(
                         self.recorder.temp_audio_path
                     )
-                    break  # Transcription succeeded
+                    break  # success
                 except ValueError as e:
-                    logger.warning(f"🟡 Attempt {attempt+1}: {e}")
+                    logger.warning(f"Attempt {attempt+1}: {e}")
                     if attempt == MAX_TRANSCRIPTION_RETRIES - 1:
-                        logger.warning(
+                        logger.info(
                             "❌ Failed to transcribe clearly after retries. Skipping."
                         )
-                        return None
+                        return
                     else:
                         time.sleep(1)
 
             logger.info(f"✅ Transcription completed. Detected language: {language}")
-            return text.strip(), language
+            logger.info("✅ Storing voice instruction in the database...")
+            self.storage.store_instruction(self.session_id, language, text)
+            logger.info("✅ Voice instruction captured and stored successfully!")
 
         except KeyboardInterrupt:
             logger.info("Voice capture process interrupted by user.")
-            return None
         except ValueError as e:
             logger.info(f"📌 Skipping transcription: {e}")
-            return None
+            return
         except Exception as e:
             logger.error(f"Error in voice capture process: {e}")
-            return None
 
 
 if __name__ == "__main__":

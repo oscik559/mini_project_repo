@@ -59,7 +59,7 @@ tables = OrderedDict(
             CREATE TABLE IF NOT EXISTS isaac_sim_gui (
                 sequence_id SERIAL PRIMARY KEY,
                 gui_feature TEXT NOT NULL,
-                operation_status TEXT NOT NULL
+                operation_status BOOLEAN DEFAULT FALSE
             );
     """,
         ),
@@ -196,7 +196,14 @@ tables = OrderedDict(
                 sequence_id SERIAL PRIMARY KEY,
                 operation_order INTEGER NOT NULL,
                 object_id TEXT NOT NULL,
+
                 drop_height FLOAT NOT NULL,
+
+                -- ✅ New columns for specifying drop location
+                drop_pos_x FLOAT DEFAULT NULL,
+                drop_pos_y FLOAT DEFAULT NULL,
+                drop_pos_z FLOAT DEFAULT NULL,
+
                 operation_status BOOLEAN NOT NULL
             );
     """,
