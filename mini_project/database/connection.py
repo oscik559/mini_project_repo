@@ -9,7 +9,7 @@ import psycopg2
 from dotenv import load_dotenv
 from psycopg2 import sql
 
-from config.app_config import setup_logging
+from mini_project.config.app_config import setup_logging
 
 load_dotenv()
 

@@ -1,4 +1,4 @@
-# workflow/session_manager.py
+# modalities/session_manager.py
 """Module: session_manager
 This module defines the `SessionManager` class, which is responsible for managing user authentication
 and session lifecycle in the mini_project application. It integrates face and voice authentication
@@ -21,7 +21,7 @@ Usage:
 import logging
 import uuid
 
-from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
+from mini_project.config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
 from mini_project.authentication._face_auth import FaceAuthSystem
 from mini_project.authentication._voice_auth import VoiceAuth
 

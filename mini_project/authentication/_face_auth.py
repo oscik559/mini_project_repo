@@ -1,4 +1,4 @@
-# authentication/face_auth_pgSQL.py
+# authentication/face_auth.py
 """
 Classes:
     FaceUtils:
@@ -44,7 +44,7 @@ import faiss  # For fast similarity search
 import numpy as np
 import psycopg2
 
-from config.app_config import (
+from mini_project.config.app_config import (
     AUTO_CAPTURE_FRAME_COUNT,
     EMAIL_PATTERN,
     FACE_CAPTURE_PATH,

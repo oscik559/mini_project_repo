@@ -26,13 +26,16 @@ from langgraph.graph import END, StateGraph
 
 from config.app_config import CHAT_MEMORY_FOLDER, setup_logging
 from mini_project.database.connection import get_connection
-
-
 from mini_project.modalities.prompt_utils import PromptBuilder
 from mini_project.modalities.session_manager import SessionManager
 from mini_project.modalities.voice_processor import SpeechSynthesizer
 
 sys.setrecursionlimit(1000)
+
+from intent_subgraphs.general_query_subgraph import get_general_query_subgraph
+from intent_subgraphs.scene_query_subgraph import get_scene_query_subgraph
+from intent_subgraphs.task_planner_subgraph import get_task_planner_subgraph
+from intent_subgraphs.trigger_task_subgraph import get_trigger_task_subgraph
 
 from config.constants import (
     CANCEL_WORDS,
@@ -46,11 +49,6 @@ from config.constants import (
 from mini_project.modalities.langraph_implementation.voice_processor_subgraph import (
     get_voice_subgraph,
 )
-from intent_subgraphs.general_query_subgraph import get_general_query_subgraph
-from intent_subgraphs.scene_query_subgraph import get_scene_query_subgraph
-from intent_subgraphs.trigger_task_subgraph import get_trigger_task_subgraph
-from intent_subgraphs.task_planner_subgraph import get_task_planner_subgraph
-
 
 # === Configuration ===
 OLLAMA_MODEL = "llama3.2:latest"

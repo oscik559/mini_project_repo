@@ -1,4 +1,4 @@
-# modalities/FOR_SHAPES/command_processor.py
+# modalities/command_processor.py
 """CommandProcessor Class
 This class is responsible for processing unified commands for robotic tasks. It interacts with a database to fetch
 and validate data, uses an LLM (Large Language Model) for inference and classification, and generates operation
@@ -68,7 +68,7 @@ from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 from psycopg2.extras import DictCursor
 
-from config.app_config import setup_logging
+from mini_project.config.app_config import setup_logging
 from mini_project.database.connection import get_connection
 from mini_project.modalities.prompt_utils import PromptBuilder
 

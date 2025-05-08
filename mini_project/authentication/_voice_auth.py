@@ -1,4 +1,4 @@
-# authentication/voice_auth_pgSQL.py
+# authentication/voice_auth.py
 """
 This module provides a voice authentication system using PostgreSQL as the database backend.
 It includes functionalities for user registration, voice embedding storage, and voice-based user verification.
@@ -42,7 +42,7 @@ from scipy.io.wavfile import write
 from sklearn.metrics.pairwise import cosine_similarity
 from speech_recognition import AudioFile, Recognizer, RequestError, UnknownValueError
 
-from config.app_config import (
+from mini_project.config.app_config import (
     MAX_RETRIES,
     TEMP_AUDIO_PATH,
     TRANSCRIPTION_SENTENCE,

@@ -1,5 +1,5 @@
 # config/constants.py
-# for table and column names.
+
 
 # Synchronizer Constants
 VOICE_TABLE = "voice_instructions"

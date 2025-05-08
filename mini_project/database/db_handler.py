@@ -329,6 +329,8 @@ class DatabaseHandler:
             populator.populate_users()
             populator.populate_sequence_library()
             populator.populate_operation_library()
+            populator.populate_gesture_library()
+            populator.populate_isaac_sim_gui()
             populator.populate_task_templates()
             populator.populate_skills()
             populator.populate_instructions()

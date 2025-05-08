@@ -25,6 +25,12 @@ Methods:
     - populate_manual_operations: Populates various operation parameter tables with predefined manual operation data.
 
 """
+import logging
+
+from config.app_config import setup_logging
+
+setup_logging(level=logging.INFO)
+logger = logging.getLogger("DBasePopulator")
 
 
 class DatabasePopulator:
@@ -102,7 +108,70 @@ class DatabasePopulator:
             (sequence_name, node_name, description, conditions, post_conditions, is_runnable_count, is_runnable_condition, is_runnable_exit)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s);
         """
-        self.cursor.executemany(insert_query, sequence_library)
+        try:
+            self.cursor.executemany(insert_query, sequence_library)
+            logger.info(
+                "✅ Successfully populated the sequence_library table with data!"
+            )
+        except Exception as e:
+            logger.error(f"❌ Error inserting sequence_library: {e}")
+            self.cursor.connection.rollback()
+
+    def populate_gesture_library(self):
+        """
+        Populate gesture_library table with predefined gesture data.
+        """
+        gesture_data = [
+            (
+                "thumbs_up",
+                "Approval",
+                "The thumb is raised above the index finger.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "open_hand",
+                "Stop",
+                "All fingers are extended, signaling stop.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "pointing",
+                "Select Object",
+                "The index finger is extended while other fingers are curled.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "closed_fist",
+                "Grab",
+                "The hand is clenched into a fist.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "victory",
+                "Confirm",
+                "The hand forms a V-shape with the index and middle fingers extended.",
+                '{"threshold": 0.0}',
+            ),
+            (
+                "ok_sign",
+                "OK",
+                "The thumb and index finger are touching to form a circle.",
+                '{"threshold": 0.05}',
+            ),
+        ]
+
+        insert_query = """
+            INSERT INTO gesture_library (gesture_type, gesture_text, natural_description, config)
+            VALUES (%s, %s, %s, %s);
+        """
+        try:
+            self.cursor.executemany(insert_query, gesture_data)
+            logger.info(
+                "✅ Successfully populated the gesture_library table with data!"
+            )
+        except Exception as e:
+            logger.error(f"❌ Error inserting gesture data: {e}")
+            self.cursor.connection.rollback()
 
     def populate_usd_data(self):
         """
@@ -229,7 +298,12 @@ class DatabasePopulator:
                 )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """
-        self.cursor.executemany(insert_query, usd_data)
+        try:
+            self.cursor.executemany(insert_query, usd_data)
+            logger.info("✅ Successfully populated the usd_data table with data!")
+        except Exception as e:
+            logger.error(f"❌ Error inserting usd_data: {e}")
+            self.cursor.connection.rollback()
 
     def populate_operation_library(self):
         self.cursor.execute("SELECT COUNT(*) FROM operation_library")
@@ -274,7 +348,14 @@ class DatabasePopulator:
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
         """
-        self.cursor.executemany(insert_query, operation_library)
+        try:
+            self.cursor.executemany(insert_query, operation_library)
+            logger.info(
+                "✅ Successfully populated the operation_library table with data!"
+            )
+        except Exception as e:
+            logger.error(f"❌ Error inserting operation_library: {e}")
+            self.cursor.connection.rollback()
 
     def populate_users(self):
         self.cursor.execute("SELECT COUNT(*) FROM users")
@@ -397,7 +478,12 @@ class DatabasePopulator:
             INSERT INTO users (first_name, last_name, liu_id, email, preferences, profile_image_path, interaction_memory, role)
             VALUES (%s, %s, %s, %s, %s,%s,%s, %s);
         """
-        self.cursor.executemany(insert_query, users)
+        try:
+            self.cursor.executemany(insert_query, users)
+            logger.info("✅ Successfully populated the users table with data!")
+        except Exception as e:
+            logger.error(f"❌ Error inserting users: {e}")
+            self.cursor.connection.rollback()
 
     def populate_skills(self):
         skills = [
@@ -782,12 +868,18 @@ class DatabasePopulator:
                 """,
                 drop_op_parameters,
             )
-        # -- Isaac GUI Features
+
+    def populate_isaac_sim_gui(self):
         isaac_sim_gui = [("Start", False), ("Reset", False), ("Load", False)]
-        self.cursor.executemany(
-            """
+        insert_query = """
             INSERT INTO isaac_sim_gui (gui_feature, operation_status)
-            VALUES (%s, %s)
-            """,
-            isaac_sim_gui,
-        )
+            VALUES (%s, %s);
+        """
+        try:
+            self.cursor.executemany(insert_query, isaac_sim_gui)
+            logger.info(
+                "✅ Successfully populated the isaac_sim_gui table with data!"
+            )
+        except Exception as e:
+            logger.error(f"❌ Error inserting isaac_sim_gui: {e}")
+            self.cursor.connection.rollback()

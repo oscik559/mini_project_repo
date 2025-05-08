@@ -1,4 +1,5 @@
-# modalities/FOR_SHAPES/voice_processor.py
+# modalities/voice_processor.py
+
 """This module provides classes and functionality for voice processing, including
 speech synthesis, audio recording, transcription, and storage of voice instructions.
 Classes:
@@ -61,13 +62,13 @@ from playsound import playsound
 from pluggy import Result
 from scipy.io.wavfile import write
 
-from config.app_config import (
+from mini_project.config.app_config import (
     MAX_TRANSCRIPTION_RETRIES,
     MIN_DURATION_SEC,
     VOICE_PROCESSING_CONFIG,
     VOICE_TTS_SETTINGS,
 )
-from config.constants import WHISPER_LANGUAGE_NAMES
+from mini_project.config.constants import WHISPER_LANGUAGE_NAMES
 from mini_project.database.connection import get_connection
 
 logging.getLogger("comtypes").setLevel(logging.WARNING)

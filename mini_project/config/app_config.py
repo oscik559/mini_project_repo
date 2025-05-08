@@ -147,6 +147,8 @@ def validate_paths() -> None:
         NOISE_CACHE_PATH,
         DB_BACKUP_PATH,
         PROFILE_BACKUP_PATH,
+        CHAT_MEMORY_FOLDER,
+        WAKEWORD_PATH,
     ]
 
     for path in paths_to_check:

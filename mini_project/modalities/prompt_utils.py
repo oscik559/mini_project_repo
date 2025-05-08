@@ -1,4 +1,4 @@
-# modalities/FOR_SHAPES/prompt_utils.py
+# modalities/prompt_utils.py
 """This module provides utilities for generating prompt templates used in a voice-controlled robotic assistant system.
 The prompts are designed to handle various tasks such as command classification, operation matching, scene description,
 and general conversation. The module also includes helper methods for validating JSON responses and generating greetings.

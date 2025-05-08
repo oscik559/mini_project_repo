@@ -56,16 +56,14 @@ import string
 import struct
 import threading
 import warnings
+from datetime import datetime
+from pathlib import Path
+from typing import Literal, Optional, TypedDict
 
 import ollama
 import pvporcupine
 import requests
 import sounddevice as sd
-
-from datetime import datetime
-from pathlib import Path
-from typing import Literal, Optional, TypedDict
-
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import messages_from_dict, messages_to_dict
@@ -74,8 +72,12 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableSequence
 from langchain_ollama import ChatOllama
 
-from config.app_config import CHAT_MEMORY_FOLDER, WAKEWORD_PATH, setup_logging
-from config.constants import (
+from mini_project.config.app_config import (
+    CHAT_MEMORY_FOLDER,
+    WAKEWORD_PATH,
+    setup_logging,
+)
+from mini_project.config.constants import (
     CANCEL_WORDS,
     CONFIRM_WORDS,
     GENERAL_TRIGGERS,
@@ -92,8 +94,6 @@ from mini_project.modalities.voice_processor import (
     SpeechSynthesizer,
     VoiceProcessor,
 )
-
-
 
 # ========== Wake Word Setup ==========
 ACCESS_KEY = os.getenv("PICOVOICE_ACCESS_KEY")
@@ -355,24 +355,26 @@ def trigger_remote_vision_task(command_text: str) -> str:
             return f"the script '{matched_operation}' is already running."
 
         # === Step 4: Exclusively trigger this operation ===
-        cursor.execute(
-            """
-            UPDATE operation_library
-            SET trigger = FALSE,
-                state = 'idle'
-            WHERE trigger = TRUE OR state = 'triggered'
-        """
-        )
-        cursor.execute(
-            """
-            UPDATE operation_library
-            SET trigger = TRUE,
-                state = 'triggered',
-                last_triggered = %s
-            WHERE operation_name = %s
-        """,
-            (datetime.now(), matched_operation),
-        )
+        with conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    UPDATE operation_library
+                    SET trigger = FALSE,
+                        state = 'idle'
+                    WHERE trigger = TRUE OR state = 'triggered'
+                    """
+                )
+                cursor.execute(
+                    """
+                    UPDATE operation_library
+                    SET trigger = TRUE,
+                        state = 'triggered',
+                        last_triggered = %s
+                    WHERE operation_name = %s
+                    """,
+                    (datetime.now(), matched_operation),
+                )
 
         conn.commit()
         logger.info("✅ Remote task triggered exclusively: %s", matched_operation)

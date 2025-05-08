@@ -2,22 +2,19 @@
 
 
 import logging
-# import sqlite3
 import threading
 import time
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
-from psycopg2 import Error as Psycopg2Error
-
-from mini_project.database.connection import get_connection
 
 import cv2
 import mediapipe as mp
+from psycopg2 import Error as Psycopg2Error
 
 from config.app_config import *
+from mini_project.database.connection import get_connection
 
-# Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)
 logger = logging.getLogger("GestureProcessor")
 
