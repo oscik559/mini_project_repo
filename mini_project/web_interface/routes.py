@@ -5,6 +5,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 from mini_project.database.connection import get_connection
+from mini_project.authentication._face_auth import FaceAuthSystem
+from mini_project.authentication._voice_auth import VoiceAuth
 
 from mini_project.modalities.voice_assistant import VoiceAssistant
 
@@ -89,7 +91,43 @@ async def set_model(request: Request):
     assistant.set_llm_model(model)
     return {"message": f"✅ Model set to {model}"}
 
+from fastapi import UploadFile, File, Form
 
+@router.post("/register-user")
+async def register_user(
+    first_name: str = Form(...),
+    last_name: str = Form(...),
+    liu_id: str = Form(...),
+    email: str = Form(...),
+    face: UploadFile = File(...),
+    voice: UploadFile = File(...)
+):
+    # Save uploaded files
+    face_path = f"temp_images/{liu_id}_face.png"
+    voice_path = f"temp_audio/{liu_id}_voice.webm"
+    with open(face_path, "wb") as f:
+        f.write(await face.read())
+    with open(voice_path, "wb") as f:
+        f.write(await voice.read())
+
+    # Process face registration
+    try:
+        face_auth = FaceAuthSystem()
+        # You need to implement a method that takes an image path and user info
+        face_success = face_auth.register_user_from_image(
+            face_path, first_name, last_name, liu_id, email
+        )
+        # Process voice registration
+        voice_auth = VoiceAuth()
+        voice_success = voice_auth.register_voice_for_user_from_file(
+            first_name, last_name, liu_id, voice_path
+        )
+        if face_success and voice_success:
+            return {"message": f"✅ User {first_name} registered (face/voice captured)."}
+        else:
+            return {"message": f"❌ Registration failed (face or voice not captured)."}
+    except Exception as e:
+        return {"message": f"❌ Registration failed: {str(e)}"}
 
 @router.post("/process-voice")
 async def process_voice():

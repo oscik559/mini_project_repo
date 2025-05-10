@@ -359,6 +359,7 @@
         </div>
 
 
+
         <div id="typing-indicator" style="text-align: left; padding: 0 1em; font-style: italic; color: #999;"></div>
         <div class="toolbar" style="display: flex; justify-content: center; align-items: center; gap: 0.3em; padding: 0.5em 1em;">
             <button onclick="appendQuickReplies()" class="rounded">🤔Suggestions</button>
@@ -396,7 +397,22 @@
             © 2025 <a href='https://www.linkedin.com/in/ikechuquoscar/' target='_blank' rel='noopener' style='color: inherit;'>Oscar</a>· Designed with ❤️ at <a href='https://liu.se' target='_blank' rel='noopener' style='color: inherit;'>Linköping University</a>
         </footer>
 
-    </div>
+
+        <!-- Add this modal to your HTML -->
+        <!-- Add this modal to your HTML -->
+        <div id="register-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
+          <form id="register-form" style="background:#fff; color:#222; padding:2em; border-radius:10px; min-width:300px;">
+            <h3>Register User</h3>
+            <input type="text" id="reg-firstname" placeholder="First Name" required style="width:100%;margin-bottom:0.5em;"><br>
+            <input type="text" id="reg-lastname" placeholder="Last Name" required style="width:100%;margin-bottom:0.5em;"><br>
+            <input type="text" id="reg-liuid" placeholder="LIU ID" required style="width:100%;margin-bottom:0.5em;"><br>
+            <input type="email" id="reg-email" placeholder="Email" required style="width:100%;margin-bottom:0.5em;"><br>
+            <input type="file" id="reg-face" accept="image/*" capture="user" required style="margin-bottom:0.5em;"><br>
+            <input type="file" id="reg-voice" accept="audio/*" capture required style="margin-bottom:0.5em;"><br>
+            <button type="submit" class="rounded-btn">Register</button>
+            <button type="button" onclick="closeRegisterModal()" class="rounded-btn">Cancel</button>
+          </form>
+        </div>
 
     <script>
 
@@ -422,11 +438,22 @@
                 const res = await fetch("/start-session", { method: "POST" });
                 const data = await res.json();
 
+                if (data.authenticated === false) {
+                    showRegisterModal(); // Show registration modal if authentication fails
+                    return;
+                }
                 showResponse(data.message);
 
                 // Set authenticated user name
                 const name = data.username || (data.message.includes(":") ? data.message.split(":")[1]?.trim() : null);
                 if (name) updateAuthUser(name);
+
+                // Add this to show a chat message:
+                if (name) {
+                    appendMessage("assistant", `👋 Welcome, ${name}! You are now authenticated.`);
+                } else if (data.message) {
+                    appendMessage("assistant", data.message);
+                }
 
                 // Update model in typing indicator
                 if (data.model) {
@@ -439,6 +466,29 @@
             }
         }
 
+        function showRegisterModal() {
+            document.getElementById('register-modal').style.display = 'flex';
+        }
+        function closeRegisterModal() {
+            document.getElementById('register-modal').style.display = 'none';
+        }
+        document.getElementById('register-form').onsubmit = async function(e) {
+            e.preventDefault();
+            const data = new FormData();
+            data.append('first_name', document.getElementById('reg-firstname').value);
+            data.append('last_name', document.getElementById('reg-lastname').value);
+            data.append('liu_id', document.getElementById('reg-liuid').value);
+            data.append('email', document.getElementById('reg-email').value);
+            data.append('face', document.getElementById('reg-face').files[0]);
+            data.append('voice', document.getElementById('reg-voice').files[0]);
+            const res = await fetch('/register-user', {
+                method: 'POST',
+                body: data
+            });
+            const result = await res.json();
+            showResponse(result.message);
+            closeRegisterModal();
+        };
 
         async function sendCommand() {
             try {
@@ -535,7 +585,8 @@
         }
 
         async function setLLMModel(model) {
-            const allowedModels = ["llama3.3:latest", "phi4:latest", "mistral:latest"];
+            const allowedModels = ["llama3.3:latest", "phi4:latest","llama3.2:latest", "mistral:latest", "llama3.2:1b", "qwen2.5:0.5b", "gemma3:4b", "qwen:0.5b"];
+
             if (!allowedModels.includes(model)) {
                 showResponse("❌ Invalid model selected.");
                 return;
@@ -570,7 +621,11 @@
 
         function appendQuickReplies() {
             const container = document.getElementById("quick-replies");
-            container.innerHTML = '';
+            // Toggle: if already visible, hide; else show
+            if (container.innerHTML.trim() !== "") {
+                container.innerHTML = '';
+                return;
+            }
 
             ["Yes", "No", "Help", "Repeat", "What can you see?"].forEach(reply => {
                 const btn = document.createElement("button");
