@@ -1,5 +1,5 @@
 # mini_project/web_interface/routes.py
-
+from fastapi import UploadFile, File
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -26,6 +26,7 @@ async def homepage(request: Request):
 # async def start_session():
 #     success, msg = assistant.start_session()
 #     return {"success": success, "message": msg}
+
 @router.post("/start-session")
 async def start_session():
     success, msg = assistant.start_session()
@@ -129,13 +130,30 @@ async def register_user(
     except Exception as e:
         return {"message": f"❌ Registration failed: {str(e)}"}
 
+# @router.post("/process-voice")
+# async def process_voice():
+#     result = assistant.vp.capture_voice()
+#     if not result:
+#         return {"transcription": ""}
+#     command_text, lang = result
+#     return {"transcription": command_text, "lang": lang}
+
+
+
 @router.post("/process-voice")
-async def process_voice():
-    result = assistant.vp.capture_voice()
-    if not result:
-        return {"transcription": ""}
-    command_text, lang = result
-    return {"transcription": command_text, "lang": lang}
+async def process_voice(audio: UploadFile = File(None)):
+    if audio:
+        audio_path = f"temp_audio/{audio.filename}"
+        with open(audio_path, "wb") as f:
+            f.write(await audio.read())
+        command_text, lang = assistant.vp.transcribe_audio(audio_path)
+        return {"transcription": command_text, "lang": lang}
+    else:
+        result = assistant.vp.capture_voice()
+        if not result:
+            return {"transcription": ""}
+        command_text, lang = result
+        return {"transcription": command_text, "lang": lang}
 
 @router.post("/llm-response")
 async def llm_response(request: Request):

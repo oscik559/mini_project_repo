@@ -72,7 +72,7 @@
             display: flex;
             flex-direction: column;
             gap: 0.75em;
-            background-image: url('/static/chat-bg-yumi.png');
+            background-image: url('/static/chat-bg-robot.png');
             background-size: cover;
             background-repeat: repeat;
             background-position: center;
@@ -490,6 +490,34 @@
             closeRegisterModal();
         };
 
+        // async function sendCommand() {
+        //     try {
+        //         const input = document.getElementById("command-input");
+        //         const message = input.value.trim();
+        //         if (!message) {
+        //             showResponse("❌ Command cannot be empty.");
+        //             return;
+        //         }
+
+        //         appendMessage("user", message);
+        //         input.value = "";
+        //         input.style.height = "auto"; // Reset height
+
+        //         const formData = new FormData();
+        //         formData.append("command", message);
+
+        //         const res = await fetch("/send-command", { method: "POST", body: formData });
+        //         if (!res.ok) throw new Error("Failed to send command");
+
+        //         const data = await res.json();
+        //         appendMessage("assistant", data.response || "No response.");
+        //         speakResponse(data.response || "No response.");
+        //     } catch (error) {
+        //         console.error(error);
+        //         showResponse("❌ Unable to process command. Please try again.");
+        //     }
+        // }
+
         async function sendCommand() {
             try {
                 const input = document.getElementById("command-input");
@@ -499,23 +527,35 @@
                     return;
                 }
 
-                appendMessage("user", message);
+                appendMessage("user", message); // <-- Add this line to show user's message
+
                 input.value = "";
                 input.style.height = "auto"; // Reset height
 
+                showResponse("🤖 Robot is thinking ...");
                 const formData = new FormData();
                 formData.append("command", message);
-
                 const res = await fetch("/send-command", { method: "POST", body: formData });
                 if (!res.ok) throw new Error("Failed to send command");
-
                 const data = await res.json();
                 appendMessage("assistant", data.response || "No response.");
                 speakResponse(data.response || "No response.");
+                showResponse("");
             } catch (error) {
                 console.error(error);
                 showResponse("❌ Unable to process command. Please try again.");
             }
+        }
+
+        async function sendPredefined(reply) {
+            showResponse("🤖 Thinking...");
+            const formData = new FormData();
+            formData.append("command", reply);
+            const res = await fetch("/send-command", { method: "POST", body: formData });
+            const data = await res.json();
+            appendMessage("assistant", data.response || "No response.");
+            speakResponse(data.response || "No response.");
+            showResponse("");
         }
 
         async function resetMemory() {
@@ -524,8 +564,12 @@
             showResponse(data.message);
         }
 
+        // function showResponse(text) {
+        //     appendMessage("assistant", text);
+        // }
         function showResponse(text) {
-            appendMessage("assistant", text);
+            const typingIndicator = document.getElementById("typing-indicator");
+            typingIndicator.innerText = text;
         }
 
 
