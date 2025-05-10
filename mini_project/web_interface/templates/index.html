@@ -265,30 +265,31 @@
         .rounded {
             border-radius: 16px;
             padding: 0.4em 0.8em 0.5em 0.4em;
-            background: #dce6e6;
-            color: #181717;
-            border: none;
+            background: #c2a009;
+            color: #000000;
+            border: 0.2em solid #fffefe;
             font-family: "Segoe Print",'Nunito', 'Segoe UI', Arial, sans-serif;
             font-size: 0.7em;
             cursor: pointer;
-            margin-right: 0.5em;
+            margin-right: 0.2em;
             transition: background 0.2s;
         }
 
         .rounded:hover {
-            background: #b9bdbd;
+            background: #797a7a;
         }
 
         .rounded-btn {
             background-color: var(--accent);
             color: #000;
             font-weight: bold;
-            border: 0.1em solid #d8d5d3;
-
+            border: 0.2em solid #d8d5d3;
+            font-family: "Segoe Print",'Nunito', 'Segoe UI', Arial, sans-serif;
+            font-size: 0.7em;
 
             border-radius: 16px;
             padding: 4px 10px 6px 5px;
-            margin-right: 0.5em;
+            margin-right: 0.3em;
             cursor: pointer;
             transition: background-color 0.2s ease;
         }
@@ -323,9 +324,12 @@
             <div>
 
                <div>
-                    <button onclick="startSession()" class="rounded-btn">🔐start</button>
-                    <button onclick="resetMemory()" class="rounded-btn">🧠reset</button>
-                    <button onclick="fetchDBView()" class="rounded-btn">📊table</button>
+                    <button onclick="startSession()" class="rounded-btn">🔐Start</button>
+                    <button onclick="resetMemory()" class="rounded-btn">🧠Reset</button>
+                    <button onclick="fetchDBView()" class="rounded-btn">📊Table</button>
+                    <button onclick="simulateTask()" class="rounded-btn">🧪Simulate</button>
+                    <button onclick="executeTask()" class="rounded-btn">🤖Execute</button>
+
                 </div>
             </div>
             <label style="font-size: 0.9em;">
