@@ -1,5 +1,4 @@
 import psycopg2
-
 from config.app_config import DB_URL
 
 try:

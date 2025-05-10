@@ -1,4 +1,4 @@
-# modalities/llm_main_chain.py
+# mini_project/modalities/llm_main_chain.py
 """This script implements a voice assistant system for a research lab environment. It integrates
 various functionalities such as wake word detection, voice command processing, scene querying,
 task execution, and conversational interactions using an LLM (Language Learning Model). The

@@ -7,8 +7,8 @@ import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 import pyrealsense2 as rs
-
 from config.app_config import *
+
 from mini_project.database.db_handler import DatabaseHandler
 
 

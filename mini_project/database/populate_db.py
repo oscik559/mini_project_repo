@@ -27,7 +27,7 @@ Methods:
 """
 import logging
 
-from config.app_config import setup_logging
+from mini_project.config.app_config import setup_logging
 
 setup_logging(level=logging.INFO)
 logger = logging.getLogger("DBasePopulator")
@@ -877,9 +877,7 @@ class DatabasePopulator:
         """
         try:
             self.cursor.executemany(insert_query, isaac_sim_gui)
-            logger.info(
-                "✅ Successfully populated the isaac_sim_gui table with data!"
-            )
+            logger.info("✅ Successfully populated the isaac_sim_gui table with data!")
         except Exception as e:
             logger.error(f"❌ Error inserting isaac_sim_gui: {e}")
             self.cursor.connection.rollback()

@@ -10,11 +10,11 @@ from typing import Dict, List, Tuple
 
 import ollama
 import psycopg2
+from config.app_config import setup_logging
 from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql
 from psycopg2.extras import DictCursor
 
-from config.app_config import setup_logging
 from mini_project.database.connection import get_connection
 from mini_project.modalities.prompt_utils import PromptBuilder
 

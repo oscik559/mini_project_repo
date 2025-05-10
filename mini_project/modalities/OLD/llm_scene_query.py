@@ -1,8 +1,8 @@
 import logging
 
 import requests
-
 from config.app_config import setup_logging
+
 from mini_project.database.connection import get_connection
 from mini_project.modalities.voice_processor import (
     SpeechSynthesizer,

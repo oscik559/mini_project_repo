@@ -1,3 +1,6 @@
+# mini_project/config/logging_config.yaml
+
+
 version: 1
 disable_existing_loggers: False
 

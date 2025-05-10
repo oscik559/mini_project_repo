@@ -1,4 +1,4 @@
-# modalities/task_manager.py
+# mini_project/modalities/task_manager.py
 
 import logging
 import threading
@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext
 
 from config.app_config import DB_PATH, TEMP_AUDIO_PATH, VOICE_DATA_PATH
+
 from mini_project.authentication._face_auth import FaceAuthSystem
 from mini_project.authentication._voice_auth import VoiceAuth
 from mini_project.modalities.command_processor import CommandProcessor

@@ -77,10 +77,14 @@ import sys
 from datetime import datetime
 
 import psycopg2
+from mini_project.config.app_config import (
+    DB_BACKUP_PATH,
+    PROFILE_BACKUP_PATH,
+    setup_logging,
+)
 from dotenv import load_dotenv
 from psycopg2 import Error as Psycopg2Error
 
-from config.app_config import DB_BACKUP_PATH, PROFILE_BACKUP_PATH, setup_logging
 from mini_project.database import populate_db, schema_sql
 from mini_project.database.connection import get_connection
 

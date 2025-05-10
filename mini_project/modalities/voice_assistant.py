@@ -1,4 +1,4 @@
-# modalities/llm_main_chain.py
+# mini_project/modalities/voice_assistant.py
 """This script implements a voice assistant system for a research lab environment. It integrates
 various functionalities such as wake word detection, voice command processing, scene querying,
 task execution, and conversational interactions using an LLM (Language Learning Model). The
@@ -72,7 +72,11 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnableSequence
 from langchain_ollama import ChatOllama
 
-from mini_project.config.app_config import CHAT_MEMORY_FOLDER, WAKEWORD_PATH, setup_logging
+from mini_project.config.app_config import (
+    CHAT_MEMORY_FOLDER,
+    WAKEWORD_PATH,
+    setup_logging,
+)
 from mini_project.config.constants import (
     CANCEL_WORDS,
     CONFIRM_WORDS,
@@ -115,7 +119,9 @@ class VoiceAssistant:
         self.session = SessionManager()
 
         # LLM, memory, prompt
-        self.llm = ChatOllama(model=model_name)
+        self.selected_model = "llama3.2:latest"
+        # self.llm = ChatOllama(model=model_name)
+        self.model_name = model_name
         self.memory = ConversationBufferMemory(
             memory_key="chat_history", input_key="question"
         )
@@ -132,32 +138,43 @@ class VoiceAssistant:
         self.chat_memory_path = None
         self.authenticated_user = None
 
+    def get_llm(self):
+        # model = self.session.get("llm_model", self.model_name)
+        model = self.selected_model or self.model_name
+
+        self.logger.info(f"Using LLM model: {model}")
+        return ChatOllama(model=model)
+
+    def set_llm_model(self, model: str):
+        self.selected_model = model
+        self.logger.info(f"🔁 LLM model switched to: {model}")
 
     def _build_chain_with_input(self, input_data: dict):
-            """
-            Builds a chain that incorporates memory, prompts, LLM, and postprocessing.
-            Ideal for scene queries or any context-aware reasoning tasks.
-            """
-            from langchain_core.runnables import RunnableLambda, RunnableSequence
-            prompt = self.prompt_builder.scene_prompt_template()
+        """
+        Builds a chain that incorporates memory, prompts, LLM, and postprocessing.
+        Ideal for scene queries or any context-aware reasoning tasks.
+        """
+        from langchain_core.runnables import RunnableLambda, RunnableSequence
 
-            def load_memory(_: dict) -> dict:
-                chat_history = self.memory.load_memory_variables({})["chat_history"]
-                return {**input_data, "chat_history": chat_history}
+        prompt = self.prompt_builder.scene_prompt_template()
 
-            def save_memory(output):
-                self.memory.save_context(
-                    {"question": input_data["question"]},
-                    {"answer": output.content},
-                )
-                return output
+        def load_memory(_: dict) -> dict:
+            chat_history = self.memory.load_memory_variables({})["chat_history"]
+            return {**input_data, "chat_history": chat_history}
 
-            return (
-                RunnableLambda(load_memory)
-                | prompt
-                | self.llm
-                | RunnableLambda(save_memory)
+        def save_memory(output):
+            self.memory.save_context(
+                {"question": input_data["question"]},
+                {"answer": output.content},
             )
+            return output
+
+        return (
+            RunnableLambda(load_memory)
+            | prompt
+            | self.get_llm()
+            | RunnableLambda(save_memory)
+        )
 
     def start_session(self):
         self.authenticated_user = self.session.authenticate_user()
@@ -181,11 +198,12 @@ class VoiceAssistant:
             with open(self.chat_memory_path, "w", encoding="utf-8") as f:
                 json.dump(serialized, f, indent=2)
 
-
     def get_greeting(self):
         now = datetime.now()
         hour = now.hour
-        part_of_day = "morning" if hour < 12 else "afternoon" if hour < 18 else "evening"
+        part_of_day = (
+            "morning" if hour < 12 else "afternoon" if hour < 18 else "evening"
+        )
         base_greetings = [
             f"Good {part_of_day}! Ready for action?",
             f"Hope your {part_of_day} is going well!",
@@ -193,11 +211,12 @@ class VoiceAssistant:
         ]
         return random.choice(base_greetings)
 
-
     def handle_wake_word(self, callback):
         def audio_callback(indata, frames, time, status):
             try:
-                pcm = struct.unpack_from("h" * self.porcupine.frame_length, bytes(indata))
+                pcm = struct.unpack_from(
+                    "h" * self.porcupine.frame_length, bytes(indata)
+                )
                 keyword_index = self.porcupine.process(pcm)
                 if keyword_index >= 0:
                     self.logger.info("Wake word detected!")
@@ -206,17 +225,20 @@ class VoiceAssistant:
             except Exception as e:
                 self.logger.warning(f"Wake word error: {e}")
 
-        threading.Thread(target=lambda: sd.RawInputStream(
-            samplerate=self.porcupine.sample_rate,
-            blocksize=self.porcupine.frame_length,
-            dtype="int16",
-            channels=1,
-            callback=audio_callback
-        ).start(), daemon=True).start()
+        threading.Thread(
+            target=lambda: sd.RawInputStream(
+                samplerate=self.porcupine.sample_rate,
+                blocksize=self.porcupine.frame_length,
+                dtype="int16",
+                channels=1,
+                callback=audio_callback,
+            ).start(),
+            daemon=True,
+        ).start()
 
-
-
-    def classify_command(self, command_text: str) -> Literal["general", "scene", "task", "trigger"]:
+    def classify_command(
+        self, command_text: str
+    ) -> Literal["general", "scene", "task", "trigger"]:
         lowered = command_text.lower().strip()
 
         if any(trigger in lowered for trigger in TRIGGER_WORDS):
@@ -225,9 +247,9 @@ class VoiceAssistant:
             return "general"
 
         try:
+            llm = self.get_llm()
             chain = LLMChain(
-                llm=self.llm,
-                prompt=self.prompt_builder.classify_command_prompt()
+                llm=llm, prompt=self.prompt_builder.classify_command_prompt()
             )
             result = chain.invoke({"command": command_text})
             classification = result.get("text", "").strip().lower()
@@ -273,13 +295,15 @@ class VoiceAssistant:
             chat_history=chat_history,
         )
 
-        chain = LLMChain(llm=self.llm, prompt=prompt)
+        llm = self.get_llm()
+        chain = LLMChain(llm=llm, prompt=prompt)
         result = chain.invoke({"command": command_text})
         return result["text"].strip().strip('"“”')
 
     def get_environment_context(self):
         try:
             import requests
+
             url = "https://api.open-meteo.com/v1/forecast?latitude=58.41&longitude=15.62&current_weather=true"
             response = requests.get(url, timeout=5)
             response.raise_for_status()
@@ -304,7 +328,7 @@ class VoiceAssistant:
         return {
             "weather": description,
             "part_of_day": part_of_day,
-            "datetime": now.strftime("%A, %B %d at %I:%M %p")
+            "datetime": now.strftime("%A, %B %d at %I:%M %p"),
         }
 
     def process_voice_command(self):
@@ -314,9 +338,6 @@ class VoiceAssistant:
 
         command_text, lang = result
         return self.process_input_command(command_text, lang)
-
-
-
 
     # ========== Greeting Generation ==========
     def generate_llm_greeting(self) -> str:
@@ -338,17 +359,13 @@ class VoiceAssistant:
         seed = random.choice(base_greetings)
 
         try:
-            prompt = f"""
-            You're Yumi, a clever and friendly assistant robot in a research lab at the Product Realization division of Linköping University.
-            It's {time_of_day} on a {weekday} in {month}.
-            Say one short and creative sentence (under 20 words) suitable for voice use —
-            a fun robotics fact, quirky comment, or a science-themed greeting.
-            Inspiration: '{seed}' — but do not repeat it.
-            """
-            response = self.llm.invoke(
+            user_prompt = self.prompt_builder.greeting_prompt(
+                time_of_day, weekday, month, seed
+            )
+            response = self.get_llm().invoke(
                 [
                     self.prompt_builder.greeting_system_msg(),
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": user_prompt},
                 ]
             )
             return response.content.strip().strip('"“”') or seed
@@ -359,6 +376,7 @@ class VoiceAssistant:
     def fallback_llm_greeting(self, seed_greeting: str) -> str:
         try:
             import ollama
+
             response = ollama.chat(
                 model="llama3.2:latest",
                 messages=[
@@ -401,12 +419,14 @@ class VoiceAssistant:
         try:
             objects = self.fetch_camera_objects()
             if not objects:
-                return "I can only see the camera. No other objects are currently visible."
+                return (
+                    "I can only see the camera. No other objects are currently visible."
+                )
             formatted_data = self.format_camera_data(objects)
             input_data = {"question": question, "data": formatted_data}
             chain = self._build_chain_with_input(input_data)
             response = chain.invoke(input_data)
-            return response.content.strip().strip('\"“”')
+            return response.content.strip().strip('"“”')
         except Exception as e:
             self.logger.error("Scene query failed", exc_info=True)
             return "[Scene query failed.]"
@@ -431,8 +451,12 @@ class VoiceAssistant:
                 f"{op_name}: {desc or '[no description]'}" for op_name, desc, *_ in rows
             )
 
-            llm_chain = LLMChain(llm=self.llm, prompt=self.prompt_builder.match_operation_prompt())
-            result = llm_chain.invoke({"command": command_text, "options": options_text})
+            llm_chain = LLMChain(
+                llm=self.llm, prompt=self.prompt_builder.match_operation_prompt()
+            )
+            result = llm_chain.invoke(
+                {"command": command_text, "options": options_text}
+            )
             matched_operation = result["text"].strip()
 
             row_map = {
@@ -459,11 +483,13 @@ class VoiceAssistant:
 
             with conn:
                 with conn.cursor() as cur:
-                    cur.execute("""
+                    cur.execute(
+                        """
                         UPDATE operation_library
                         SET trigger = FALSE, state = 'idle'
                         WHERE trigger = TRUE OR state = 'triggered'
-                    """)
+                    """
+                    )
                     cur.execute(
                         """
                         UPDATE operation_library
@@ -545,7 +571,6 @@ class VoiceAssistant:
             return self.process_task(command_text)
         return f"You said: {command_text}. (Detected: {cmd_type})"
 
-
     def reset_memory(self):
         """
         Clears chat memory and deletes the associated memory file if it exists.
@@ -578,4 +603,3 @@ class VoiceAssistant:
             self.chat_memory_path.unlink(missing_ok=True)
         self.save_chat_history()
         self.logger.info("Session ended.")
-

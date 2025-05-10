@@ -44,6 +44,7 @@ import faiss  # For fast similarity search
 import numpy as np
 import psycopg2
 
+from mini_project.authentication._voice_auth import VoiceAuth
 from mini_project.config.app_config import (
     AUTO_CAPTURE_FRAME_COUNT,
     EMAIL_PATTERN,
@@ -58,7 +59,6 @@ from mini_project.config.app_config import (
     VOICE_DATA_PATH,
     setup_logging,
 )
-from mini_project.authentication._voice_auth import VoiceAuth
 from mini_project.database.connection import get_connection
 
 logger = logging.getLogger("FaceAuthSystem")

@@ -1,4 +1,4 @@
-# modalities/prompt_utils.py
+# mini_project/modalities/prompt_utils.py
 """This module provides utilities for generating prompt templates used in a voice-controlled robotic assistant system.
 The prompts are designed to handle various tasks such as command classification, operation matching, scene description,
 and general conversation. The module also includes helper methods for validating JSON responses and generating greetings.
@@ -362,26 +362,26 @@ class PromptBuilder:
         """Check if LLM response looks like a valid JSON array."""
         return raw.strip().startswith("[") and raw.strip().endswith("]")
 
-    @staticmethod
-    def greeting_prompt() -> str:
-        hour = datetime.now().hour
-        if 5 <= hour < 12:
-            time_context = "morning"
-        elif 12 <= hour < 17:
-            time_context = "afternoon"
-        elif 17 <= hour < 22:
-            time_context = "evening"
-        else:
-            time_context = "night"
+    # @staticmethod
+    # def greeting_prompt() -> str:
+    #     hour = datetime.now().hour
+    #     if 5 <= hour < 12:
+    #         time_context = "morning"
+    #     elif 12 <= hour < 17:
+    #         time_context = "afternoon"
+    #     elif 17 <= hour < 22:
+    #         time_context = "evening"
+    #     else:
+    #         time_context = "night"
 
-        return f"""
-        You're a friendly assistant robot, Yumi.
+    #     return f"""
+    #     You're a friendly assistant robot, Yumi.
 
-        It's {time_context} now.
+    #     It's {time_context} now.
 
-        Say a very short, warm, and creative greeting (under 2 sentences), suitable for voice.
-        Just one sentences, Please
-        Mention you're ready to help. Avoid long phrases or explanations."""
+    #     Say a very short, warm, and creative greeting (under 2 sentences), suitable for voice.
+    #     Just one sentences, Please
+    #     Mention you're ready to help. Avoid long phrases or explanations."""
 
     @staticmethod
     def greeting_system_msg() -> Dict:
@@ -389,3 +389,16 @@ class PromptBuilder:
             "role": "system",
             "content": "You generate short spoken greetings for a robotic assistant.",
         }
+
+    @staticmethod
+    def greeting_prompt(time_of_day: str, weekday: str, month: str, seed: str) -> str:
+        return f"""
+        You're Yumi, a clever and friendly assistant robot in a research lab at the Product Realization division of Linköping University.
+
+        It's {time_of_day} on a {weekday} in {month}.
+
+        Say one short and creative sentence (under 20 words) suitable for voice use —
+        a fun robotics fact, quirky comment, or a science-themed greeting.
+
+        Inspiration: '{seed}' — but do not repeat it.
+        """

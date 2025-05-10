@@ -15,12 +15,6 @@ import psycopg2
 import pyttsx3
 import sounddevice as sd
 import webrtcvad
-from faster_whisper import WhisperModel
-from gtts import gTTS
-from playsound import playsound
-from pluggy import Result
-from scipy.io.wavfile import write
-
 from config.app_config import (
     MAX_TRANSCRIPTION_RETRIES,
     MIN_DURATION_SEC,
@@ -28,6 +22,12 @@ from config.app_config import (
     VOICE_TTS_SETTINGS,
 )
 from config.constants import WHISPER_LANGUAGE_NAMES
+from faster_whisper import WhisperModel
+from gtts import gTTS
+from playsound import playsound
+from pluggy import Result
+from scipy.io.wavfile import write
+
 from mini_project.database.connection import get_connection
 
 logging.getLogger("comtypes").setLevel(logging.WARNING)

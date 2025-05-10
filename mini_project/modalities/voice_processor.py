@@ -1,4 +1,4 @@
-# modalities/voice_processor.py
+# mini_project/modalities/voice_processor.py
 
 """This module provides classes and functionality for voice processing, including
 speech synthesis, audio recording, transcription, and storage of voice instructions.

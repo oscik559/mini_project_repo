@@ -4,13 +4,13 @@ import tempfile
 import uuid
 
 import pyttsx3
+from config.app_config import setup_logging
 from gtts import gTTS
 from langchain.chains import LLMChain
 from langchain_community.chat_models import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from playsound import playsound
 
-from config.app_config import setup_logging
 from mini_project.database.connection import get_connection
 from mini_project.modalities.voice_processor_SQLite import VoiceProcessor
 

@@ -8,8 +8,8 @@ import time
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+from mini_project.config.app_config import *
 
-from config.app_config import *
 from mini_project.database.db_handler import DatabaseHandler
 
 

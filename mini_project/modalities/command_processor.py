@@ -1,4 +1,4 @@
-# modalities/command_processor.py
+# mini_project/modalities/command_processor.py
 """CommandProcessor Class
 This class is responsible for processing unified commands for robotic tasks. It interacts with a database to fetch
 and validate data, uses an LLM (Large Language Model) for inference and classification, and generates operation

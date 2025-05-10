@@ -9,7 +9,6 @@ import time
 from typing import Dict, List
 
 import ollama
-
 from config.app_config import DB_PATH, setup_logging
 
 # === Logging Setup ===

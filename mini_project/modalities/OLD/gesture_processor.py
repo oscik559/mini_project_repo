@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import mediapipe as mp
-
 from config.app_config import *
 
 # Initialize logging with desired level (optional)

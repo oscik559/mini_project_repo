@@ -1,4 +1,4 @@
-# modalities/orchestrator.py
+# mini_project/modalities/orchestrator.py
 
 
 import logging
@@ -6,6 +6,7 @@ import threading
 import uuid
 
 from config.app_config import *
+
 from mini_project.modalities.gesture_processor import GestureDetector
 from mini_project.modalities.synchronizer import synchronize_and_unify
 from mini_project.modalities.voice_processor import VoiceProcessor

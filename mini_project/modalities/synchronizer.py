@@ -1,4 +1,4 @@
-# modalities/synchronizer.py
+# mini_project/modalities/synchronizer.py
 
 
 import json
@@ -19,6 +19,7 @@ from config.app_config import (  # DB_PATH,
     setup_logging,
 )
 from config.constants import GESTURE_TABLE, PROCESSED_COL, UNIFIED_TABLE, VOICE_TABLE
+
 from mini_project.database.connection import get_connection
 
 # Initialize logging with desired level

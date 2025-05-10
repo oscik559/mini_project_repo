@@ -12,11 +12,10 @@ from camera_db_utils import (
     cleanup_camera_vision_records,
     upsert_camera_vision_record,
 )
+from config.app_config import *
 from db_handler_postgreSQL import (  # Ensure this imports the correct PostgreSQL handler
     DatabaseHandler,
 )
-
-from config.app_config import *
 
 # from config.app_config import *
 # from mini_project.camera.camera_db_utils import (

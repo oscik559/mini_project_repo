@@ -1,4 +1,4 @@
-# config/app_config.py
+# mini_project/config/app_config.py
 
 """
 Configuration module for the mini_project application.

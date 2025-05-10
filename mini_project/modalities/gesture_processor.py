@@ -1,4 +1,4 @@
-# modalities/gesture_processor.py
+# mini_project/modalities/gesture_processor.py
 
 
 import logging
@@ -10,9 +10,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import mediapipe as mp
+from config.app_config import *
 from psycopg2 import Error as Psycopg2Error
 
-from config.app_config import *
 from mini_project.database.connection import get_connection
 
 setup_logging(level=logging.INFO)
@@ -51,7 +51,6 @@ class GestureDetector:
         if loaded_gestures:
             self.gesture_map = loaded_gestures
 
-
         self.last_gesture: Optional[str] = None
         self.last_log_time: float = 0
         self.min_log_interval: float = 2.0
@@ -75,8 +74,6 @@ class GestureDetector:
             )
         self.conn.commit()
         logger.info("Gesture table (PostgreSQL) initialized.")
-
-
 
     def _log_gesture(
         self,

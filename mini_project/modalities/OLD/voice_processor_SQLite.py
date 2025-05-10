@@ -13,12 +13,11 @@ import numpy as np
 import pyttsx3
 import sounddevice as sd
 import webrtcvad
+from config.app_config import VOICE_PROCESSING_CONFIG, VOICE_TTS_SETTINGS, setup_logging
 from faster_whisper import WhisperModel
 from gtts import gTTS
 from playsound import playsound
 from scipy.io.wavfile import write
-
-from config.app_config import VOICE_PROCESSING_CONFIG, VOICE_TTS_SETTINGS, setup_logging
 
 # Initialize logging with desired level (optional)
 setup_logging(level=logging.INFO)

@@ -17,6 +17,7 @@ import ollama
 import pvporcupine
 import requests
 import sounddevice as sd
+from config.app_config import CHAT_MEMORY_FOLDER, setup_logging
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import messages_from_dict, messages_to_dict
@@ -24,18 +25,12 @@ from langchain_core.runnables import RunnableLambda
 from langchain_ollama import ChatOllama
 from langgraph.graph import END, StateGraph
 
-from config.app_config import CHAT_MEMORY_FOLDER, setup_logging
 from mini_project.database.connection import get_connection
 from mini_project.modalities.prompt_utils import PromptBuilder
 from mini_project.modalities.session_manager import SessionManager
 from mini_project.modalities.voice_processor import SpeechSynthesizer
 
 sys.setrecursionlimit(1000)
-
-from intent_subgraphs.general_query_subgraph import get_general_query_subgraph
-from intent_subgraphs.scene_query_subgraph import get_scene_query_subgraph
-from intent_subgraphs.task_planner_subgraph import get_task_planner_subgraph
-from intent_subgraphs.trigger_task_subgraph import get_trigger_task_subgraph
 
 from config.constants import (
     CANCEL_WORDS,
@@ -46,6 +41,11 @@ from config.constants import (
     TRIGGER_WORDS,
     WAKE_RESPONSES,
 )
+from intent_subgraphs.general_query_subgraph import get_general_query_subgraph
+from intent_subgraphs.scene_query_subgraph import get_scene_query_subgraph
+from intent_subgraphs.task_planner_subgraph import get_task_planner_subgraph
+from intent_subgraphs.trigger_task_subgraph import get_trigger_task_subgraph
+
 from mini_project.modalities.langraph_implementation.voice_processor_subgraph import (
     get_voice_subgraph,
 )
@@ -106,8 +106,6 @@ def load_chat_history(liu_id):
 def load_memory(inputs: dict) -> dict:
     memory_vars = memory.load_memory_variables({})
     chat_history = memory_vars.get("history", "")  # Works with FAISS too
-
-
 
     return {**inputs, "chat_history": chat_history}
 

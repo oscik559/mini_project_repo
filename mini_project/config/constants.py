@@ -1,4 +1,4 @@
-# config/constants.py
+# mini_project/config/constants.py
 
 
 # Synchronizer Constants

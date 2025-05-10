@@ -8,8 +8,8 @@ import time
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-
 from config.app_config import *
+
 from mini_project.database._db_handler_SQLite import DatabaseHandler
 
 

@@ -17,12 +17,6 @@ import psycopg2
 import pyttsx3
 import sounddevice as sd
 import webrtcvad
-from faster_whisper import WhisperModel
-from gtts import gTTS
-from langgraph.graph import StateGraph
-from playsound import playsound
-from scipy.io.wavfile import write
-
 from config.app_config import (
     MAX_TRANSCRIPTION_RETRIES,
     MIN_DURATION_SEC,
@@ -33,6 +27,12 @@ from config.app_config import (
 
 # NOISE_CACHE_PATH = Path(tempfile.gettempdir()) / "noise_floor_cache.json"
 from config.constants import WHISPER_LANGUAGE_NAMES
+from faster_whisper import WhisperModel
+from gtts import gTTS
+from langgraph.graph import StateGraph
+from playsound import playsound
+from scipy.io.wavfile import write
+
 from mini_project.database.connection import get_connection
 
 logger = logging.getLogger("LangGraphVoice")
