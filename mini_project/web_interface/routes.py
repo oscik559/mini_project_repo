@@ -30,8 +30,12 @@ async def start_session():
     return {
         "success": success,
         "message": msg,
-        "username": assistant.authenticated_user.get("first_name") if assistant.authenticated_user else None,
-        "model": assistant.selected_model
+        "username": (
+            assistant.authenticated_user.get("first_name")
+            if assistant.authenticated_user
+            else None
+        ),
+        "model": assistant.selected_model,
     }
 
 
@@ -85,6 +89,23 @@ async def set_model(request: Request):
     assistant.set_llm_model(model)
     return {"message": f"✅ Model set to {model}"}
 
+
+
+@router.post("/process-voice")
+async def process_voice():
+    result = assistant.vp.capture_voice()
+    if not result:
+        return {"transcription": ""}
+    command_text, lang = result
+    return {"transcription": command_text, "lang": lang}
+
+@router.post("/llm-response")
+async def llm_response(request: Request):
+    data = await request.json()
+    command_text = data.get("command_text")
+    lang = data.get("lang", "en")
+    response = assistant.process_input_command(command_text, lang)
+    return {"response": response}
 
 # @router.get("/session-info")
 # def session_info():

@@ -9,7 +9,9 @@ from mini_project.web_interface.routes import router
 app = FastAPI(title="Robot Assistant")
 
 # Mount static files and templates (for HTML + JS)
-app.mount("/static", StaticFiles(directory="mini_project/web_interface/static"), name="static")
+app.mount(
+    "/static", StaticFiles(directory="mini_project/web_interface/static"), name="static"
+)
 templates = Jinja2Templates(directory="mini_project/web_interface/templates")
 
 # Add route definitions

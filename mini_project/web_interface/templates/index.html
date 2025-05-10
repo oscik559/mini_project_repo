@@ -6,6 +6,7 @@
     <meta charset="UTF-8">
     <title>Yumi Assistant</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700&display=swap" rel="stylesheet">
 
     <style>
         :root {
@@ -263,7 +264,19 @@
 
         .rounded {
             border-radius: 16px;
-            padding: 5px 8px 6px 6px;
+            padding: 0.4em 0.8em 0.5em 0.4em;
+            background: #dce6e6;
+            color: #181717;
+            border: none;
+            font-family: "Segoe Print",'Nunito', 'Segoe UI', Arial, sans-serif;
+            font-size: 0.7em;
+            cursor: pointer;
+            margin-right: 0.5em;
+            transition: background 0.2s;
+        }
+
+        .rounded:hover {
+            background: #b9bdbd;
         }
 
         .rounded-btn {
@@ -343,33 +356,30 @@
 
 
         <div id="typing-indicator" style="text-align: left; padding: 0 1em; font-style: italic; color: #999;"></div>
-
-        <div class="toolbar" style="padding: 0.5em 1em; ">
-            <button onclick="appendQuickReplies()" class="rounded">🤔quick replies</button>
-            <label style="font-size: 1em;">
-                🔀 Models:
-                <select id="llm-select" class="rounded" onchange="setLLMModel(this.value)">
-                    <option value="llama3.3:latest">🦙 Llama 3.3</option>
-                    <option value="phi4:latest">🧮 Phi-4</option>
-                    <option value="llama3.2:latest">🦙 Llama 3.2</option>
-                    <option value="mistral:latest">🌊 Mistral</option>
-                    <option value="llama3.2:1b">🦙 Llama 3.1</option>
-                    <option value="qwen2.5:0.5b">🐧 Qwen 2.5 </option>
-                    <option value="gemma3:4b">💎 Gemma 3</option>
-                    <option value="qwen:0.5b">🧩 Qwen 0.5</option>
-
+        <div class="toolbar" style="display: flex; justify-content: center; align-items: center; gap: 0.3em; padding: 0.5em 1em;">
+            <button onclick="appendQuickReplies()" class="rounded">🤔Suggestions</button>
+            <button onclick="clearChat()" class="rounded">🧹Clear</button>
+            <button onclick="showHistory()" class="rounded">📜History</button>
+            <button onclick="stopResponse()" class="rounded">⏹StopTTS</button>
+            <label style="font-size: 1em; margin: 0;">
+                <select id="llm-select" class="rounded" onchange="setLLMModel(this.value)" title="Select a language model">
+                    <option value="llama3.3:latest">🦙Llama 3.3</option>
+                    <option value="phi4:latest">🧮Phi-4</option>
+                    <option value="llama3.2:latest">🦙Llama 3.2</option>
+                    <option value="mistral:latest">🌊Mistral</option>
+                    <option value="llama3.2:1b">🦙Llama 3.1</option>
+                    <option value="qwen2.5:0.5b">🐧Qwen 2.5 </option>
+                    <option value="gemma3:4b">💎Gemma 3</option>
+                    <option value="qwen:0.5b">🧩Qwen 0.5</option>
                 </select>
             </label>
-
-
-        <div id="quick-replies" class="quick-replies" style="padding: 0.5em 1em;"></div>
+        </div>
+        <div id="quick-replies" class="quick-replies" style="padding: 0.5em 1em; "></div>
 
         <div class="chat-footer">
             <button onclick="startVoice()" title="voice"><span style="font-size: 1.2em;">🎤</span></button>
             <textarea id="command-input" title="type here" placeholder="Ask anything..." rows="1"></textarea>
             <button onclick="sendCommand()" title="send"><span style="font-size: 1.2em;">🚀</span></button>
-
-
         </div>
         <footer style="
             text-align: center;
@@ -403,73 +413,55 @@
             }
         });
 
-        // async function startSession() {
-        //     const res = await fetch("/start-session", { method: "POST" });
-        //     const data = await res.json();
-        //     showResponse(data.message);
-        //     if (data.model) {
-        //         document.getElementById("typing-indicator").innerText = `✅ Using model: ${data.model}`;
-        //     }
-        //     if (data.model) {
-        //         document.getElementById("llm-select").value = data.model;
-        //     }
-
-
-        //     // Improved: Try extracting from returned name or fallback to parsing
-        //     if (data.username) {
-        //         updateAuthUser(data.username);
-        //     } else if (data.message.includes(":")) {
-        //         const name = data.message.split(":")[1]?.trim();
-        //         if (name) updateAuthUser(name);
-        //     }
-        // }
-
         async function startSession() {
-            const res = await fetch("/start-session", { method: "POST" });
-            const data = await res.json();
+            try {
+                const res = await fetch("/start-session", { method: "POST" });
+                const data = await res.json();
 
-            showResponse(data.message);
+                showResponse(data.message);
 
-            // Set authenticated user name
-            const name = data.username || (data.message.includes(":") ? data.message.split(":")[1]?.trim() : null);
-            if (name) updateAuthUser(name);
+                // Set authenticated user name
+                const name = data.username || (data.message.includes(":") ? data.message.split(":")[1]?.trim() : null);
+                if (name) updateAuthUser(name);
 
-            // Update model in typing indicator
-            if (data.model) {
-                document.getElementById("typing-indicator").innerText = `✅ Using model: ${data.model}`;
-                document.getElementById("llm-select").value = data.model;
+                // Update model in typing indicator
+                if (data.model) {
+                    document.getElementById("typing-indicator").innerText = `✅ Using model: ${data.model}`;
+                    document.getElementById("llm-select").value = data.model;
+                }
+            } catch (error) {
+                console.error(error);
+                showResponse("❌ Unable to start session. Please try again.");
             }
         }
 
 
         async function sendCommand() {
-            const input = document.getElementById("command-input");
-            const message = input.value.trim();
-            if (!message) return;
+            try {
+                const input = document.getElementById("command-input");
+                const message = input.value.trim();
+                if (!message) {
+                    showResponse("❌ Command cannot be empty.");
+                    return;
+                }
 
-            appendMessage("user", message);
-            input.value = "";
+                appendMessage("user", message);
+                input.value = "";
+                input.style.height = "auto"; // Reset height
 
-            // ✅ Reset height after send
-            input.style.height = "auto";
+                const formData = new FormData();
+                formData.append("command", message);
 
-            const formData = new FormData();
-            formData.append("command", message);
+                const res = await fetch("/send-command", { method: "POST", body: formData });
+                if (!res.ok) throw new Error("Failed to send command");
 
-            const model = document.getElementById("llm-select").value;
-            document.getElementById("typing-indicator").innerText = "⏳ Robot is thinking...";
-
-            const res = await fetch("/send-command", {
-                method: "POST",
-                body: formData
-            });
-
-            const data = await res.json();
-
-            document.getElementById("typing-indicator").innerText = "";
-            appendMessage("assistant", data.response || "No response.");
-            speakResponse(data.response || "No response.");
-
+                const data = await res.json();
+                appendMessage("assistant", data.response || "No response.");
+                speakResponse(data.response || "No response.");
+            } catch (error) {
+                console.error(error);
+                showResponse("❌ Unable to process command. Please try again.");
+            }
         }
 
         async function resetMemory() {
@@ -488,54 +480,75 @@
             panel.style.display = panel.style.display === "none" ? "block" : "none";
         }
 
+
+
         async function loadTable(tableName) {
-            const res = await fetch(`/view-db/${tableName}`);
-            const data = await res.json();
-
-            if (data.error) {
-                document.getElementById("db-table").innerHTML = `<p>${data.error}</p>`;
-                return;
-            }
-
-            const table = document.createElement("table");
-            table.style.width = "100%";
-            table.style.borderCollapse = "collapse";
-            table.style.marginTop = "1em";
-
-            // Header row
-            const header = table.insertRow();
-            data.columns.forEach(col => {
-                const th = document.createElement("th");
-                th.textContent = col;
-                th.style.borderBottom = "1px solid #4fc3f7";
-                th.style.padding = "0.5em";
-                header.appendChild(th);
-            });
-
-            // Data rows
-            data.rows.forEach(row => {
-                const tr = table.insertRow();
-                row.forEach(cell => {
-                    const td = tr.insertCell();
-                    td.textContent = cell;
-                    td.style.padding = "0.5em";
-                    td.style.borderBottom = "1px solid #444";
-                });
-            });
-
             const dbTableDiv = document.getElementById("db-table");
-            dbTableDiv.innerHTML = "";
-            dbTableDiv.appendChild(table);
+            dbTableDiv.innerHTML = "⏳ Loading...";
+            try {
+                const res = await fetch(`/view-db/${tableName}`);
+                if (!res.ok) throw new Error("Failed to fetch table data");
+                const data = await res.json();
+                if (data.error) {
+                    dbTableDiv.innerHTML = `<p>${data.error}</p>`;
+                    return;
+                }
+
+
+
+                const table = document.createElement("table");
+                table.style.width = "100%";
+                table.style.borderCollapse = "collapse";
+                table.style.marginTop = "1em";
+
+                // Header row
+                const header = table.insertRow();
+                data.columns.forEach(col => {
+                    const th = document.createElement("th");
+                    th.textContent = col;
+                    th.style.borderBottom = "1px solid #4fc3f7";
+                    th.style.padding = "0.5em";
+                    header.appendChild(th);
+                });
+
+                // Data rows
+                data.rows.forEach(row => {
+                    const tr = table.insertRow();
+                    row.forEach(cell => {
+                        const td = tr.insertCell();
+                        td.textContent = cell;
+                        td.style.padding = "0.5em";
+                        td.style.borderBottom = "1px solid #444";
+                    });
+                });
+
+                dbTableDiv.innerHTML = "";
+                dbTableDiv.appendChild(table);
+            } catch (error) {
+                console.error(error);
+                dbTableDiv.innerHTML = "<p>❌ Error loading table.</p>";
+            }
         }
 
         async function setLLMModel(model) {
-            const res = await fetch("/set-model", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ model })
-            });
-            const data = await res.json();
-            showResponse(data.message || `Model set to ${model}`);
+            const allowedModels = ["llama3.3:latest", "phi4:latest", "mistral:latest"];
+            if (!allowedModels.includes(model)) {
+                showResponse("❌ Invalid model selected.");
+                return;
+            }
+            try {
+                const res = await fetch("/set-model", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ model }),
+                });
+                if (!res.ok) throw new Error("Failed to set model");
+                const data = await res.json();
+                showResponse(data.message || `Model set to ${model}`);
+            } catch (error) {
+                console.error(error);
+                showResponse("❌ Unable to set model. Please try again.");
+            }
         }
 
         function speakResponse(text) {
@@ -574,6 +587,91 @@
             });
         }
 
+        function clearChat() {
+            const chat = document.getElementById("chat");
+            chat.innerHTML = "";
+        }
+
+        function stopResponse() {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            // Optionally, you can add logic to stop LLM streaming if implemented
+        }
+
+        function showHistory() {
+            alert("History feature coming soon!"); // Replace with your actual history logic
+        }
+
+        // Pinning logic: Add a pin icon to each message and allow pinning
+        function appendMessage(sender, text) {
+            const chat = document.getElementById("chat");
+            const msgWrapper = document.createElement("div");
+            msgWrapper.className = `message-wrapper ${sender}`;
+
+            const avatar = document.createElement("div");
+            avatar.className = "avatar";
+            avatar.innerHTML = `<img src="/static/${sender === 'user' ? 'user-chat-avatar.png' : 'yumi-avatar.png'}" alt="avatar" style="width:100%; height:100%; border-radius:50%;">`;
+
+            const msg = document.createElement("div");
+            msg.className = `chat-message ${sender === 'user' ? 'from-user' : 'from-assistant'}`;
+
+            const now = new Date();
+            const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Pin icon
+            const pinBtn = document.createElement("button");
+            pinBtn.innerHTML = "📌";
+            pinBtn.className = "rounded";
+            pinBtn.style.fontSize = "0.8em";
+            pinBtn.style.marginLeft = "0.5em";
+            pinBtn.title = "Pin this message";
+            pinBtn.onclick = function() {
+                pinMessage(text, time);
+            };
+
+            msg.innerHTML = `
+                <div>${text}</div>
+                <div style="font-size: 0.7em; color: #aaa; text-align: right;">${time}</div>
+            `;
+            msg.appendChild(pinBtn);
+
+            if (sender === 'user') {
+                msgWrapper.appendChild(msg);
+                msgWrapper.appendChild(avatar);
+            } else {
+                msgWrapper.appendChild(avatar);
+                msgWrapper.appendChild(msg);
+            }
+
+            chat.appendChild(msgWrapper);
+            setTimeout(() => {
+                chat.scrollTop = chat.scrollHeight;
+            }, 10);
+
+            if (sender === 'assistant' && text.trim().endsWith("?")) {
+                appendQuickReplies();
+            }
+        }
+
+        // Pin message logic
+        function pinMessage(text, time) {
+            let pinArea = document.getElementById("pin-area");
+            if (!pinArea) {
+                pinArea = document.createElement("div");
+                pinArea.id = "pin-area";
+                pinArea.style.background = "#fffbe6";
+                pinArea.style.color = "#181717";
+                pinArea.style.padding = "0.5em 1em";
+                pinArea.style.margin = "0.5em";
+                pinArea.style.borderRadius = "10px";
+                pinArea.style.fontWeight = "bold";
+                pinArea.innerHTML = "<span>📌 Pinned:</span> ";
+                document.querySelector(".chat-wrapper").insertBefore(pinArea, document.getElementById("chat"));
+            }
+            pinArea.innerHTML = `<span>📌 Pinned:</span> ${text} <span style="font-size:0.8em;color:#888;">(${time})</span>`;
+        }
+
         async function sendPredefined(reply) {
             const formData = new FormData();
             formData.append("command", reply);
@@ -583,46 +681,7 @@
             speakResponse(data.response || "No response.");
         }
 
-        // function appendMessage(sender, text) {
-        //     const chat = document.getElementById("chat");
-        //     const msg = document.createElement("div");
-        //     msg.className = `chat-message ${sender === 'user' ? 'from-user' : 'from-assistant'}`;
 
-
-        //     // Create avatar
-        //     const avatar = document.createElement("div");
-        //     avatar.className = "avatar";
-        //     avatar.innerHTML = `<img src="/static/user-avatar.jpg" alt="avatar" style="width:100%; height:100%; border-radius:50%;">`;
-
-
-        //     // Create message bubble
-        //     msg.className = `chat-message ${sender === 'user' ? 'from-user' : 'from-assistant'}`;
-
-        //     const now = new Date();
-        //     const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        //     msg.innerHTML = `
-        //         <div>${text}</div>
-        //         <div style="font-size: 0.7em; color: #aaa; text-align: right;">${time}</div>
-        //     `;
-        //     chat.appendChild(msg);
-        //     setTimeout(() => {
-        //         chat.scrollTop = chat.scrollHeight;
-        //     }, 10);
-
-        //     // Assemble
-        //     if (sender === 'user') {
-        //         msgWrapper.appendChild(msg);
-        //         msgWrapper.appendChild(avatar);
-        //     } else {
-        //         msgWrapper.appendChild(avatar);
-        //         msgWrapper.appendChild(msg);
-        //     }
-
-        //     if (sender === 'assistant' && text.trim().endsWith("?")) {
-        //         appendQuickReplies();
-        //     }
-        // }
 
         function appendMessage(sender, text) {
             const chat = document.getElementById("chat");
@@ -634,7 +693,7 @@
             // Create avatar
             const avatar = document.createElement("div");
             avatar.className = "avatar";
-            avatar.innerHTML = `<img src="/static/${sender === 'user' ? 'user-avatar.png' : 'yumi-avatar.png'}" alt="avatar" style="width:100%; height:100%; border-radius:50%;">`;
+            avatar.innerHTML = `<img src="/static/${sender === 'user' ? 'user-chat-avatar.png' : 'yumi-avatar.png'}" alt="avatar" style="width:100%; height:100%; border-radius:50%;">`;
 
             // Create message bubble
             const msg = document.createElement("div");
@@ -667,12 +726,48 @@
             }
         }
 
-
-
-        function startVoice() {
-            alert("🎤 Voice input coming soon!");
+        function showResponse(text) {
+            const typingIndicator = document.getElementById("typing-indicator");
+            typingIndicator.innerText = text;
         }
 
+
+        async function startVoice() {
+            try {
+                showResponse("🎤 Listening...");
+                const res = await fetch("/process-voice", { method: "POST" });
+                if (!res.ok) throw new Error("Failed to process voice input");
+                const data = await res.json();
+
+                // Show transcription immediately
+                if (data.transcription) {
+                    appendMessage("user", data.transcription);
+
+                    // Now, fetch the LLM response
+                    showResponse("🤖 Thinking...");
+                    const llmRes = await fetch("/llm-response", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ command_text: data.transcription, lang: data.lang || "en" }),
+                    });
+                    const llmData = await llmRes.json();
+                    appendMessage("assistant", llmData.response || "No response.");
+                    speakResponse(llmData.response || "No response.");
+                    showResponse(""); // Clear the typing indicator here
+                } else {
+                    showResponse("❌ No speech detected.");
+                }
+            } catch (error) {
+                console.error(error);
+                showResponse("❌ Unable to process voice input. Please try again.");
+            }
+        }
+
+        document.getElementById("tts-toggle").addEventListener("change", function (e) {
+            if (!e.target.checked && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+        });
 
     </script>
 

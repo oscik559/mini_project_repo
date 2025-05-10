@@ -362,27 +362,6 @@ class PromptBuilder:
         """Check if LLM response looks like a valid JSON array."""
         return raw.strip().startswith("[") and raw.strip().endswith("]")
 
-    # @staticmethod
-    # def greeting_prompt() -> str:
-    #     hour = datetime.now().hour
-    #     if 5 <= hour < 12:
-    #         time_context = "morning"
-    #     elif 12 <= hour < 17:
-    #         time_context = "afternoon"
-    #     elif 17 <= hour < 22:
-    #         time_context = "evening"
-    #     else:
-    #         time_context = "night"
-
-    #     return f"""
-    #     You're a friendly assistant robot, Yumi.
-
-    #     It's {time_context} now.
-
-    #     Say a very short, warm, and creative greeting (under 2 sentences), suitable for voice.
-    #     Just one sentences, Please
-    #     Mention you're ready to help. Avoid long phrases or explanations."""
-
     @staticmethod
     def greeting_system_msg() -> Dict:
         return {
