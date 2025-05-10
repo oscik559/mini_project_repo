@@ -365,7 +365,7 @@
             <button onclick="appendQuickReplies()" class="rounded">🤔Suggestions</button>
             <button onclick="clearChat()" class="rounded">🧹Clear</button>
             <button onclick="showHistory()" class="rounded">📜History</button>
-            <button onclick="stopResponse()" class="rounded">⏹StopTTS</button>
+            <button onclick="stopResponse()" class="rounded">⏹️StopTTS</button>
             <label style="font-size: 1em; margin: 0;">
                 <select id="llm-select" class="rounded" onchange="setLLMModel(this.value)" title="Select a language model">
                     <option value="llama3.3:latest">🦙Llama 3.3</option>
@@ -671,14 +671,14 @@
                 return;
             }
 
-            ["Yes", "No", "Help", "Repeat", "What can you see?"].forEach(reply => {
+            ["Yes", "No", "Good bye", "Repeat", "Tell me a joke","What can you see?"].forEach(reply => {
                 const btn = document.createElement("button");
                 btn.textContent = reply;
                 btn.style.margin = "0.25em";
                 btn.style.padding = "0.2em 0.5em";
-                btn.style.borderRadius = "10px";
+                btn.style.borderRadius = "0px";
                 btn.style.cursor = "pointer";
-                btn.style.backgroundColor = "#4fc3f7";
+                btn.style.backgroundColor = "#444";
                 btn.style.border = "none";
                 btn.style.color = "#000";
                 btn.onclick = () => {
