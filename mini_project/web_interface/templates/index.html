@@ -107,7 +107,62 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
         }
 
+        /* Add this to your <style> section */
+        /* filepath: c:\Users\oscik559\Projects\mini_project_repo\mini_project\web_interface\templates\index.html */
+        /* .tiny-toolbar {
+            width: 100%;
+            background: #232323;
+            border-bottom: 1px solid #444;
+            border-top: 1px solid #444;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
+            padding: 0em 0em;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 36px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            font-size: 0.6em;
+            gap: 0.1em;
+            box-sizing: border-box;
 
+        } */
+        .tiny-toolbar {
+            width: 100%;
+            background: #232323;
+            border-bottom: 1px solid #444;
+            border-top: 1px solid #444;
+            /* border-top-left-radius: 12px;*/
+            border-top-right-radius: 15px; 
+            /* border-bottom-left-radius: 15px; */
+            border-bottom-right-radius: 15px;
+            padding: 0.1em 0.1em 0.1em 0.2em;
+            display: flex;
+            justify-content: right;   /* <-- Center the content */
+            align-items: center;
+            min-height: 36px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            font-size: 0.7em;
+            gap: 0.7em;
+            box-sizing: border-box;
+            overflow-x: auto;
+        }
+        
+        .tiny-toolbar label {
+            color: #e2e2e2;
+            font-weight: 500;
+            margin: 0;
+        }
+        
+        .tiny-toolbar select {
+            background: #181717;
+            color: #e2e2e2;
+            border: 1px solid #4fc3f7;
+            border-radius: 12px;
+            padding: 0.2em 1em;
+            font-size: 0.8em;
+            margin-left: 0.5em;
+        }
         .chat-footer {
             padding: 1em;
             border-top: 1px solid #444;
@@ -335,8 +390,16 @@
             <label style="font-size: 0.9em;">
                 🔊 TTS <input type="checkbox" id="tts-toggle" unchecked>
             </label>
-        </div>
 
+        </div>
+        
+        <!-- Tiny toolbar for voice selection -->
+        <div class="tiny-toolbar">
+            <label style="font-size: 1em; margin: 0.1;">
+                📢
+                <select id="voice-select" class="rounded"></select>
+            </label>
+        </div>
 
         <div id="chat" class="chat-body">
             <!-- Messages go here -->
@@ -413,7 +476,8 @@
             <button type="button" onclick="closeRegisterModal()" class="rounded-btn">Cancel</button>
           </form>
         </div>
-
+    </div>
+    
     <script>
 
         const textarea = document.getElementById("command-input");
@@ -655,6 +719,11 @@
                 const msg = new SpeechSynthesisUtterance(text);
                 msg.lang = "en-US";
                 msg.rate = 1;
+                const select = document.getElementById("voice-select");
+                const voices = window.speechSynthesis.getVoices();
+                if (select && voices.length) {
+                    msg.voice = voices[select.value] || voices[0];
+                }
                 window.speechSynthesis.speak(msg);
             }
         }
@@ -784,7 +853,49 @@
             speakResponse(data.response || "No response.");
         }
 
+        function populateVoiceList() {
+            const select = document.getElementById("voice-select");
+            if (!select) return;
+            // Save current selection
+            const previousValue = select.value;
+            select.innerHTML = "";
+            const voices = window.speechSynthesis.getVoices();
+            const filtered = voices.filter(v =>
+                v.lang.startsWith("en") &&
+                (v.name.includes("Google") || v.name.includes("Microsoft") || v.name.includes("Apple"))
+            );
+            filtered.forEach((voice, i) => {
+                const option = document.createElement("option");
+                option.value = voices.indexOf(voice);
+                option.textContent = `${voice.name} (${voice.lang})${voice.default ? " [default]" : ""}`;
+                select.appendChild(option);
+            });
+            // Restore previous selection if possible
+            if (previousValue && select.querySelector(`option[value="${previousValue}"]`)) {
+                select.value = previousValue;
+            } else if (select.options.length > 0) {
+                select.selectedIndex = 0;
+            }
+        }
+        
+        // Voices may not be loaded immediately, so listen for the event
+        window.speechSynthesis.onvoiceschanged = populateVoiceList;
+        window.addEventListener("DOMContentLoaded", populateVoiceList);
 
+        function setPreferredVoice() {
+            const select = document.getElementById("voice-select");
+            const voices = window.speechSynthesis.getVoices();
+            if (!select || !voices.length) return;
+            // Only set if nothing is selected yet
+            if (select.selectedIndex === -1 || select.value === "") {
+                const preferred = voices.findIndex(v => v.name.includes("Google") || v.name.includes("Microsoft") || v.name.includes("Apple"));
+                if (preferred >= 0) select.value = preferred;
+            }
+        }
+        window.speechSynthesis.onvoiceschanged = () => {
+            populateVoiceList();
+            setPreferredVoice();
+        };
 
         function appendMessage(sender, text) {
             const chat = document.getElementById("chat");
