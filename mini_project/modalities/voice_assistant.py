@@ -103,7 +103,7 @@ trigger_logger = logging.getLogger("LLMTrigger")
 warnings.filterwarnings("ignore", category=LangChainDeprecationWarning)
 
 # === Configuration ==========
-OLLAMA_MODEL = "mistral:latest"
+OLLAMA_MODEL = "phi4:latest"
 ACCESS_KEY = os.getenv("PICOVOICE_ACCESS_KEY")
 voice_speed = 180  # 165
 
@@ -119,7 +119,7 @@ class VoiceAssistant:
         self.session = SessionManager()
 
         # LLM, memory, prompt
-        self.selected_model = "mistral:latest"
+        self.selected_model = "phi4:latest"
         # self.llm = ChatOllama(model=model_name)
         self.model_name = model_name
         self.memory = ConversationBufferMemory(
