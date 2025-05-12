@@ -415,8 +415,9 @@
             <button onclick="showHistory()" class="rounded">📜History</button>
             <label style="font-size: 1em; margin: 0 0;">
                 <select id="llm-select" class="rounded" onchange="setLLMModel(this.value)" title="Select a language model">
-                    <option value="phi4:latest">🧮Phi-4</option>
                     <option value="mistral:latest">🌊Mistral</option>
+
+                    <option value="phi4:latest">🧮Phi-4</option>
                     <option value="gemma3:4b">💎Gemma 3</option>
 
                     <option value="llama3.3:latest">🦙Llama 3.3</option>
@@ -702,23 +703,25 @@
             }
         }
 
-        function speakResponse(text) {
-            if (document.getElementById("tts-toggle")?.checked && 'speechSynthesis' in window) {
-                const msg = new SpeechSynthesisUtterance(text);
-                msg.lang = "en-US";
-                msg.rate = 1;
-                const select = document.getElementById("voice-select");
-                const voices = window.speechSynthesis.getVoices();
-                if (select && voices.length) {
-                    msg.voice = voices[select.value] || voices[0];
-                }
-                window.speechSynthesis.speak(msg);
-            }
-        }
-        function updateAuthUser(name) {
-            const label = document.getElementById("auth-user");
-            label.textContent = `Authenticated: ${name}`;
-        }
+        // function speakResponse(text) {
+        //     if (document.getElementById("tts-toggle")?.checked && 'speechSynthesis' in window) {
+        //         const msg = new SpeechSynthesisUtterance(text);
+        //         msg.lang = "en-US";
+        //         msg.rate = 1;
+        //         const select = document.getElementById("voice-select");
+        //         const voices = window.speechSynthesis.getVoices();
+        //         if (select && voices.length) {
+        //             msg.voice = voices[select.value] || voices[0];
+        //         }
+        //         window.speechSynthesis.speak(msg);
+        //     }
+        // }
+        // function updateAuthUser(name) {
+        //     const label = document.getElementById("auth-user");
+        //     label.textContent = `Authenticated: ${name}`;
+        // }
+
+
 
         function appendQuickReplies() {
             const container = document.getElementById("quick-replies");
@@ -825,36 +828,34 @@
         function populateVoiceList() {
             const select = document.getElementById("voice-select");
             if (!select) return;
-            const preferredVoiceName = "Microsoft Ryan Online (Natural)";
+            const preferredVoiceName = "Microsoft Ryan Online (Natural) - English (United Kingdom)";
             const preferredLang = "en-GB";
-            const previousValue = select.value;
             select.innerHTML = "";
             const voices = window.speechSynthesis.getVoices();
-            const filtered = voices.filter(v =>
-                v.lang.startsWith("en") &&
-                (v.name.includes("Google") || v.name.includes("Microsoft") || v.name.includes("Apple"))
-            );
-            filtered.forEach((voice, i) => {
-                const option = document.createElement("option");
-                option.value = voices.indexOf(voice);
-                option.textContent = `${voice.name} (${voice.lang})${voice.default ? " [default]" : ""}`;
-                // Mark preferred as selected
-                if (voice.name === preferredVoiceName && voice.lang === preferredLang) {
-                    option.selected = true;
+            let preferredValue = null;
+            voices.forEach((voice) => {
+                // Only include English voices
+                if (
+                    voice.lang.startsWith("en") &&
+                    (voice.name.includes("Google") || voice.name.includes("Microsoft") || voice.name.includes("Apple"))
+                ) {
+                    const value = `${voice.name}|||${voice.lang}`;
+                    const option = document.createElement("option");
+                    option.value = value;
+                    option.textContent = `${voice.name} (${voice.lang})${voice.default ? " [default]" : ""}`;
+                    select.appendChild(option);
+                    if (voice.name === preferredVoiceName && voice.lang === preferredLang) {
+                        preferredValue = value;
+                    }
                 }
-                select.appendChild(option);
             });
-            // Restore previous selection if possible
-            if (previousValue && select.querySelector(`option[value="${previousValue}"]`)) {
-                select.value = previousValue;
-            } else if (select.options.length > 0 && !select.value) {
-                // If preferred is not found, select the first
+            // Set preferred voice as selected, or fallback to first
+            if (preferredValue !== null) {
+                select.value = preferredValue;
+            } else if (select.options.length > 0) {
                 select.selectedIndex = 0;
             }
         }
-
-        // Voices may not be loaded immediately, so listen for the event
-        window.addEventListener("DOMContentLoaded", populateVoiceList);
 
         function setPreferredVoice() {
             const select = document.getElementById("voice-select");
@@ -862,19 +863,47 @@
             const preferredVoiceName = "Microsoft Ryan Online (Natural)";
             const preferredLang = "en-GB";
             if (!select || !voices.length) return;
-            // Only set if nothing is selected yet
-            if (select.selectedIndex === -1 || select.value === "") {
-                const preferred = voices.findIndex(v =>
-                    v.name === preferredVoiceName && v.lang === preferredLang
-                );
-                if (preferred >= 0) select.value = preferred;
+            const preferred = voices.find(v =>
+                v.name === preferredVoiceName && v.lang === preferredLang
+            );
+            if (preferred) {
+                select.value = `${preferred.name}|||${preferred.lang}`;
             }
         }
+
+        window.addEventListener("DOMContentLoaded", () => {
+            populateVoiceList();
+            setPreferredVoice();
+        });
         window.speechSynthesis.onvoiceschanged = () => {
             populateVoiceList();
             setPreferredVoice();
         };
 
+        function speakResponse(text) {
+            if (document.getElementById("tts-toggle")?.checked && 'speechSynthesis' in window) {
+                const msg = new SpeechSynthesisUtterance(text);
+                const select = document.getElementById("voice-select");
+                const voices = window.speechSynthesis.getVoices();
+                let voice = null;
+                if (select && voices.length && select.value) {
+                    const [name, lang] = select.value.split("|||");
+                    voice = voices.find(v => v.name === name && v.lang === lang);
+                }
+                // Fallback: always try to use preferred if available
+                if (!voice) {
+                    voice = voices.find(v => v.name === "Microsoft Ryan Online (Natural)" && v.lang === "en-GB");
+                }
+                if (voice) {
+                    msg.voice = voice;
+                    msg.lang = voice.lang;
+                } else {
+                    msg.lang = "en-GB";
+                }
+                msg.rate = 1;
+                window.speechSynthesis.speak(msg);
+            }
+        }
 
         async function startVoice() {
             try {
