@@ -205,13 +205,6 @@
             transition: height 0.15s ease;
         }
 
-        /* #spinner {
-            display: none;
-            text-align: left;
-            padding: 0.5em 1em;
-            color: #4fc3f7;
-            font-size: 1.2em;
-        } */
 
         #db-table table {
             width: 100%;
@@ -703,25 +696,6 @@
             }
         }
 
-        // function speakResponse(text) {
-        //     if (document.getElementById("tts-toggle")?.checked && 'speechSynthesis' in window) {
-        //         const msg = new SpeechSynthesisUtterance(text);
-        //         msg.lang = "en-US";
-        //         msg.rate = 1;
-        //         const select = document.getElementById("voice-select");
-        //         const voices = window.speechSynthesis.getVoices();
-        //         if (select && voices.length) {
-        //             msg.voice = voices[select.value] || voices[0];
-        //         }
-        //         window.speechSynthesis.speak(msg);
-        //     }
-        // }
-        // function updateAuthUser(name) {
-        //     const label = document.getElementById("auth-user");
-        //     label.textContent = `Authenticated: ${name}`;
-        // }
-
-
 
         function appendQuickReplies() {
             const container = document.getElementById("quick-replies");
@@ -860,7 +834,7 @@
         function setPreferredVoice() {
             const select = document.getElementById("voice-select");
             const voices = window.speechSynthesis.getVoices();
-            const preferredVoiceName = "Microsoft Ryan Online (Natural)";
+            const preferredVoiceName = "Microsoft Ryan Online (Natural) - English (United Kingdom)";
             const preferredLang = "en-GB";
             if (!select || !voices.length) return;
             const preferred = voices.find(v =>
@@ -892,7 +866,7 @@
                 }
                 // Fallback: always try to use preferred if available
                 if (!voice) {
-                    voice = voices.find(v => v.name === "Microsoft Ryan Online (Natural)" && v.lang === "en-GB");
+                    voice = voices.find(v => v.name === "Microsoft Ryan Online (Natural) - English (United Kingdom)" && v.lang === "en-GB");
                 }
                 if (voice) {
                     msg.voice = voice;
