@@ -73,8 +73,10 @@
             flex-direction: column;
             gap: 0.75em;
             background-image: url('/static/chat-bg-robot.png');
+            /* background-color: rgb(23, 137, 141); */
+
             background-size: cover;
-            background-repeat: repeat;
+            background-repeat: no-repeat;
             background-position: center;
 
         }
@@ -107,34 +109,15 @@
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
         }
 
-        /* Add this to your <style> section */
-        /* filepath: c:\Users\oscik559\Projects\mini_project_repo\mini_project\web_interface\templates\index.html */
-        /* .tiny-toolbar {
-            width: 100%;
-            background: #232323;
-            border-bottom: 1px solid #444;
-            border-top: 1px solid #444;
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-            padding: 0em 0em;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 36px;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-            font-size: 0.6em;
-            gap: 0.1em;
-            box-sizing: border-box;
 
-        } */
         .tiny-toolbar {
             width: 100%;
             background: #232323;
             border-bottom: 1px solid #444;
             border-top: 1px solid #444;
-            /* border-top-left-radius: 12px;*/
-            border-top-right-radius: 15px; 
-            /* border-bottom-left-radius: 15px; */
+            /* border-top-left-radius: 15px; */
+            /* border-top-right-radius: 15px; */
+            border-bottom-left-radius: 15px;
             border-bottom-right-radius: 15px;
             padding: 0.1em 0.1em 0.1em 0.2em;
             display: flex;
@@ -142,18 +125,18 @@
             align-items: center;
             min-height: 36px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-            font-size: 0.7em;
+            font-size: 0.92em;
             gap: 0.7em;
             box-sizing: border-box;
             overflow-x: auto;
         }
-        
+
         .tiny-toolbar label {
             color: #e2e2e2;
             font-weight: 500;
             margin: 0;
         }
-        
+
         .tiny-toolbar select {
             background: #181717;
             color: #e2e2e2;
@@ -161,10 +144,10 @@
             border-radius: 12px;
             padding: 0.2em 1em;
             font-size: 0.8em;
-            margin-left: 0.5em;
+            margin-left: 0.1em;
         }
         .chat-footer {
-            padding: 1em;
+            padding: 1.5em 1.5em 0.5em 1.5em;
             border-top: 1px solid #444;
             display: flex;
             align-items: center;
@@ -175,13 +158,12 @@
             flex: 1;
             resize: none;
             border-radius: 22px;
-            padding: 0.6em;
             border: none;
             font-size: 1em;
 
             background-color: #dce6e6;
             color: var(--message-text-color);
-            font-family: 'Segoe Print', 'Comic Sans MS', cursive;
+            font-family: 'Segoe UI','Segoe Print', 'Comic Sans MS', cursive;
             padding: 0.5em 0.5em 0.5em 1em;
         }
 
@@ -318,15 +300,17 @@
 
 
         .rounded {
-            border-radius: 16px;
-            padding: 0.4em 0.8em 0.5em 0.4em;
-            background: #c2a009;
+            border-radius: 20px;
+            padding: 0.5em 0.7em 0.7em 0.4em;
+            /*        top  right bottom left  */
+            background: #caa80d;
             color: #000000;
             border: 0.2em solid #fffefe;
-            font-family: "Segoe Print",'Nunito', 'Segoe UI', Arial, sans-serif;
-            font-size: 0.7em;
+            font-family: 'Segoe UI','Segoe Print','Nunito', 'Segoe UI', Arial, sans-serif;
+            font-size: 0.8em;
+
             cursor: pointer;
-            margin-right: 0.2em;
+            /* margin-right: 0.2em; */
             transition: background 0.2s;
         }
 
@@ -339,7 +323,7 @@
             color: #000;
             font-weight: bold;
             border: 0.2em solid #d8d5d3;
-            font-family: "Segoe Print",'Nunito', 'Segoe UI', Arial, sans-serif;
+            font-family: 'Segoe Print','Nunito', 'Segoe UI', Arial, sans-serif;
             font-size: 0.7em;
 
             border-radius: 16px;
@@ -375,7 +359,7 @@
             <img src="/static/liu.png" alt="Logo" style="width: 100px; height: 40px; margin-left: 1em; margin-right: 0em; object-fit: contain;">
         </div>
 
-        <div class="toolbar" style="display: flex; justify-content: space-between;  align-items: center; padding: 0.5em 1em;">
+        <div class="toolbar" style="display: flex; justify-content: space-between;  align-items: center; padding: 0.5em 0.5em;">
             <div>
 
                <div>
@@ -388,11 +372,11 @@
                 </div>
             </div>
             <label style="font-size: 0.9em;">
-                🔊 TTS <input type="checkbox" id="tts-toggle" unchecked>
+                🔊 TTS <input type="checkbox" id="tts-toggle" checked>
             </label>
 
         </div>
-        
+
         <!-- Tiny toolbar for voice selection -->
         <div class="tiny-toolbar">
             <label style="font-size: 1em; margin: 0.1;">
@@ -405,8 +389,8 @@
             <!-- Messages go here -->
         </div>
 
-        <div id="db-panel" style="display:none; background:#2a2a2a; color:white; padding:0.8em 1em;">
-            <div style="margin-bottom: 1em;">
+        <div id="db-panel" style="display:none; background:#2a2a2a; color:white; padding:0.8em 0.5em;">
+            <div style="margin-bottom: 0.1em;">
                 <label for="table-select">🗂️ select table:</label>
                 <select id="table-select" class="rounded" onchange="loadTable(this.value)">
                     <option value="">choose table...</option>
@@ -424,21 +408,27 @@
 
 
         <div id="typing-indicator" style="text-align: left; padding: 0 1em; font-style: italic; color: #999;"></div>
-        <div class="toolbar" style="display: flex; justify-content: center; align-items: center; gap: 0.3em; padding: 0.5em 1em;">
-            <button onclick="appendQuickReplies()" class="rounded">🤔Suggestions</button>
+        <div class="toolbar" style="display: flex; justify-content: center; align-items: center; gap: 0.3em; padding: 1em 0.5em 0.2em 0.5em;">
+            <button onclick="appendQuickReplies()" class="rounded">🤔Replies</button>
+            <button onclick="stopResponse()" class="rounded">⏹️StopTTS</button>
             <button onclick="clearChat()" class="rounded">🧹Clear</button>
             <button onclick="showHistory()" class="rounded">📜History</button>
-            <button onclick="stopResponse()" class="rounded">⏹️StopTTS</button>
-            <label style="font-size: 1em; margin: 0;">
+            <label style="font-size: 1em; margin: 0 0;">
                 <select id="llm-select" class="rounded" onchange="setLLMModel(this.value)" title="Select a language model">
-                    <option value="llama3.3:latest">🦙Llama 3.3</option>
                     <option value="phi4:latest">🧮Phi-4</option>
-                    <option value="llama3.2:latest">🦙Llama 3.2</option>
                     <option value="mistral:latest">🌊Mistral</option>
-                    <option value="llama3.2:1b">🦙Llama 3.1</option>
-                    <option value="qwen2.5:0.5b">🐧Qwen 2.5 </option>
                     <option value="gemma3:4b">💎Gemma 3</option>
+
+                    <option value="llama3.3:latest">🦙Llama 3.3</option>
+                    <option value="llama3.2:latest">🦙Llama 3.2</option>
+                    <option value="llama3.2:1b">🦙Llama 3.1</option>
+
+                    <option value="deepseek-r1:32b">🔎Deepseek 2</option>
+                    <option value="deepseek-r1:1.5b">🔬Deepseek 1</option>
+
+                    <option value="qwen2.5:0.5b">🐧Qwen 2.5 </option>
                     <option value="qwen:0.5b">🧩Qwen 0.5</option>
+
                 </select>
             </label>
         </div>
@@ -454,6 +444,7 @@
             font-size: 0.8em;
             color: rgba(255, 255, 255, 0.4);
             margin-top: 0em;
+            margin-bottom: 0.5em;
             padding: 0.5em;
             background: transparent;
         ">
@@ -477,8 +468,10 @@
           </form>
         </div>
     </div>
-    
+
     <script>
+        let currentLLMController = null;
+        let currentVoiceLLMController = null;
 
         const textarea = document.getElementById("command-input");
 
@@ -554,36 +547,13 @@
             closeRegisterModal();
         };
 
-        // async function sendCommand() {
-        //     try {
-        //         const input = document.getElementById("command-input");
-        //         const message = input.value.trim();
-        //         if (!message) {
-        //             showResponse("❌ Command cannot be empty.");
-        //             return;
-        //         }
-
-        //         appendMessage("user", message);
-        //         input.value = "";
-        //         input.style.height = "auto"; // Reset height
-
-        //         const formData = new FormData();
-        //         formData.append("command", message);
-
-        //         const res = await fetch("/send-command", { method: "POST", body: formData });
-        //         if (!res.ok) throw new Error("Failed to send command");
-
-        //         const data = await res.json();
-        //         appendMessage("assistant", data.response || "No response.");
-        //         speakResponse(data.response || "No response.");
-        //     } catch (error) {
-        //         console.error(error);
-        //         showResponse("❌ Unable to process command. Please try again.");
-        //     }
-        // }
 
         async function sendCommand() {
             try {
+                // Abort any previous request
+                if (currentLLMController) currentLLMController.abort();
+                currentLLMController = new AbortController();
+
                 const input = document.getElementById("command-input");
                 const message = input.value.trim();
                 if (!message) {
@@ -599,27 +569,47 @@
                 showResponse("🤖 Robot is thinking ...");
                 const formData = new FormData();
                 formData.append("command", message);
-                const res = await fetch("/send-command", { method: "POST", body: formData });
+
+                const res = await fetch("/send-command", { method: "POST", body: formData, signal: currentLLMController.signal });
                 if (!res.ok) throw new Error("Failed to send command");
                 const data = await res.json();
                 appendMessage("assistant", data.response || "No response.");
                 speakResponse(data.response || "No response.");
                 showResponse("");
             } catch (error) {
-                console.error(error);
-                showResponse("❌ Unable to process command. Please try again.");
+                if (error.name === "AbortError") {
+                    showResponse("⏹️ Response stopped.");
+                } else {
+                    console.error(error);
+                    showResponse("❌ Unable to process command. Please try again.");
+                }
+            } finally {
+                currentLLMController = null;
             }
         }
 
         async function sendPredefined(reply) {
-            showResponse("🤖 Thinking...");
-            const formData = new FormData();
-            formData.append("command", reply);
-            const res = await fetch("/send-command", { method: "POST", body: formData });
-            const data = await res.json();
-            appendMessage("assistant", data.response || "No response.");
-            speakResponse(data.response || "No response.");
-            showResponse("");
+            if (currentLLMController) currentLLMController.abort();
+            currentLLMController = new AbortController();
+            try {
+                showResponse("🤖 Robot is thinking...");
+                const formData = new FormData();
+                formData.append("command", reply);
+                const res = await fetch("/send-command", { method: "POST", body: formData, signal: currentLLMController.signal });
+                const data = await res.json();
+                appendMessage("assistant", data.response || "No response.");
+                speakResponse(data.response || "No response.");
+                showResponse("");
+            } catch (error) {
+                if (error.name === "AbortError") {
+                    showResponse("⏹️ Response stopped.");
+                } else {
+                    console.error(error);
+                    showResponse("❌ Unable to process command. Please try again.");
+                }
+            } finally {
+                currentLLMController = null;
+            }
         }
 
         async function resetMemory() {
@@ -628,9 +618,7 @@
             showResponse(data.message);
         }
 
-        // function showResponse(text) {
-        //     appendMessage("assistant", text);
-        // }
+
         function showResponse(text) {
             const typingIndicator = document.getElementById("typing-indicator");
             typingIndicator.innerText = text;
@@ -693,7 +681,7 @@
         }
 
         async function setLLMModel(model) {
-            const allowedModels = ["llama3.3:latest", "phi4:latest","llama3.2:latest", "mistral:latest", "llama3.2:1b", "qwen2.5:0.5b", "gemma3:4b", "qwen:0.5b"];
+            const allowedModels = ["llama3.3:latest", "deepseek-r1:32b","deepseek-r1:1.5b","phi4:latest","llama3.2:latest", "mistral:latest", "llama3.2:1b", "qwen2.5:0.5b", "gemma3:4b", "qwen:0.5b"];
 
             if (!allowedModels.includes(model)) {
                 showResponse("❌ Invalid model selected.");
@@ -740,18 +728,19 @@
                 return;
             }
 
-            ["Yes", "No", "Good bye", "Repeat", "Tell me a joke","What can you see?"].forEach(reply => {
+            ["yes", "no", "good bye!", "repeat", "tell me a joke","what can you see?"].forEach(reply => {
                 const btn = document.createElement("button");
                 btn.textContent = reply;
-                btn.style.margin = "0.25em";
-                btn.style.padding = "0.2em 0.5em";
-                btn.style.borderRadius = "0px";
+                btn.style.margin = "0.2em";
+                btn.style.padding = "0.3em 0.5em";
+                btn.style.borderRadius = "10px";
                 btn.style.cursor = "pointer";
-                btn.style.backgroundColor = "#444";
+                // btn.style.backgroundColor = "#444";
                 btn.style.border = "none";
                 btn.style.color = "#000";
                 btn.onclick = () => {
                     appendMessage("user", reply);
+                    showResponse("🤖 Robot is thinking ...");
                     sendPredefined(reply);
                     container.innerHTML = '';
                 };
@@ -765,17 +754,24 @@
         }
 
         function stopResponse() {
+            if (currentLLMController) {
+                currentLLMController.abort();
+                currentLLMController = null;
+            }
+            if (currentVoiceLLMController) {
+                currentVoiceLLMController.abort();
+                currentVoiceLLMController = null;
+            }
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
             }
-            // Optionally, you can add logic to stop LLM streaming if implemented
+            showResponse("⏹️ Response stopped.");
         }
 
         function showHistory() {
             alert("History feature coming soon!"); // Replace with your actual history logic
         }
 
-        // Pinning logic: Add a pin icon to each message and allow pinning
         function appendMessage(sender, text) {
             const chat = document.getElementById("chat");
             const msgWrapper = document.createElement("div");
@@ -791,22 +787,18 @@
             const now = new Date();
             const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // Pin icon
-            const pinBtn = document.createElement("button");
-            pinBtn.innerHTML = "📌";
-            pinBtn.className = "rounded";
-            pinBtn.style.fontSize = "0.8em";
-            pinBtn.style.marginLeft = "0.5em";
-            pinBtn.title = "Pin this message";
-            pinBtn.onclick = function() {
-                pinMessage(text, time);
-            };
+            // msg.innerHTML = `
+            //     <div>${text}</div>
+            //     <div style="font-size: 0.7em; color: #aaa; text-align: right;">${time}</div>
+            // `;
+            const textDiv = document.createElement("div");
+            textDiv.textContent = text;
+            const timeDiv = document.createElement("div");
+            timeDiv.style = "font-size: 0.7em; color: #aaa; text-align: right;";
+            timeDiv.textContent = time;
 
-            msg.innerHTML = `
-                <div>${text}</div>
-                <div style="font-size: 0.7em; color: #aaa; text-align: right;">${time}</div>
-            `;
-            msg.appendChild(pinBtn);
+            msg.appendChild(textDiv);
+            msg.appendChild(timeDiv);
 
             if (sender === 'user') {
                 msgWrapper.appendChild(msg);
@@ -826,37 +818,15 @@
             }
         }
 
-        // Pin message logic
-        function pinMessage(text, time) {
-            let pinArea = document.getElementById("pin-area");
-            if (!pinArea) {
-                pinArea = document.createElement("div");
-                pinArea.id = "pin-area";
-                pinArea.style.background = "#fffbe6";
-                pinArea.style.color = "#181717";
-                pinArea.style.padding = "0.5em 1em";
-                pinArea.style.margin = "0.5em";
-                pinArea.style.borderRadius = "10px";
-                pinArea.style.fontWeight = "bold";
-                pinArea.innerHTML = "<span>📌 Pinned:</span> ";
-                document.querySelector(".chat-wrapper").insertBefore(pinArea, document.getElementById("chat"));
-            }
-            pinArea.innerHTML = `<span>📌 Pinned:</span> ${text} <span style="font-size:0.8em;color:#888;">(${time})</span>`;
-        }
 
-        async function sendPredefined(reply) {
-            const formData = new FormData();
-            formData.append("command", reply);
-            const res = await fetch("/send-command", { method: "POST", body: formData });
-            const data = await res.json();
-            appendMessage("assistant", data.response || "No response.");
-            speakResponse(data.response || "No response.");
-        }
+
+
 
         function populateVoiceList() {
             const select = document.getElementById("voice-select");
             if (!select) return;
-            // Save current selection
+            const preferredVoiceName = "Microsoft Ryan Online (Natural)";
+            const preferredLang = "en-GB";
             const previousValue = select.value;
             select.innerHTML = "";
             const voices = window.speechSynthesis.getVoices();
@@ -868,27 +838,35 @@
                 const option = document.createElement("option");
                 option.value = voices.indexOf(voice);
                 option.textContent = `${voice.name} (${voice.lang})${voice.default ? " [default]" : ""}`;
+                // Mark preferred as selected
+                if (voice.name === preferredVoiceName && voice.lang === preferredLang) {
+                    option.selected = true;
+                }
                 select.appendChild(option);
             });
             // Restore previous selection if possible
             if (previousValue && select.querySelector(`option[value="${previousValue}"]`)) {
                 select.value = previousValue;
-            } else if (select.options.length > 0) {
+            } else if (select.options.length > 0 && !select.value) {
+                // If preferred is not found, select the first
                 select.selectedIndex = 0;
             }
         }
-        
+
         // Voices may not be loaded immediately, so listen for the event
-        window.speechSynthesis.onvoiceschanged = populateVoiceList;
         window.addEventListener("DOMContentLoaded", populateVoiceList);
 
         function setPreferredVoice() {
             const select = document.getElementById("voice-select");
             const voices = window.speechSynthesis.getVoices();
+            const preferredVoiceName = "Microsoft Ryan Online (Natural)";
+            const preferredLang = "en-GB";
             if (!select || !voices.length) return;
             // Only set if nothing is selected yet
             if (select.selectedIndex === -1 || select.value === "") {
-                const preferred = voices.findIndex(v => v.name.includes("Google") || v.name.includes("Microsoft") || v.name.includes("Apple"));
+                const preferred = voices.findIndex(v =>
+                    v.name === preferredVoiceName && v.lang === preferredLang
+                );
                 if (preferred >= 0) select.value = preferred;
             }
         }
@@ -896,54 +874,6 @@
             populateVoiceList();
             setPreferredVoice();
         };
-
-        function appendMessage(sender, text) {
-            const chat = document.getElementById("chat");
-
-            // Create outer wrapper
-            const msgWrapper = document.createElement("div");
-            msgWrapper.className = `message-wrapper ${sender}`;
-
-            // Create avatar
-            const avatar = document.createElement("div");
-            avatar.className = "avatar";
-            avatar.innerHTML = `<img src="/static/${sender === 'user' ? 'user-chat-avatar.png' : 'yumi-avatar.png'}" alt="avatar" style="width:100%; height:100%; border-radius:50%;">`;
-
-            // Create message bubble
-            const msg = document.createElement("div");
-            msg.className = `chat-message ${sender === 'user' ? 'from-user' : 'from-assistant'}`;
-
-            const now = new Date();
-            const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            msg.innerHTML = `
-                <div>${text}</div>
-                <div style="font-size: 0.7em; color: #aaa; text-align: right;">${time}</div>
-            `;
-
-            // Assemble
-            if (sender === 'user') {
-                msgWrapper.appendChild(msg);
-                msgWrapper.appendChild(avatar);
-            } else {
-                msgWrapper.appendChild(avatar);
-                msgWrapper.appendChild(msg);
-            }
-
-            chat.appendChild(msgWrapper);
-            setTimeout(() => {
-                chat.scrollTop = chat.scrollHeight;
-            }, 10);
-
-            if (sender === 'assistant' && text.trim().endsWith("?")) {
-                appendQuickReplies();
-            }
-        }
-
-        function showResponse(text) {
-            const typingIndicator = document.getElementById("typing-indicator");
-            typingIndicator.innerText = text;
-        }
 
 
         async function startVoice() {
@@ -957,13 +887,19 @@
                 if (data.transcription) {
                     appendMessage("user", data.transcription);
 
+                    // Abort any previous LLM voice fetch
+                    if (currentVoiceLLMController) currentVoiceLLMController.abort();
+                    currentVoiceLLMController = new AbortController();
+
                     // Now, fetch the LLM response
                     showResponse("🤖 Thinking...");
                     const llmRes = await fetch("/llm-response", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ command_text: data.transcription, lang: data.lang || "en" }),
+                        signal: currentVoiceLLMController.signal
                     });
+                    if (!llmRes.ok) throw new Error("Failed to get LLM response");
                     const llmData = await llmRes.json();
                     appendMessage("assistant", llmData.response || "No response.");
                     speakResponse(llmData.response || "No response.");
@@ -972,8 +908,14 @@
                     showResponse("❌ No speech detected.");
                 }
             } catch (error) {
-                console.error(error);
-                showResponse("❌ Unable to process voice input. Please try again.");
+                if (error.name === "AbortError") {
+                    showResponse("⏹️ Response stopped.");
+                } else {
+                    console.error(error);
+                    showResponse("❌ Unable to process voice input. Please try again.");
+                }
+            } finally {
+                currentVoiceLLMController = null;
             }
         }
 
