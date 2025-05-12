@@ -679,7 +679,7 @@
         }
 
         async function setLLMModel(model) {
-            const allowedModels = ["llama3.3:latest", "deepseek-r1:32b","deepseek-r1:1.5b","phi4:latest","llama3.2:latest", "mistral:latest", "llama3.2:1b", "qwen2.5:0.5b", "gemma3:4b", "qwen:0.5b"];
+            const allowedModels = ["mistral:latest","phi4:latest","gemma3:4b","llama3.3:latest", "llama3.2:latest",  "llama3.2:1b","deepseek-r1:32b","deepseek-r1:1.5b", "qwen2.5:0.5b",  "qwen:0.5b"];
 
             if (!allowedModels.includes(model)) {
                 showResponse("❌ Invalid model selected.");
