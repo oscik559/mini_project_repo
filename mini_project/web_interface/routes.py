@@ -22,12 +22,11 @@ async def homepage(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-
 @router.post("/start-session")
 async def start_session():
     success, msg = assistant.start_session()
     return {
-        "success": success,   # <-- FIXED: use actual result
+        "authenticated": success,  # <-- FIXED: use actual result
         "message": msg,
         "username": (
             assistant.authenticated_user.get("first_name")
@@ -88,7 +87,9 @@ async def set_model(request: Request):
     assistant.set_llm_model(model)
     return {"message": f"✅ Model set to {model}"}
 
+
 from fastapi import UploadFile, File, Form
+
 
 @router.post("/register-user")
 async def register_user(
@@ -97,7 +98,7 @@ async def register_user(
     liu_id: str = Form(...),
     email: str = Form(...),
     face: UploadFile = File(...),
-    voice: UploadFile = File(...)
+    voice: UploadFile = File(...),
 ):
     # Save uploaded files
     face_path = f"temp_images/{liu_id}_face.png"
@@ -120,20 +121,13 @@ async def register_user(
             first_name, last_name, liu_id, voice_path
         )
         if face_success and voice_success:
-            return {"message": f"✅ User {first_name} registered (face/voice captured)."}
+            return {
+                "message": f"✅ User {first_name} registered (face/voice captured)."
+            }
         else:
             return {"message": f"❌ Registration failed (face or voice not captured)."}
     except Exception as e:
         return {"message": f"❌ Registration failed: {str(e)}"}
-
-# @router.post("/process-voice")
-# async def process_voice():
-#     result = assistant.vp.capture_voice()
-#     if not result:
-#         return {"transcription": ""}
-#     command_text, lang = result
-#     return {"transcription": command_text, "lang": lang}
-
 
 
 @router.post("/process-voice")
@@ -151,6 +145,7 @@ async def process_voice(audio: UploadFile = File(None)):
         command_text, lang = result
         return {"transcription": command_text, "lang": lang}
 
+
 @router.post("/llm-response")
 async def llm_response(request: Request):
     data = await request.json()
@@ -158,13 +153,3 @@ async def llm_response(request: Request):
     lang = data.get("lang", "en")
     response = assistant.process_input_command(command_text, lang)
     return {"response": response}
-
-# @router.get("/session-info")
-# def session_info():
-#     return {
-#         "status": "active",
-#         "username": assistant.session.get("username"),
-#         "liu_id": assistant.session.get("liu_id"),
-#         "role": assistant.session.get("role"),
-#         "memory_file": assistant.chat_memory_path.name if assistant.chat_memory_path else None
-#     }

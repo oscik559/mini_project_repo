@@ -479,7 +479,12 @@ class FaceAuthSystem:
         # On success:
         self._refresh_index()
         logger.info("✅ User registered successfully.")
-        return True
+        return {
+            "liu_id": liu_id,
+            "first_name": first_name,
+            "last_name": last_name,
+            "voice_embedding": None  # or fetch from DB if needed
+        }
 
     def identify_user(self) -> None:
         """

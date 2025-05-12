@@ -493,26 +493,26 @@
                 const data = await res.json();
 
                 if (data.authenticated === false) {
-                    showRegisterModal(); // Show registration modal if authentication fails
+                    showRegisterModal();
                     return;
                 }
-                showResponse(data.message);
 
-                // Set authenticated user name
-                const name = data.username || (data.message.includes(":") ? data.message.split(":")[1]?.trim() : null);
-                if (name) updateAuthUser(name);
-
-                // Add this to show a chat message:
-                if (name) {
-                    appendMessage("assistant", `👋 Welcome, ${name}! You are now authenticated.`);
+                // Show welcome message
+                if (data.username) {
+                    appendMessage("assistant", `👋 Welcome, ${data.username}! You are now authenticated.`);
+                    updateAuthUser(data.username);
                 } else if (data.message) {
                     appendMessage("assistant", data.message);
                 }
 
-                // Update model in typing indicator
+                // Update model in UI if needed
                 if (data.model) {
-                    document.getElementById("typing-indicator").innerText = `✅ Using model: ${data.model}`;
-                    document.getElementById("llm-select").value = data.model;
+                    const typingIndicator = document.getElementById("typing-indicator");
+                    if (typingIndicator) typingIndicator.innerText = `✅ Using model: ${data.model}`;
+                    const llmSelect = document.getElementById("llm-select");
+                    if (llmSelect && [...llmSelect.options].some(opt => opt.value === data.model)) {
+                        llmSelect.value = data.model;
+                    }
                 }
             } catch (error) {
                 console.error(error);
@@ -520,12 +520,18 @@
             }
         }
 
+        function updateAuthUser(name) {
+            document.getElementById("auth-user").innerText = "Authenticated: " + name;
+        }
+
         function showRegisterModal() {
             document.getElementById('register-modal').style.display = 'flex';
         }
+
         function closeRegisterModal() {
             document.getElementById('register-modal').style.display = 'none';
         }
+
         document.getElementById('register-form').onsubmit = async function(e) {
             e.preventDefault();
             const data = new FormData();
@@ -543,7 +549,6 @@
             showResponse(result.message);
             closeRegisterModal();
         };
-
 
         async function sendCommand() {
             try {
@@ -615,19 +620,15 @@
             showResponse(data.message);
         }
 
-
         function showResponse(text) {
             const typingIndicator = document.getElementById("typing-indicator");
             typingIndicator.innerText = text;
         }
 
-
         function fetchDBView() {
             const panel = document.getElementById("db-panel");
             panel.style.display = panel.style.display === "none" ? "block" : "none";
         }
-
-
 
         async function loadTable(tableName) {
             const dbTableDiv = document.getElementById("db-table");
@@ -699,7 +700,6 @@
             }
         }
 
-
         function appendQuickReplies() {
             const container = document.getElementById("quick-replies");
             // Toggle: if already visible, hide; else show
@@ -767,10 +767,6 @@
             const now = new Date();
             const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // msg.innerHTML = `
-            //     <div>${text}</div>
-            //     <div style="font-size: 0.7em; color: #aaa; text-align: right;">${time}</div>
-            // `;
             const textDiv = document.createElement("div");
             textDiv.textContent = text;
             const timeDiv = document.createElement("div");
@@ -797,10 +793,6 @@
                 appendQuickReplies();
             }
         }
-
-
-
-
 
         function populateVoiceList() {
             const select = document.getElementById("voice-select");
