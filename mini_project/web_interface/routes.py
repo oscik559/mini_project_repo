@@ -22,16 +22,12 @@ async def homepage(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-# @router.post("/start-session")
-# async def start_session():
-#     success, msg = assistant.start_session()
-#     return {"success": success, "message": msg}
 
 @router.post("/start-session")
 async def start_session():
     success, msg = assistant.start_session()
     return {
-        "success": success,
+        "success": success,   # <-- FIXED: use actual result
         "message": msg,
         "username": (
             assistant.authenticated_user.get("first_name")
