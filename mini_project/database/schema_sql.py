@@ -1,12 +1,20 @@
 # database/schema_sql.py
-"""This module defines the database schema and indexes for a project. It uses an
-OrderedDict to organize the SQL statements for creating tables and indexes.
-Tables:
-- `users`: Stores user information, including personal details, preferences, and roles.
-- `usd_data`: Contains data related to USD (Universal Scene Description) objects.
-- `isaac_sim_gui`: Tracks GUI features and their operation statuses.
-- `sequence_library`: Stores sequences with metadata, conditions, and runnability.
-- `operation_library`: Defines operations, their metadata,
+"""This module defines the SQL schema for the application's PostgreSQL database using an OrderedDict
+to store table creation statements and a list for index creation statements.
+Attributes:
+    tables (OrderedDict):
+        An ordered mapping of table names to their corresponding SQL CREATE TABLE statements.
+        Each entry defines the structure, constraints, and relationships for a specific table
+        in the database, including user management, operation parameters, instructions,
+        simulation results, and more.
+    indexes (list of str):
+        A list of SQL CREATE INDEX statements to optimize query performance on frequently
+        accessed columns and relationships.
+Usage:
+    The `tables` and `indexes` can be iterated over to initialize or migrate the database schema.
+    This module is intended to be imported and used by database setup or migration scripts.
+
+
 """
 from collections import OrderedDict
 

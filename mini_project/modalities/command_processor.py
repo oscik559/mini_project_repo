@@ -1,58 +1,70 @@
 # mini_project/modalities/command_processor.py
-"""CommandProcessor Class
-This class is responsible for processing unified commands for robotic tasks. It interacts with a database to fetch
-and validate data, uses an LLM (Large Language Model) for inference and classification, and generates operation
-sequences based on the provided commands.
-Attributes:
-    conn (psycopg2.connection): Database connection object.
-    cursor (psycopg2.cursor): Cursor for executing database queries.
-    logger (logging.Logger): Logger instance for logging messages.
-    llm_model (str): The LLM model used for inference.
-    available_sequences (List[str]): Cached list of available sequences from the database.
-    available_objects (List[str]): Cached list of available objects from the database.
-Methods:
-    __init__(llm_model: str = OLLAMA_MODEL):
-        Initializes the CommandProcessor instance, sets up database connection, and caches available sequences and objects.
-    get_available_sequences() -> List[str]:
-        Fetches available sequence names from the sequence_library table in the database.
-    fetch_column(table: str, column: str) -> list:
-        Fetches a specific column from a given table in the database.
-    get_available_objects() -> List[str]:
-        Fetches available object names from the camera_vision table in the database.
-    get_unprocessed_unified_command() -> Dict:
-        Retrieves the latest unprocessed unified command from the unified_instructions table.
-    get_available_objects_with_colors() -> List[str]:
-        Fetches object names along with their colors from the camera_vision table.
-    get_sort_order() -> List[str]:
-        Fetches the sort order of objects from the sort_order table.
-    get_task_templates() -> Dict[str, List[str]]:
-        Fetches task templates from the task_templates table.
-    validate_operation(operation: Dict) -> bool:
-        Validates the structure of an operation and checks if the sequence and object names are valid.
-    extract_json_array(raw_response: str) -> List[Dict]:
-        Extracts a JSON array from a raw LLM response string.
-    infer_operation_name_from_llm(command_text: str) -> str:
-        Infers the operation name from a user command using the LLM.
-    get_task_order(operation_name: str) -> List[str]:
-        Retrieves the task order for a given operation name from the operation_library table.
-    generate_operations_from_sort_order(task_order: List[str], command_id: int) -> List[Dict]:
-        Generates a list of operations based on the task order and sort order.
-    process_command(unified_command: Dict) -> Tuple[bool, List[Dict]]:
-        Processes a unified command, generates operations, and updates the database.
-    populate_operation_parameters():
-        Populates operation-specific parameter tables in the database based on the planned sequences.
-    extract_sort_order_from_llm(command_text: str) -> List[Tuple[str, str]]:
-        Extracts the sort order of objects from a user command using the LLM.
-    populate_sort_order_from_llm(command_text: str) -> None:
-        Populates the sort_order table in the database based on the extracted sort order from the LLM.
-    run_processing_cycle():
-        Processes the latest unprocessed unified command.
-    close():
-        Closes the database connection.
+"""CommandProcessor module for handling unified robotic commands, database operations, and LLM-based inference.
+This module provides the CommandProcessor class, which is responsible for:
+- Connecting to the database and managing persistent cursors.
+- Fetching and caching available sequences and objects for validation.
+- Extracting and validating operations from LLM responses.
+- Inferring operation names using an LLM (Ollama).
+- Generating operation sequences based on sort order and task templates.
+- Populating operation-specific parameter tables for robotic tasks.
+- Extracting and populating sort order from LLM output.
+- Processing unified commands and updating the database accordingly.
+- Managing logging and error handling throughout the command processing cycle.
+Classes:
+    CommandProcessor: Main class for processing commands, interacting with the database, and integrating LLM inference.
+Functions:
+    __init__(self, llm_model: str = OLLAMA_MODEL)
+        Initialize the CommandProcessor, set up database connection, and cache available sequences/objects.
+    get_available_sequences(self) -> List[str]
+        Fetch available sequence names from the sequence_library table.
+    fetch_column(self, table: str, column: str) -> list
+        Fetch a single column from a specified table.
+    get_available_objects(self) -> List[str]
+        Fetch available object names from the camera_vision table.
+    get_unprocessed_unified_command(self) -> Dict
+        Retrieve the latest unprocessed unified command from the unified_instructions table.
+    get_available_objects_with_colors(self) -> List[str]
+        Fetch available objects with their colors from the camera_vision table.
+    get_sort_order(self) -> List[str]
+        Fetch the current sort order from the sort_order table.
+    get_task_templates(self) -> Dict[str, List[str]]
+        Fetch task templates from the task_templates table.
+    refresh_cache(self)
+        Refresh cached sequences and objects from the database.
+    validate_operation(self, operation: Dict) -> bool
+        Validate the structure and values of an operation.
+    extract_json_array(self, raw_response: str) -> List[Dict]
+        Extract a JSON array from a raw LLM response string.
+    infer_operation_name_from_llm(self, command_text: str) -> str
+        Use LLM to infer the operation name from a user command.
+    get_task_order(self, operation_name: str) -> List[str]
+        Get the task order for a given operation name.
+    generate_operations_from_sort_order(self, task_order: List[str], command_id: int) -> List[Dict]
+        Generate a list of operations based on the sort order and task order.
+    process_command(self, unified_command: Dict) -> Tuple[bool, List[Dict]]
+        Process a unified command: generate operations, update the database, and populate parameters.
+    populate_operation_parameters(self)
+        Populate operation-specific parameter tables based on planned sequences.
+    extract_sort_order_from_llm(self, command_text: str) -> List[Tuple[str, str]]
+        Use LLM to extract the sort order (object name and color) from a command.
+    populate_sort_order_from_llm(self, command_text: str) -> None
+        Populate the sort_order table using LLM-extracted sort order.
+    run_processing_cycle(self)
+        Process the latest unprocessed unified command, if available.
+    close(self)
+        Close the database connection.
 Usage:
-    This class is designed to be used as a command processor for robotic tasks. It integrates with a database
-    and an LLM to process commands, validate operations, and generate operation sequences. The `run_processing_cycle`
-    method can be used to process the latest unprocessed command in a single cycle.
+    Run as a script to process the latest unified command using:
+        python command_processor.py
+Environment Variables:
+    DEBUG: Enable debug mode for logging.
+    LOG_LEVEL: Set the logging level (default: DEBUG if debug mode, else INFO).
+Dependencies:
+    - ollama (for LLM chat)
+    - psycopg2 (for PostgreSQL database access)
+    - mini_project.config.app_config
+    - mini_project.database.connection
+    - mini_project.modalities.prompt_utils
 """
 
 import atexit

@@ -1,30 +1,34 @@
-# authentication/voice_auth.py
-"""
-This module provides a voice authentication system using PostgreSQL as the database backend.
-It includes functionalities for user registration, voice embedding storage, and voice-based user verification.
+# authentication/_voice_auth.py
+"""_voice_auth.py
+This module provides the VoiceAuth class for handling voice-based user authentication and registration.
+It includes functionality for:
+- Recording audio from the user's microphone.
+- Transcribing recorded audio to text using Google Speech Recognition.
+- Capturing voice embeddings using the Resemblyzer library.
+- Storing and retrieving voice embeddings in a PostgreSQL database and as local pickle files.
+- Registering new users with voice authentication.
+- Registering or updating a user's voice sample.
+- Verifying a user's identity by comparing a new voice sample to the stored embedding.
+- Handling audio session management and directory setup for audio data.
 Classes:
-    VoiceAuth:
-        A class for handling voice authentication, including:
-        - Transcription using Google Speech Recognition.
-        - Voice embedding generation using the Resemblyzer library.
-        - Storing embeddings in a PostgreSQL database and as pickle files.
-        - User registration and login via voice verification.
+    VoiceAuth: Handles all aspects of voice authentication, including registration, verification, and embedding management.
 Functions:
-    audio_session():
-        A context manager for managing audio recording sessions.
-Constants:
-    MAX_RETRIES: int
-        Maximum number of retries for transcription matching during registration.
-    TEMP_AUDIO_PATH: str
-        Path to store temporary audio files.
-    TRANSCRIPTION_SENTENCE: str
-        The sentence users must read for transcription and verification.
-    VOICE_DATA_PATH: str
-        Path to store voice embedding pickle files.
-    VOICE_MATCH_THRESHOLD: float
-        Threshold for cosine similarity to determine voice match.
-"""
+    audio_session: Context manager for safely handling audio recording sessions.
+Configuration:
+    Uses application configuration for paths, retry limits, and thresholds.
+Dependencies:
+    - sounddevice
+    - resemblyzer
+    - scipy
+    - speech_recognition
+    - psycopg2
+    - scikit-learn
+    - pickle
+    - logging
+Usage:
+    Run as a script to interactively register or authenticate users via voice.
 
+"""
 
 import logging
 import os

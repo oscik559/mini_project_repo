@@ -1,30 +1,37 @@
 # mini_project/modalities/prompt_utils.py
-"""This module provides utilities for generating prompt templates used in a voice-controlled robotic assistant system.
-The prompts are designed to handle various tasks such as command classification, operation matching, scene description,
-and general conversation. The module also includes helper methods for validating JSON responses and generating greetings.
-Classes:
-    - PromptBuilder: A collection of static methods for creating prompt templates tailored to specific tasks.
+"""Utilities for constructing prompt templates for a voice-controlled robotic assistant (Yumi) in a research lab context.
+This module provides a set of static methods and constants for generating prompt templates used in various natural language processing tasks, such as intent classification, operation matching, scene description, task planning, and conversational responses. The prompts are designed to guide large language models (LLMs) in interpreting user commands, generating context-aware responses, and planning robotic actions.
 Constants:
-    - LAB_MISSION: A string describing the mission of the robotics lab.
-    - TEAM_ROLES: A dictionary mapping team member names to their roles in the project.
-    - LAB_LOCATION: A string specifying the location of the lab.
-Methods in PromptBuilder:
-    - classify_command_prompt(): Returns a prompt template for classifying user commands into predefined categories.
-    - match_operation_prompt(): Returns a prompt template for selecting the most relevant operation based on user input.
-    - general_conversation_prompt(first_name, liu_id, role, team_names, weather, part_of_day, full_time, chat_history):
-      Generates a conversational prompt tailored to the user's role and context.
-    - scene_prompt_template(): Returns a prompt template for describing objects in a scene based on camera vision data.
-    - scene_prompt_template_2(): Returns an alternative prompt template for scene description with additional user context.
-    - operation_sequence_prompt(available_sequences, task_templates, object_context, sort_order):
-      Generates a prompt for breaking down user commands into low-level robotic operations.
-    - sort_order_prompt(command_text): Generates a prompt for extracting sorting order from user instructions.
-    - sort_order_system_msg(): Returns a system message for extracting object sorting order.
-    - validate_llm_json(raw): Validates if a given string is a properly formatted JSON array.
-    - greeting_prompt(): Generates a short, context-aware greeting based on the current time.
-    - greeting_system_msg(): Returns a system message for generating spoken greetings.
+    LAB_MISSION (str): Description of the lab's mission and project goals.
+    TEAM_ROLES (dict): Mapping of team member names to their roles.
+    LAB_LOCATION (str): The physical location of the lab.
+Classes:
+    PromptBuilder:
+        Static Methods:
+            classify_command_prompt() -> PromptTemplate:
+                Returns a prompt template for classifying user commands into intent categories ('scene', 'task', 'trigger', 'general').
+            match_operation_prompt() -> PromptTemplate:
+                Returns a prompt template for selecting the most relevant operation based on a user's command.
+            general_conversation_prompt(first_name, liu_id, role, team_names, weather, part_of_day, full_time, chat_history) -> PromptTemplate:
+                Returns a prompt template for generating natural, context-aware conversational responses, adapting tone based on user role and environment.
+            scene_prompt_template() -> PromptTemplate:
+                Returns a prompt template for describing the current scene based on objects detected by the robot's camera.
+            scene_prompt_template_2() -> PromptTemplate:
+                Returns an alternative prompt template for scene description, including user and conversation context.
+            operation_sequence_prompt(available_sequences: str, task_templates: str, object_context: str, sort_order: str) -> str:
+                Returns a prompt string for planning a sequence of robot operations based on user commands and available actions.
+            sort_order_prompt(command_text: str) -> str:
+                Returns a prompt string for extracting the desired sort order of objects from a user command.
+            sort_order_system_msg() -> Dict:
+                Returns a system message dict for guiding LLMs in extracting object sorting order.
+            validate_llm_json(raw: str) -> bool:
+                Checks if a given string is a valid JSON array (for LLM responses).
+            greeting_system_msg() -> Dict:
+                Returns a system message dict for generating short spoken greetings.
+            greeting_prompt(time_of_day: str, weekday: str, month: str, seed: str) -> str:
+                Returns a prompt string for generating a creative, context-aware greeting.
 Usage:
-This module is intended for use in a robotics system where natural language commands are processed and translated into
-robotic actions. The prompts are designed to facilitate interaction between users and the robotic assistant, Yumi.
+    Import this module and use the static methods of PromptBuilder to generate prompt templates for various LLM-driven tasks in the robotics lab assistant system.
 
 """
 
@@ -125,7 +132,7 @@ class PromptBuilder:
             f"{name}: {TEAM_ROLES[name]}" for name in team_names if name in TEAM_ROLES
         )
         return PromptTemplate.from_template(
-        f"""
+            f"""
     You are Yumi — a warm, witty, expressive robotic assistant created to help researchers in the robotics lab at Linköping University.
 
     You're currently assisting:
@@ -185,8 +192,7 @@ class PromptBuilder:
     If unsure, say something thoughtful or motivating.
     Do not repeat the user's input. Just respond directly.
     """
-    )
-
+        )
 
     #     return PromptTemplate.from_template(
     #         f"""

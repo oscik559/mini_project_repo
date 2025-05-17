@@ -1,5 +1,26 @@
 # mini_project/modalities/synchronizer.py
-
+"""synchronizer.py
+This module provides functionality to synchronize and unify multimodal instructions (voice and gesture)
+from a database, merging them into unified commands using a Large Language Model (LLM). It processes
+unprocessed instructions in batches, merges them per session, and stores the unified result in a dedicated table.
+Main Functions:
+---------------
+- get_instructions_by_session(cursor, limit, offset): Fetches unprocessed voice and gesture instructions from the database, grouped by session.
+- store_unified_instruction(cursor, session_id, timestamp, voice_command, gesture_command, unified_command, liu_id): Stores a unified instruction into the unified_instructions table.
+- mark_instructions_as_processed(cursor, session_id): Marks all instructions for a session as processed.
+- llm_unify(voice_text, gesture_text, max_retries): Uses an LLM to combine voice and gesture instructions into a unified command.
+- merge_session_commands(session_commands, delimiter): Merges all instructions of a session into single strings per modality.
+- synchronize_and_unify(liu_id, batch_size): Orchestrates the synchronization and unification process in batches.
+Usage:
+------
+Run this module as a script to process and unify all unprocessed instructions in the database.
+Dependencies:
+-------------
+- Database connection and configuration modules
+- Logging
+- Subprocess (for LLM calls)
+- Python standard libraries (datetime, functools, typing)
+"""
 
 import json
 import logging

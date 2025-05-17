@@ -1,5 +1,42 @@
 # mini_project/modalities/task_manager.py
-
+"""TaskManagerGUIApproach1: A Tkinter-based GUI for managing human-robot interaction (HRI) tasks using multimodal (voice and gesture) input.
+Classes:
+    TaskManagerGUIApproach1:
+        Provides a graphical interface for:
+            - User authentication (face/voice)
+            - Starting/stopping HRI task execution sessions
+            - Capturing and synchronizing voice and gesture commands
+            - Reviewing and confirming unified commands
+            - Processing commands and managing session state
+            - Clearing instruction tables and exiting the application
+        Key Methods:
+            __init__:
+                Initializes the GUI, session manager, and command processor. Sets up all widgets and logging.
+            log_event(message, level=logging.INFO):
+                Logs events to both the logger and the GUI log window, and updates the status label.
+            set_controls_state(start_enabled=True, stop_enabled=False, new_cmd_enabled=False):
+                Enables or disables control buttons based on the current session state.
+            start_execution():
+                Authenticates the user if needed, creates a session, and starts the execution pipeline in a new thread.
+            stop_execution():
+                Cancels the current session and updates control states.
+            new_command():
+                Retries the session and starts a new capture cycle.
+            clear_tables():
+                Clears all instruction-related tables in the database.
+            exit_application():
+                Stops execution, closes the command processor, and exits the GUI.
+            execution_pipeline():
+                Orchestrates the main HRI workflow:
+                    - Concurrently captures voice and gesture input
+                    - Synchronizes and unifies inputs
+                    - Prompts user to confirm the unified command
+                    - Processes the command or repeats capture as needed
+            run():
+                Starts the Tkinter main event loop.
+Usage:
+    Run this module as a script to launch the HRI Task Manager GUI.
+"""
 import logging
 import threading
 import time

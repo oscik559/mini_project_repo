@@ -1,4 +1,27 @@
 # mini_project/web_interface/routes.py
+"""
+This module defines the API routes for the web interface of the mini_project application using FastAPI.
+Routes:
+    - GET /: Render the homepage using Jinja2 templates.
+    - POST /start-session: Start a new authentication session with the voice assistant.
+    - POST /send-command: Send a text command to the voice assistant and receive a response.
+    - POST /reset-memory: Reset the assistant's memory.
+    - GET /view-db/{table_name}: View up to 50 rows from an allowed database table.
+    - POST /set-model: Set the language model used by the assistant.
+    - POST /register-user: Register a new user with face and voice data.
+    - POST /process-voice: Process uploaded or captured voice audio and return transcription.
+    - POST /llm-response: Get a response from the assistant's language model for a given command.
+Dependencies:
+    - FastAPI for API routing and request handling.
+    - Jinja2 for HTML templating.
+    - Custom modules for database connection, face and voice authentication, and the voice assistant logic.
+Note:
+    - File uploads for face and voice are saved temporarily for processing.
+    - Only specific database tables are allowed to be viewed via the API.
+    - Error handling is included for user registration and voice processing.
+"""
+
+
 from fastapi import UploadFile, File
 from fastapi import APIRouter, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -7,8 +30,9 @@ from pathlib import Path
 from mini_project.database.connection import get_connection
 from mini_project.authentication._face_auth import FaceAuthSystem
 from mini_project.authentication._voice_auth import VoiceAuth
-
 from mini_project.modalities.voice_assistant import VoiceAssistant
+
+from mini_project.config.app_config import TEMP_AUDIO_PATH, TEMP_IMAGE_PATH
 
 router = APIRouter()
 templates = Jinja2Templates(directory="mini_project/web_interface/templates")
@@ -130,20 +154,38 @@ async def register_user(
         return {"message": f"❌ Registration failed: {str(e)}"}
 
 
+#########################################################################################
+# @router.post("/process-voice")
+# async def process_voice(audio: UploadFile = File(None)):
+#     if audio:
+#         audio_path = f"temp_audio/{audio.filename}"
+#         with open(audio_path, "wb") as f:
+#             f.write(await audio.read())
+#         command_text, lang = assistant.vp.transcribe_audio(audio_path)
+#         return {"transcription": command_text, "lang": lang}
+#     else:
+#         result = assistant.vp.capture_voice()
+#         if not result:
+#             return {"transcription": ""}
+#         command_text, lang = result
+#         return {"transcription": command_text, "lang": lang}
+#########################################################################################
+
+# ...existing code...
 @router.post("/process-voice")
 async def process_voice(audio: UploadFile = File(None)):
     if audio:
-        audio_path = f"temp_audio/{audio.filename}"
+        temp_audio_dir = TEMP_AUDIO_PATH
+        temp_audio_dir.mkdir(parents=True, exist_ok=True)
+        audio_path = temp_audio_dir / audio.filename
         with open(audio_path, "wb") as f:
             f.write(await audio.read())
-        command_text, lang = assistant.vp.transcribe_audio(audio_path)
+        # Use the correct method for transcription
+        command_text, lang = assistant.vp.transcriber.transcribe_audio(str(audio_path))
         return {"transcription": command_text, "lang": lang}
     else:
-        result = assistant.vp.capture_voice()
-        if not result:
-            return {"transcription": ""}
-        command_text, lang = result
-        return {"transcription": command_text, "lang": lang}
+        return {"transcription": ""}
+# ...existing code...
 
 
 @router.post("/llm-response")
@@ -153,3 +195,28 @@ async def llm_response(request: Request):
     lang = data.get("lang", "en")
     response = assistant.process_input_command(command_text, lang)
     return {"response": response}
+
+
+
+
+@router.post("/authenticate-user")
+async def authenticate_user(face: UploadFile = File(...)):
+    temp_dir = TEMP_IMAGE_PATH
+    temp_dir.mkdir(parents=True, exist_ok=True)  # <-- Ensure directory exists
+    temp_path = temp_dir / "auth_face.png"
+    with open(temp_path, "wb") as f:
+        f.write(await face.read())
+    try:
+        face_auth = FaceAuthSystem()
+        user = face_auth.identify_user_from_image(str(temp_path))
+        if user:
+            return {
+                "success": True,
+                "first_name": user["first_name"],
+                "liu_id": user["liu_id"],
+                "message": f"✅ Welcome, {user['first_name']}!"
+            }
+        else:
+            return {"success": False, "register": True, "message": "❌ Face not recognized. Please register."}
+    except Exception as e:
+        return {"success": False, "message": f"❌ Authentication error: {str(e)}"}

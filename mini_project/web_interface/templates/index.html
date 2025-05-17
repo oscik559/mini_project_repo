@@ -1,3 +1,7 @@
+<!--
+This code defines a selection of code that is referenced for documentation purposes.
+Please provide the actual code selection to generate a relevant documentation comment.
+-->
 
 
 <!DOCTYPE html>
@@ -127,7 +131,7 @@
             align-items: center;
             min-height: 36px;
             box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-            font-size: 0.88em;
+            font-size: 0.8em;
             gap: 0.7em;
             box-sizing: border-box;
             overflow-x: auto;
@@ -361,11 +365,12 @@
             <div>
 
                <div>
-                    <button onclick="startSession()" class="rounded-btn">🔐Sign In</button>
-                    <button onclick="fetchDBView()" class="rounded-btn">📊Table</button>
-                    <button onclick="simulateTask()" class="rounded-btn">🧪Simulate</button>
-                    <button onclick="executeTask()" class="rounded-btn">🤖Execute</button>
-                    <button onclick="resetMemory()" class="rounded-btn">🧠Reset</button>
+                    <!-- <button onclick="startSession()" class="rounded-btn">🔐Sign In</button> -->
+                    <button onclick="showSigninWebcamModal()" class="rounded-btn" aria-label="Sign In with webcam">🔐Sign In</button>
+                    <button onclick="fetchDBView()" class="rounded-btn" aria-label="Show database table">📊Table</button>
+                    <button onclick="simulateTask()" class="rounded-btn" aria-label="Simulate task">🧪Simulate</button>
+                    <button onclick="executeTask()" class="rounded-btn" aria-label="Execute task">🤖Execute</button>
+                    <button onclick="resetMemory()" class="rounded-btn" aria-label="Reset assistant memory">🧠Reset</button>
 
                 </div>
             </div>
@@ -380,6 +385,7 @@
             <label style="font-size: 1em; margin: 0.1;">
                 📢
                 <select id="voice-select" class="rounded"></select>
+
             </label>
         </div>
 
@@ -453,18 +459,18 @@
 
         <!-- Add this modal to your HTML -->
         <!-- Add this modal to your HTML -->
-        <div id="register-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
-          <form id="register-form" style="background:#fff; color:#222; padding:2em; border-radius:10px; min-width:300px;">
-            <h3>Register User</h3>
-            <input type="text" id="reg-firstname" placeholder="First Name" required style="width:100%;margin-bottom:0.5em;"><br>
-            <input type="text" id="reg-lastname" placeholder="Last Name" required style="width:100%;margin-bottom:0.5em;"><br>
-            <input type="text" id="reg-liuid" placeholder="LIU ID" required style="width:100%;margin-bottom:0.5em;"><br>
-            <input type="email" id="reg-email" placeholder="Email" required style="width:100%;margin-bottom:0.5em;"><br>
-            <input type="file" id="reg-face" accept="image/*" capture="user" required style="margin-bottom:0.5em;"><br>
-            <input type="file" id="reg-voice" accept="audio/*" capture required style="margin-bottom:0.5em;"><br>
-            <button type="submit" class="rounded-btn">Register</button>
-            <button type="button" onclick="closeRegisterModal()" class="rounded-btn">Cancel</button>
-          </form>
+        <div id="register-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;" aria-label="User Registration Modal" role="dialog">
+            <form id="register-form" style="background:#fff; color:#222; padding:2em; border-radius:10px; min-width:300px;">
+                <h3>Register User</h3>
+                <input type="text" id="reg-firstname" placeholder="First Name" required style="width:100%;margin-bottom:0.5em;"><br>
+                <input type="text" id="reg-lastname" placeholder="Last Name" required style="width:100%;margin-bottom:0.5em;"><br>
+                <input type="text" id="reg-liuid" placeholder="LIU ID" required style="width:100%;margin-bottom:0.5em;"><br>
+                <input type="email" id="reg-email" placeholder="Email" required style="width:100%;margin-bottom:0.5em;"><br>
+                <input type="file" id="reg-face" accept="image/*" capture="user" required style="margin-bottom:0.5em;"><br>
+                <input type="file" id="reg-voice" accept="audio/*" capture required style="margin-bottom:0.5em;"><br>
+                <button type="submit" class="rounded-btn" aria-label="Submit registration">Register</button>
+                <button type="button" onclick="closeRegisterModal()" class="rounded-btn" aria-label="Cancel registration">Cancel</button>
+            </form>
         </div>
     </div>
 
@@ -805,23 +811,21 @@
             const voices = window.speechSynthesis.getVoices();
             let preferredValue = null;
             voices.forEach((voice) => {
-                // Only include English voices
-                if (
-                    voice.lang.startsWith("en") &&
-                    (voice.name.includes("Google") || voice.name.includes("Microsoft") || voice.name.includes("Apple"))
-                ) {
-                    const value = `${voice.name}|||${voice.lang}`;
-                    const option = document.createElement("option");
-                    option.value = value;
-                    option.textContent = `${voice.name} (${voice.lang})${voice.default ? " [default]" : ""}`;
-                    select.appendChild(option);
-                    if (voice.name === preferredVoiceName && voice.lang === preferredLang) {
-                        preferredValue = value;
-                    }
+                // Allow all voices, not just English
+                const value = `${voice.name}|||${voice.lang}`;
+                const option = document.createElement("option");
+                option.value = value;
+                option.textContent = `${voice.name} (${voice.lang})${voice.default ? " [default]" : ""}`;
+                select.appendChild(option);
+                if (voice.name === preferredVoiceName && voice.lang === preferredLang) {
+                    preferredValue = value;
                 }
             });
-            // Set preferred voice as selected, or fallback to first
-            if (preferredValue !== null) {
+            // Restore from localStorage, else use preferred, else fallback
+            const savedVoice = localStorage.getItem("selectedVoice");
+            if (savedVoice && [...select.options].some(opt => opt.value === savedVoice)) {
+                select.value = savedVoice;
+            } else if (preferredValue !== null) {
                 select.value = preferredValue;
             } else if (select.options.length > 0) {
                 select.selectedIndex = 0;
@@ -872,51 +876,278 @@
                     msg.lang = "en-GB";
                 }
                 msg.rate = 1;
+
+
+                msg.onstart = () => {
+                    console.log("TTS started");
+                    showResponse("🗣️ Robot is speaking...");
+                };
+                msg.onend = () => showResponse("");
+                msg.onerror = () => showResponse("");
+
                 window.speechSynthesis.speak(msg);
             }
         }
 
+        // #########################################################################################
+
+        // async function startVoice() {
+        //     try {
+        //         showResponse("🎤 Listening...");
+        //         const res = await fetch("/process-voice", { method: "POST" });
+        //         if (!res.ok) throw new Error("Failed to process voice input");
+        //         const data = await res.json();
+
+        //         // Show transcription immediately
+        //         if (data.transcription) {
+        //             appendMessage("user", data.transcription);
+
+        //             // Abort any previous LLM voice fetch
+        //             if (currentVoiceLLMController) currentVoiceLLMController.abort();
+        //             currentVoiceLLMController = new AbortController();
+
+        //             // Now, fetch the LLM response
+        //             showResponse("🤖 Thinking...");
+        //             const llmRes = await fetch("/llm-response", {
+        //                 method: "POST",
+        //                 headers: { "Content-Type": "application/json" },
+        //                 body: JSON.stringify({ command_text: data.transcription, lang: data.lang || "en" }),
+        //                 signal: currentVoiceLLMController.signal
+        //             });
+        //             if (!llmRes.ok) throw new Error("Failed to get LLM response");
+        //             const llmData = await llmRes.json();
+        //             appendMessage("assistant", llmData.response || "No response.");
+        //             speakResponse(llmData.response || "No response.");
+        //             showResponse(""); // Clear the typing indicator here
+        //         } else {
+        //             showResponse("❌ No speech detected.");
+        //         }
+        //     } catch (error) {
+        //         if (error.name === "AbortError") {
+        //             showResponse("⏹️ Response stopped.");
+        //         } else {
+        //             console.error(error);
+        //             showResponse("❌ Unable to process voice input. Please try again.");
+        //         }
+        //     } finally {
+        //         currentVoiceLLMController = null;
+        //     }
+        // }
+        // #########################################################################################
+
+        // let mediaRecorder;
+        // let audioChunks = [];
+
+        // async function startVoice() {
+        //     try {
+        //         showResponse("🎤 Listening...");
+        //         // Request microphone access
+        //         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        //         mediaRecorder = new MediaRecorder(stream);
+
+        //         audioChunks = [];
+        //         mediaRecorder.ondataavailable = event => {
+        //             if (event.data.size > 0) audioChunks.push(event.data);
+        //         };
+
+        //         mediaRecorder.onstop = async () => {
+        //             const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        //             const formData = new FormData();
+        //             formData.append('audio', audioBlob, 'voice_input.webm');
+
+        //             const res = await fetch("/process-voice", { method: "POST", body: formData });
+        //             if (!res.ok) throw new Error("Failed to process voice input");
+        //             const data = await res.json();
+
+        //             if (data.transcription) {
+        //                 appendMessage("user", data.transcription);
+        //                 if (currentVoiceLLMController) currentVoiceLLMController.abort();
+        //                 currentVoiceLLMController = new AbortController();
+        //                 showResponse("🤖 Thinking...");
+        //                 const llmRes = await fetch("/llm-response", {
+        //                     method: "POST",
+        //                     headers: { "Content-Type": "application/json" },
+        //                     body: JSON.stringify({ command_text: data.transcription, lang: data.lang || "en" }),
+        //                     signal: currentVoiceLLMController.signal
+        //                 });
+        //                 if (!llmRes.ok) throw new Error("Failed to get LLM response");
+        //                 const llmData = await llmRes.json();
+        //                 appendMessage("assistant", llmData.response || "No response.");
+        //                 speakResponse(llmData.response || "No response.");
+        //                 showResponse("");
+        //             } else {
+        //                 showResponse("❌ No speech detected.");
+        //             }
+        //         };
+
+        //         mediaRecorder.start();
+
+        //         // Automatically stop after 6 seconds (or add a stop button)
+        //         setTimeout(() => {
+        //             if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
+        //         }, 6000);
+
+        //     } catch (error) {
+        //         showResponse("❌ Unable to access microphone or process voice input.");
+        //         console.error(error);
+        //     }
+        // }
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let silenceTimeout;
+        let audioContext, analyser, source, dataArray;
+        let calibratedSilenceRMS = null;
+        let vadActive = false;
+        let speechDetected = false;
+
         async function startVoice() {
             try {
+                showResponse("🎤 Calibrating ambient noise...");
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                speechDetected = false;
+
+                // Setup Web Audio API for VAD and calibration
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                source = audioContext.createMediaStreamSource(stream);
+                analyser = audioContext.createAnalyser();
+                source.connect(analyser);
+                analyser.fftSize = 2048;
+                dataArray = new Uint8Array(analyser.fftSize);
+
+                // 1. Ambient noise calibration (1 second)
+                calibratedSilenceRMS = await calibrateAmbientNoise(analyser, dataArray, 1000);
+                const silenceThreshold = calibratedSilenceRMS + 2.5; // tweak margin as needed
+
                 showResponse("🎤 Listening...");
-                const res = await fetch("/process-voice", { method: "POST" });
-                if (!res.ok) throw new Error("Failed to process voice input");
-                const data = await res.json();
 
-                // Show transcription immediately
-                if (data.transcription) {
-                    appendMessage("user", data.transcription);
+                // Start silence timer immediately after calibration
+                silenceTimeout = setTimeout(() => {
+                    if (!speechDetected && mediaRecorder.state !== "inactive") {
+                        mediaRecorder.stop();
+                        showResponse("❌ No speech detected (timeout).");
+                    }
+                }, 3000); // 3 seconds of silence after calibration
 
-                    // Abort any previous LLM voice fetch
-                    if (currentVoiceLLMController) currentVoiceLLMController.abort();
-                    currentVoiceLLMController = new AbortController();
+                function checkVAD() {
+                    analyser.getByteTimeDomainData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        let val = dataArray[i] - 128;
+                        sum += val * val;
+                    }
+                    let rms = Math.sqrt(sum / dataArray.length);
 
-                    // Now, fetch the LLM response
-                    showResponse("🤖 Thinking...");
-                    const llmRes = await fetch("/llm-response", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ command_text: data.transcription, lang: data.lang || "en" }),
-                        signal: currentVoiceLLMController.signal
-                    });
-                    if (!llmRes.ok) throw new Error("Failed to get LLM response");
-                    const llmData = await llmRes.json();
-                    appendMessage("assistant", llmData.response || "No response.");
-                    speakResponse(llmData.response || "No response.");
-                    showResponse(""); // Clear the typing indicator here
-                } else {
-                    showResponse("❌ No speech detected.");
+                    // Voice Activity Detection
+                    if (rms > silenceThreshold) {
+                        if (!speechDetected) {
+                            speechDetected = true;
+                            if (silenceTimeout) {
+                                clearTimeout(silenceTimeout);
+                                silenceTimeout = null;
+                            }
+                        }
+                        vadActive = true;
+                        if (silenceTimeout) {
+                            clearTimeout(silenceTimeout);
+                            silenceTimeout = null;
+                        }
+                    } else {
+                        if (vadActive && !silenceTimeout) {
+                            // Start silence timer after speech
+                            silenceTimeout = setTimeout(() => {
+                                if (mediaRecorder.state !== "inactive") {
+                                    mediaRecorder.stop();
+                                }
+                            }, 3000); // 3 seconds of silence after speech
+                        }
+                    }
+                    if (mediaRecorder.state === "recording") {
+                        requestAnimationFrame(checkVAD);
+                    }
                 }
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = async () => {
+                    if (audioContext) audioContext.close();
+                    if (silenceTimeout) clearTimeout(silenceTimeout);
+
+                    // Only process if speech was detected
+                    if (!speechDetected) {
+                        showResponse("❌ No speech detected.");
+                        return;
+                    }
+
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('audio', audioBlob, 'voice_input.webm');
+
+                    const res = await fetch("/process-voice", { method: "POST", body: formData });
+                    if (!res.ok) throw new Error("Failed to process voice input");
+                    const data = await res.json();
+
+                    if (data.transcription) {
+                        appendMessage("user", data.transcription);
+                        if (currentVoiceLLMController) currentVoiceLLMController.abort();
+                        currentVoiceLLMController = new AbortController();
+                        showResponse("🤖 Thinking...");
+                        const llmRes = await fetch("/llm-response", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ command_text: data.transcription, lang: data.lang || "en" }),
+                            signal: currentVoiceLLMController.signal
+                        });
+                        if (!llmRes.ok) throw new Error("Failed to get LLM response");
+                        const llmData = await llmRes.json();
+                        appendMessage("assistant", llmData.response || "No response.");
+                        speakResponse(llmData.response || "No response.");
+                        showResponse("");
+                    } else {
+                        showResponse("❌ No speech detected.");
+                    }
+                };
+
+                mediaRecorder.start();
+                vadActive = false;
+                checkVAD(); // Start VAD loop
+
             } catch (error) {
-                if (error.name === "AbortError") {
-                    showResponse("⏹️ Response stopped.");
-                } else {
-                    console.error(error);
-                    showResponse("❌ Unable to process voice input. Please try again.");
-                }
-            } finally {
-                currentVoiceLLMController = null;
+                showResponse("❌ Unable to access microphone or process voice input.");
+                console.error(error);
             }
+        }
+
+
+        // Helper: Calibrate ambient noise RMS for given ms
+        function calibrateAmbientNoise(analyser, dataArray, ms = 1000) {
+            return new Promise(resolve => {
+                let samples = [];
+                let start = performance.now();
+                function sample() {
+                    analyser.getByteTimeDomainData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        let val = dataArray[i] - 128;
+                        sum += val * val;
+                    }
+                    let rms = Math.sqrt(sum / dataArray.length);
+                    samples.push(rms);
+                    if (performance.now() - start < ms) {
+                        requestAnimationFrame(sample);
+                    } else {
+                        // Use median to avoid spikes
+                        samples.sort((a, b) => a - b);
+                        let median = samples[Math.floor(samples.length / 2)];
+                        resolve(median);
+                    }
+                }
+                sample();
+            });
         }
 
         document.getElementById("tts-toggle").addEventListener("change", function (e) {
@@ -924,8 +1155,86 @@
                 window.speechSynthesis.cancel();
             }
         });
+        document.getElementById("voice-select").addEventListener("change", function (e) {
+            localStorage.setItem("selectedVoice", e.target.value);
+        });
+
+        let signinWebcamStream = null;
+
+        function showSigninWebcamModal() {
+            document.getElementById('signin-webcam-modal').style.display = 'flex';
+            const video = document.getElementById('signin-webcam-video');
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    signinWebcamStream = stream;
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    showResponse("❌ Unable to access webcam.");
+                    closeSigninWebcamModal();
+                });
+        }
+
+        function closeSigninWebcamModal() {
+            document.getElementById('signin-webcam-modal').style.display = 'none';
+            const video = document.getElementById('signin-webcam-video');
+            if (signinWebcamStream) {
+                signinWebcamStream.getTracks().forEach(track => track.stop());
+                signinWebcamStream = null;
+            }
+            video.srcObject = null;
+        }
+
+        function captureSigninPhoto() {
+            const video = document.getElementById('signin-webcam-video');
+            const canvas = document.getElementById('signin-webcam-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(async blob => {
+                closeSigninWebcamModal();
+                showResponse("⏳ Authenticating...");
+                const formData = new FormData();
+                formData.append('face', blob, 'signin_face.png');
+                try {
+                    const res = await fetch('/authenticate-user', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await res.json();
+                    if (result.success) {
+                            const welcomeMsg = `Welcome, ${result.first_name}!`;
+                            appendMessage("assistant", welcomeMsg);
+                            updateAuthUser(result.first_name);
+                            speakResponse(welcomeMsg);
+                    } else if (result.register) {
+                        showRegisterModal();
+                        showResponse("Face not recognized. Please register.");
+                    } else {
+                        appendMessage("assistant", result.message || "❌ Authentication failed.");
+                        showResponse(result.message || "");
+                    }
+                } catch (err) {
+                    showResponse("❌ Authentication error.");
+                } finally {
+                    showResponse(""); // <-- This clears the "Authenticating..." message
+                }
+            }, "image/png");
+        }
+
+
 
     </script>
 
+    <!-- Webcam Modal for Sign In -->
+    <div id="signin-webcam-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:2000;" aria-label="Webcam Sign In Modal" role="dialog">
+    <div style="background:#494848; padding:1em; border-radius:10px; display:flex; flex-direction:column; align-items:center;">
+        <video id="signin-webcam-video" autoplay playsinline width="320" height="240" style="border-radius:8px; background:#222;" aria-label="Webcam video preview"></video>
+        <canvas id="signin-webcam-canvas" width="320" height="240" style="display:none;"></canvas>
+        <div style="margin-top:0.01em;">
+        <button onclick="captureSigninPhoto()" class="rounded-btn" aria-label="Capture photo for sign in">📸 Capture</button>
+        <button onclick="closeSigninWebcamModal()" class="rounded-btn" aria-label="Cancel sign in">❌ Cancel</button>
+        </div>
+    </div>
+    </div>
 </body>
 </html>

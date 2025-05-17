@@ -1,70 +1,41 @@
 # database/db_handler.py
-
-"""
-DatabaseHandler Class and CLI Tool for PostgreSQL Database Management
-This module provides a `DatabaseHandler` class to manage PostgreSQL database operations
-such as creating tables, backing up data, restoring data, and populating the database
-with sample data. It also includes a CLI tool for interacting with the database.
+"""database/db_handler.py
+This module provides the `DatabaseHandler` class and CLI utilities for managing a PostgreSQL database
+used in the mini_project application. It supports operations such as creating, dropping, clearing,
+and populating tables, as well as backing up and restoring user profiles and the entire database.
 Classes:
---------
-- DatabaseHandler:
+    DatabaseHandler:
+        Handles PostgreSQL database operations, including:
+            - Connecting to the database
+            - Creating and dropping tables and indexes
+            - Backing up and restoring user profiles (JSON)
+            - Backing up the entire database (SQL dump)
+            - Clearing and populating tables with sample data
+            - Printing table status and row counts
+            - Closing database connections
 Functions:
-----------
-- json_serializer(obj):
-    Serializes datetime and memoryview objects for JSON compatibility.
-- main_cli():
-    Command-line interface for managing the PostgreSQL database.
-DatabaseHandler Methods:
-------------------------
-- __init__():
-    Initializes the database connection and cursor.
-- backup_user_profiles(backup_dir=None):
-    Backs up all user profiles from the 'users' table into a JSON file.
-- restore_user_profiles(backup_dir=None, latest_only=True):
-    Restores user profiles from the most recent backup.
-- backup_database(backup_dir=DB_BACKUP_PATH):
-    Creates a backup of the entire database using `pg_dump`.
-- print_status():
-    Logs the status of all tables in the database, including row counts.
-- create_tables():
-    Creates all tables defined in the schema.
-- create_indexes():
-    Creates all indexes defined in the schema.
-- update_table_schemas():
-    Placeholder for schema validation and dynamic alteration (not implemented).
-- clear_tables():
-    Truncates all tables and resets their identities.
-- drop_all_tables():
-    Drops all tables in the database.
-- clear_camera_vision():
-    Deletes all rows from the `camera_vision` table.
-- populate_database():
-    Populates the database with sample data using the `populate_db` module.
-- close():
-    Closes the database connection and cursor.
-CLI Arguments:
---------------
-- --clear:
-    Truncate all tables and reset identities.
-- --drop:
-    Drop all tables.
-- --create:
-    Create all tables.
-- --populate:
-    Populate tables with sample data.
-- --reset:
-    Drop, create, and populate all tables (default action if no arguments are provided).
-- --backup:
-    Backup the database before making changes.
-- --status:
-    Show table row counts and status.
-Usage:
-------
-Run the script with the desired CLI arguments to perform database operations.
-If no arguments are provided, the script defaults to the `--reset` operation.
-Example:
---------
-$ python db_handler.py --reset
+    json_serializer(obj):
+        Serializes datetime and memoryview objects for JSON output.
+    main_cli():
+        Command-line interface for managing the database. Supports arguments for:
+            --clear: Truncate all tables and reset identities
+            --drop: Drop all tables
+            --create: Create all tables
+            --populate: Populate tables with sample data
+            --reset: Drop, create, and populate all tables (default if no args)
+            --backup: Backup the database before making changes
+            --status: Show table row counts and status
+Environment:
+    Requires a valid DATABASE_URL in the environment or .env file.
+Logging:
+    Uses the application's logging configuration for status and error reporting.
+Dependencies:
+    - psycopg2
+    - dotenv
+    - mini_project.config.app_config
+    - mini_project.database.connection
+    - mini_project.database.populate_db
+    - mini_project.database.schema_sql
 """
 import argparse
 import binascii

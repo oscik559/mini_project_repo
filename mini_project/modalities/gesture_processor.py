@@ -1,6 +1,73 @@
 # mini_project/modalities/gesture_processor.py
+"""GestureProcessor module for hand gesture detection and logging using MediaPipe and OpenCV.
 
+Classes:
+    GestureDetector:
+        Detects hand gestures from video frames, logs gesture events to a PostgreSQL database,
+        and provides real-time feedback via OpenCV overlays.
 
+        Methods:
+            __init__(self, min_detection_confidence, min_tracking_confidence, max_num_hands, frame_skip, session_id):
+                Initializes the gesture detector, database connection, and loads gesture definitions.
+
+            _init_db(self):
+                Initializes the gesture_instructions table in the PostgreSQL database.
+
+            _log_gesture(self, gesture_type, gesture_text, natural_description, confidence, hand_label):
+                Logs detected gesture information into the database.
+
+            _get_landmark_coords(self, landmarks, landmark_id):
+                Retrieves the (x, y, z) coordinates for a specific hand landmark.
+
+            _euclidean_distance(self, a, b):
+                Calculates the Euclidean distance between two 3D points.
+
+            _is_thumbs_up(self, landmarks):
+                Determines if the hand gesture is a thumbs-up.
+
+            _is_open_hand(self, landmarks):
+                Determines if the hand gesture is an open hand.
+
+            _is_pointing(self, landmarks):
+                Determines if the hand gesture is a pointing gesture.
+
+            _is_closed_fist(self, landmarks):
+                Determines if the hand gesture is a closed fist.
+
+            _is_victory(self, landmarks):
+                Determines if the hand gesture is a victory sign.
+
+            _is_ok_sign(self, landmarks):
+                Determines if the hand gesture is an OK sign.
+
+            _analyze_thumb(self, landmarks):
+                Analyzes the thumb's position (up or down).
+
+            _count_open_fingers(self, landmarks):
+                Counts the number of open fingers.
+
+            convert_features_to_description(self, gesture_type, hand_landmarks):
+                Converts gesture features into a natural language description.
+
+            detect_gesture(self, frame):
+                Detects gestures in a given video frame and returns detection results.
+
+            _process_frame(self, frame):
+                Processes a single video frame: flips, resizes, detects gestures, overlays info, and draws landmarks.
+
+            load_gesture_definitions(self):
+                Loads gesture definitions from the gesture_library database table.
+
+            gesture_map_functions(self):
+                Returns a mapping of gesture types to their detection functions.
+
+            process_video_stream(self, termination_event):
+                Captures video from the camera, processes frames for gesture detection, and displays results in real-time.
+
+Usage:
+    Run this module directly to start gesture detection from the default camera.
+
+"""
 import logging
 import threading
 import time

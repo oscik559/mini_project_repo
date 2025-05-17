@@ -1,28 +1,29 @@
 # database/populate_db.py
-"""This module contains the `DatabasePopulator` class, which is responsible for populating various database tables
-with predefined data. The class provides methods to populate tables such as `sequence_library`, `usd_data`,
-`operation_library`, `users`, `skills`, `instructions`, `states`, `operation_sequence`, `sort_order`,
-`task_templates`, `task_preferences`, `interaction_memory`, `simulation_results`, and `manual_operations`.
-Each method in the class corresponds to a specific table in the database and inserts predefined data into it.
-The methods ensure that data is inserted only when necessary, avoiding duplication by checking existing records
-where applicable.
+"""Module for populating the database with initial or default data for various tables.
 Classes:
-    - DatabasePopulator: A class that provides methods to populate database tables with predefined data.
-Methods:
-    - populate_sequence_library: Populates the `sequence_library` table with predefined sequences.
-    - populate_usd_data: Populates the `usd_data` table with predefined USD data.
-    - populate_operation_library: Populates the `operation_library` table with predefined operations.
-    - populate_users: Populates the `users` table with predefined user data.
-    - populate_skills: Populates the `skills` table with predefined skill data.
-    - populate_instructions: Populates the `instructions` table with predefined instruction data.
-    - populate_states: Populates the `states` table with predefined state data.
-    - populate_operation_sequence: Populates the `operation_sequence` table with predefined operation sequences.
-    - populate_sort_order: Populates the `sort_order` table with predefined object sorting orders.
-    - populate_task_templates: Populates the `task_templates` table with predefined task templates.
-    - populate_task_preferences: Populates the `task_preferences` table with predefined user task preferences.
-    - populate_interaction_memory: Populates the `interaction_memory` table with predefined interaction data.
-    - populate_simulation_results: Populates the `simulation_results` table with predefined simulation results.
-    - populate_manual_operations: Populates various operation parameter tables with predefined manual operation data.
+    DatabasePopulator:
+        A utility class to insert predefined data into the application's database tables.
+        Methods:
+            - populate_sequence_library(): Inserts default robot sequence definitions.
+            - populate_gesture_library(): Inserts predefined gesture types and descriptions.
+            - populate_usd_data(): Inserts USD (Universal Scene Description) asset metadata.
+            - populate_operation_library(): Inserts operation/task definitions and triggers.
+            - populate_users(): Inserts user profiles with roles and preferences.
+            - populate_skills(): Inserts robot skill definitions and parameters.
+            - populate_instructions(): Inserts instruction records for user interactions.
+            - populate_states(): Inserts state definitions for robot tasks.
+            - populate_operation_sequence(): Inserts mappings of operations to sequences and objects.
+            - populate_sort_order(): Inserts object sorting preferences.
+            - populate_task_templates(): Inserts task templates with default sequences.
+            - populate_task_preferences(): Inserts user-specific task preferences.
+            - populate_interaction_memory(): Inserts records of user interactions.
+            - populate_simulation_results(): Inserts simulation result records.
+            - populate_manual_operations(): Inserts operation parameters for manual tasks.
+            - populate_isaac_sim_gui(): Inserts GUI feature states for the Isaac Sim interface.
+Logging:
+    Uses the configured logger to report success or errors during data population.
+Usage:
+    Instantiate DatabasePopulator with a database cursor and call the desired populate_* methods.
 
 """
 import logging
@@ -713,7 +714,7 @@ class DatabasePopulator:
             )
             pick_data = self.cursor.fetchall()
             pick_op_parameters = [
-                (i + 1, obj_name, False, "y", 0.01, False)
+                (i + 1, obj_name, True, "y", 0.01, False)
                 for i, (seq_id, obj_name) in enumerate(pick_data)
             ]
             self.cursor.executemany(

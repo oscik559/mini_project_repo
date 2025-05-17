@@ -1,32 +1,53 @@
-# authentication/face_auth.py
+# authentication/_face_auth.py
+
 """
-Classes:
-    FaceUtils:
-        A utility class for face detection, bounding box drawing, and encoding selection.
-    FaceAuthSystem:
-        The main class for managing face authentication, including:
-        - Preloading and managing face encodings.
-        - Building and refreshing a FAISS index for similarity search.
-        - Capturing faces in automatic, manual, or multi-face modes.
-        - Registering new users with face and voice data.
-        - Identifying users based on captured face data.
-Functions:
-    VideoCaptureContext(index: int = 0):
-        A context manager for handling video capture resources.
-    main():
-        Entry point for the FaceAuthSystem application. Initializes directories and starts the system.
-Constants:
-    AUTO_CAPTURE_FRAME_COUNT: Number of consecutive frames required for automatic face capture.
-    EMAIL_PATTERN: Regular expression pattern for validating email addresses.
-    FACE_CAPTURE_PATH: Path for saving captured face images.
-    FACE_MATCH_THRESHOLD: Threshold for face similarity matching.
-    FACIAL_DATA_PATH: Path for storing facial data.
-    IDENTIFICATION_FRAMES: Number of frames to process during user identification.
-    LIU_ID_PATTERN: Regular expression pattern for validating LIU IDs.
-    MAX_ENCODINGS_PER_USER: Maximum number of face encodings to store per user.
-    TEMP_AUDIO_PATH: Path for storing temporary audio files.
-    TIMEDELAY: Delay between frames during identification.
-    VOICE_DATA_PATH: Path for storing voice data.
+authentication/_face_auth.py
+This module provides classes and functions for face authentication using computer vision and deep learning techniques.
+It supports user registration and identification based on facial features, with optional integration for voice authentication.
+    - Utility class for face detection, drawing bounding boxes, overlaying text, and selecting the best face from multiple detections.
+    - Main class for managing face authentication.
+    - Handles:
+        - Preloading and managing face encodings from a PostgreSQL database.
+        - Building and refreshing a FAISS index for fast similarity search.
+        - Validating user input and managing user records.
+    - Context manager for handling video capture resources using OpenCV.
+    - Entry point for the FaceAuthSystem application.
+    - Initializes required directories and starts the authentication system.
+Constants (imported from config):
+    AUTO_CAPTURE_FRAME_COUNT: int
+    - Number of consecutive frames required for automatic face capture.
+    EMAIL_PATTERN: str
+    - Regular expression pattern for validating email addresses.
+    FACE_CAPTURE_PATH: Path
+    - Path for saving captured face images.
+    FACE_MATCH_THRESHOLD: float
+    - Threshold for face similarity matching.
+    FACIAL_DATA_PATH: Path
+    - Path for storing facial data.
+    IDENTIFICATION_FRAMES: int
+    - Number of frames to process during user identification.
+    LIU_ID_PATTERN: str
+    - Regular expression pattern for validating LIU IDs.
+    MAX_ENCODINGS_PER_USER: int
+    - Maximum number of face encodings to store per user.
+    TEMP_AUDIO_PATH: Path
+    - Path for storing temporary audio files.
+    TIMEDELAY: float
+    - Delay between frames during identification.
+    VOICE_DATA_PATH: Path
+    - Path for storing voice data.
+Usage:
+    Run this module as a script to start the face authentication system.
+    The system will prompt for user registration or identification as needed.
+Dependencies:
+    - OpenCV (cv2)
+    - face_recognition
+    - faiss
+    - numpy
+    - psycopg2
+    - mini_project.authentication._voice_auth
+    - mini_project.config.app_config
+    - mini_project.database.connection
 """
 
 
@@ -483,7 +504,7 @@ class FaceAuthSystem:
             "liu_id": liu_id,
             "first_name": first_name,
             "last_name": last_name,
-            "voice_embedding": None  # or fetch from DB if needed
+            "voice_embedding": None,  # or fetch from DB if needed
         }
 
     def identify_user(self) -> None:
@@ -566,6 +587,28 @@ class FaceAuthSystem:
                 return None
         return None
 
+
+    def identify_user_from_image(self, image_path: str):
+        """
+        Identify a user from a face image file.
+        Returns user dict if matched, else None.
+        """
+        # Load image
+        image = cv2.imread(image_path)
+        if image is None:
+            return None
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        face_encodings = face_recognition.face_encodings(rgb_image)
+        if not face_encodings:
+            return None
+        query_encoding = np.array([face_encodings[0]], dtype=np.float32)
+        if self.faiss_index is not None:
+            distances, indices = self.faiss_index.search(query_encoding, k=1)
+            if distances[0][0] <= FACE_MATCH_THRESHOLD:
+                liu_id = self.user_ids[indices[0][0]]
+                return self.known_encodings.get(liu_id)
+        return None
+
     def run(self) -> None:
         """
         Main application loop in auto-identification mode.
@@ -604,23 +647,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
-
-# try:
-#                         # Call the public method from the separate VoiceAuth module.
-#                         self.voice_auth.register_voice_for_user(
-#                             first_name, last_name, liu_id
-#                         )
-#                         logger.info(
-#                             "Voice registration completed for user %s %s",
-#                             first_name,
-#                             last_name,
-#                         )
-#                     except Exception as e:
-#                         logger.error(
-#                             "🔴 Voice registration failed after face registration: %s",
-#                             e,
-#                         )
-#                     logger.info(
-#                         "User %s %s registered successfully", first_name, last_name
-#                     )

@@ -1,4 +1,19 @@
 # database/connection.py
+"""
+Database connection utilities for PostgreSQL.
+This module provides functions to establish a connection to a PostgreSQL database,
+ensuring that the target database exists before connecting. It uses environment
+variables for configuration and supports logging.
+Functions:
+    get_connection():
+        Establishes a connection to the PostgreSQL database specified by the
+        DATABASE_URL environment variable. Ensures the database exists before
+        connecting. Raises an EnvironmentError if DATABASE_URL is not set.
+    ensure_database_exists(user, password, host, port, db_name):
+        Checks if the specified database exists on the PostgreSQL server. If it
+        does not exist, creates the database. Raises an exception if the check
+        or creation fails.
+"""
 
 
 import logging

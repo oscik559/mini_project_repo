@@ -1,4 +1,20 @@
 # mini_project/config/constants.py
+"""
+This module defines constant values used throughout the mini_project application.
+Constants:
+    VOICE_TABLE (str): Name of the database table for voice instructions.
+    GESTURE_TABLE (str): Name of the database table for gesture instructions.
+    PROCESSED_COL (str): Name of the column indicating processed instructions.
+    UNIFIED_TABLE (str): Name of the unified instructions table.
+    WHISPER_LANGUAGE_NAMES (dict): Maps language codes to their English names for use with the Whisper voice processor.
+    WAKE_RESPONSES (list): List of possible responses when the system is activated or addressed.
+    GENERAL_TRIGGERS (set): Set of keywords or phrases that trigger general-purpose actions or queries.
+    TASK_VERBS (set): Set of verbs related to task execution, such as sorting or moving.
+    QUESTION_WORDS (set): Set of words and phrases used to identify questions.
+    CONFIRM_WORDS (set): Set of words and phrases used to confirm actions.
+    CANCEL_WORDS (set): Set of words and phrases used to cancel or stop actions.
+    TRIGGER_WORDS (set): Set of words and phrases that trigger specific system actions.
+"""
 
 
 # Synchronizer Constants

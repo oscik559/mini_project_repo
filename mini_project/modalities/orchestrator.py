@@ -1,4 +1,27 @@
 # mini_project/modalities/orchestrator.py
+"""
+Orchestrator module for multimodal session capture and synchronization.
+This module coordinates the capture of voice and gesture data streams in parallel threads,
+and then synchronizes and unifies the captured data at the end of the session.
+Functions:
+    run_voice_capture(session_id: str):
+        Captures voice input for a given session using the VoiceProcessor.
+        Signals the end of session capture upon completion.
+    run_gesture_capture(session_id: str):
+        Captures gesture input for a given session using the GestureDetector.
+        Listens for a termination event to end capture gracefully.
+Execution:
+    When run as a script, generates a unique session ID, starts both voice and gesture
+    capture threads, waits for their completion, and then runs the synchronizer/unifier
+    to process and unify the captured data.
+Logging:
+    Uses the configured logging setup to record progress and errors throughout the session.
+Dependencies:
+    - config.app_config (for logging setup)
+    - mini_project.modalities.gesture_processor.GestureDetector
+    - mini_project.modalities.synchronizer.synchronize_and_unify
+    - mini_project.modalities.voice_processor.VoiceProcessor
+"""
 
 
 import logging

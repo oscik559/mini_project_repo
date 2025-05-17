@@ -1,45 +1,29 @@
 # mini_project/modalities/voice_processor.py
-
-"""This module provides classes and functionality for voice processing, including
-speech synthesis, audio recording, transcription, and storage of voice instructions.
+"""voice_processor.py
+This module provides classes and logic for voice-based interaction, including audio recording, speech-to-text transcription, text-to-speech synthesis, and storage of transcribed instructions in a PostgreSQL database.
 Classes:
-    SpeechSynthesizer:
-        A singleton class for text-to-speech synthesis using either gTTS or pyttsx3.
-        Provides methods to play notification sounds and speak text.
-    AudioRecorder:
-        Handles audio recording with noise calibration and voice activity detection (VAD).
-        Records audio to a temporary file and detects speech presence.
-    Transcriber:
-        Uses the Whisper model to transcribe audio files into text.
-        Supports language detection and translation to English.
-    Storage:
-        Manages storage of transcribed voice instructions in a PostgreSQL database.
-        Handles retries and error handling for database operations.
-    VoiceProcessor:
-        Orchestrates the voice processing pipeline, including audio recording,
-        transcription, and storage. Provides a method to capture voice instructions.
-Constants:
-    MAX_TRANSCRIPTION_RETRIES:
-        Maximum number of retries for transcription in case of failure.
-    MIN_DURATION_SEC:
-        Minimum duration of a valid audio recording in seconds.
-    VOICE_PROCESSING_CONFIG:
-        Configuration dictionary for voice processing settings.
-    VOICE_TTS_SETTINGS:
-        Configuration dictionary for text-to-speech settings.
-    WHISPER_LANGUAGE_NAMES:
-        Mapping of language codes to language names.
+    - SpeechSynthesizer: Singleton class for text-to-speech synthesis using either gTTS or pyttsx3, with support for playing notification sounds.
+    - AudioRecorder: Handles microphone input, ambient noise calibration, voice activity detection (VAD), and audio recording to file.
+    - Transcriber: Uses the Whisper model to transcribe recorded audio, with support for language detection and translation to English.
+    - Storage: Stores transcribed voice instructions in a PostgreSQL database, with retry logic for connection errors.
+    - VoiceProcessor: High-level orchestrator that manages the full voice capture process, including recording, transcription, and (optionally) storage.
+Key Functions:
+    - SpeechSynthesizer.speak(text): Converts text to speech and plays it aloud.
+    - AudioRecorder.record_audio(speak_prompt, play_ding): Records audio from the microphone, with optional spoken prompt and notification sound.
+    - Transcriber.transcribe_audio(audio_path): Transcribes audio to text and detects the spoken language.
+    - Storage.store_instruction(session_id, detected_language, transcribed_text): Persists the transcribed instruction in the database.
+    - VoiceProcessor.capture_voice(conversational): Captures a voice instruction, transcribes it, and returns the result.
+Configuration:
+    - Uses settings from mini_project.config.app_config and mini_project.config.constants for audio, TTS, and database parameters.
+Dependencies:
+    - numpy, sounddevice, webrtcvad, faster_whisper, gtts, playsound, pyttsx3, psycopg2, scipy, and others.
 Usage:
-    The `VoiceProcessor` class can be used as the main entry point for capturing
-    and processing voice instructions. It integrates audio recording, transcription,
-    and storage functionalities.
-Example:
-    result = vp.capture_voice()
-    if result:
-        text, language = result
-        print(f"Transcribed Text: {text}, Language: {language}")
-
+    Run as a script to capture and transcribe a voice instruction:
+        python voice_processor.py
+Logging:
+    - Uses the 'VoiceProcessor' logger for status updates and error reporting.
 """
+
 
 import logging
 import os

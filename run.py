@@ -1,10 +1,28 @@
+# run.py
+
+"""
+This script launches a FastAPI web application using Uvicorn and exposes it to the internet via an ngrok tunnel.
+Functions:
+    start_ngrok(port=8000, timeout=10):
+        Starts an ngrok tunnel on the specified port and waits for the public URL to become available.
+        Args:
+            port (int): The local port to expose via ngrok. Defaults to 8000.
+            timeout (int): Time in seconds to wait for ngrok to provide a public URL. Defaults to 10.
+        Returns:
+            subprocess.Popen: The process running ngrok.
+Main Execution:
+    - Determines the port to run the server on (default 8000 or from command line argument).
+    - Starts an ngrok tunnel for the specified port.
+    - Runs the FastAPI app located at 'mini_project.web_interface.main:app' using Uvicorn with reload enabled.
+    - On shutdown (including KeyboardInterrupt), terminates the ngrok process.
+"""
 import uvicorn
 import subprocess
 import time
 import requests
 import sys
 import os
-
+ 
 ngrok_path = os.path.join(os.path.dirname(__file__), "ngrok.exe")
 
 

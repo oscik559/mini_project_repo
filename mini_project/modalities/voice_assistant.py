@@ -1,50 +1,50 @@
 # mini_project/modalities/voice_assistant.py
-"""This script implements a voice assistant system for a research lab environment. It integrates
-various functionalities such as wake word detection, voice command processing, scene querying,
-task execution, and conversational interactions using an LLM (Language Learning Model). The
-assistant is designed to interact with users through voice input and provide responses or
-execute tasks based on the commands received.
-Modules and Functionalities:
-- **Wake Word Detection**: Uses Porcupine to detect predefined wake words and trigger the assistant.
-- **Voice Command Processing**: Captures voice input, classifies commands, and performs actions
-    such as querying a scene, handling general queries, or executing tasks.
-- **LLM Integration**: Utilizes LangChain and ChatOllama for natural language understanding,
-    reasoning, and generating responses.
-- **Scene Querying**: Fetches and formats data from a camera vision database to answer questions
-    about the current scene.
-- **Task Execution**: Processes task-related commands, stores them in a database, and invokes
-    a command processor to handle the task.
-- **Persistent Chat Memory**: Maintains a conversation history for context-aware interactions
-    and saves it to disk for persistence across sessions.
-- **Environment Context**: Provides dynamic context such as weather, time of day, and user roles
-    to enhance interactions.
-- **Voice Interaction**: Handles conversational interactions, including confirmation for task
-    execution and memory reset requests.
-- **Greeting Generation**: Dynamically generates personalized greetings based on the time of day
-    and user information.
-Key Components:
-- `VoiceProcessor`: Captures and processes voice input.
-- `SpeechSynthesizer`: Converts text responses into speech.
-- `SessionManager`: Manages user authentication and session data.
-- `CommandProcessor`: Handles task-related commands and processes them.
-- `PromptBuilder`: Constructs prompts for LLM-based reasoning and responses.
-- `ConversationBufferMemory`: Maintains chat history for context-aware interactions.
-Database Integration:
-- Fetches user roles, team names, and camera vision data from a database.
-- Stores unified instructions and operation sequences for task execution.
-- Updates operation triggers in the database for remote vision tasks.
-CLI Entry Point:
-- Authenticates the user and initializes the assistant.
-- Listens for wake words and processes voice commands in a loop.
-- Saves chat history and cleans up resources on exit.
-Usage:
-- Run the script to start the voice assistant.
-- Interact with the assistant using voice commands after the wake word is detected.
-- Use commands like "reset memory" or "exit" for specific actions.
-Note:
-- Ensure the required dependencies and database configurations are set up before running the script.
-- The script is designed for a specific research lab environment and may require customization
-    for other use cases.
+"""VoiceAssistant: A class for managing a multimodal voice assistant with LLM integration, wake-word detection, session management, and task execution.
+Main Features:
+- Wake-word detection using Porcupine.
+- Voice command capture, classification, and processing.
+- Integration with Ollama/LLM models for conversation, scene queries, and command classification.
+- Persistent chat memory per authenticated user.
+- Handles general queries, scene queries (camera object database), remote vision task triggering, and task execution.
+- Provides greeting generation, environment context, and random wake responses.
+- Logging and session management utilities.
+Attributes:
+    vp (VoiceProcessor): Handles voice input capture and processing.
+    tts (SpeechSynthesizer): Handles text-to-speech output.
+    session (SessionManager): Manages user authentication and session state.
+    selected_model (str): Currently selected LLM model.
+    model_name (str): Default LLM model name.
+    memory (ConversationBufferMemory): Stores conversation history for context-aware responses.
+    prompt_builder (PromptBuilder): Utility for constructing prompts for LLMs.
+    porcupine (pvporcupine.Porcupine): Wake-word detector instance.
+    wake_event (threading.Event): Event flag for wake-word detection.
+    chat_memory_path (Path): Path to the user's chat memory file.
+    authenticated_user (dict): Information about the currently authenticated user.
+Methods:
+    get_llm(): Returns the current LLM instance.
+    set_llm_model(model): Switches the LLM model.
+    _build_chain_with_input(input_data): Builds a context-aware LLM chain for scene queries.
+    start_session(): Authenticates user and loads chat history.
+    load_chat_history(): Loads chat memory from file.
+    save_chat_history(): Saves chat memory to file.
+    get_greeting(): Returns a random time-of-day greeting.
+    handle_wake_word(callback): Starts wake-word detection and triggers callback on detection.
+    classify_command(command_text): Classifies a command as 'general', 'scene', 'task', or 'trigger'.
+    handle_general_query(command_text): Handles general conversational queries using LLM and context.
+    get_environment_context(): Returns current weather, part of day, and formatted datetime.
+    process_voice_command(): Captures and processes a voice command.
+    generate_llm_greeting(): Generates a greeting using LLM, with fallback.
+    fallback_llm_greeting(seed_greeting): Fallback greeting generation using Ollama.
+    fetch_camera_objects(): Retrieves camera-detected objects from the database.
+    format_camera_data(objects): Formats camera object data for LLM input.
+    query_scene(question): Answers scene-related questions using LLM and camera data.
+    trigger_remote_vision_task(command_text): Triggers a remote vision task based on command.
+    process_task(command_text): Processes and executes a task command.
+    process_input_command(command_text, lang): Classifies and routes a command to the appropriate handler.
+    reset_memory(): Clears chat memory and deletes memory file.
+    get_random_wake_response(): Returns a random wake response.
+    log_status(msg, level): Logs a message at the specified level.
+    shutdown(): Cleans up session and saves chat history.
 """
 
 import json
@@ -268,11 +268,48 @@ class VoiceAssistant:
             return "task"
         return "task"
 
+    # def handle_general_query(self, command_text: str) -> str:
+    #     user = self.authenticated_user
+    #     first_name = user["first_name"]
+    #     liu_id = user["liu_id"]
+    #     role = user.get("role", "guest")
+
+    #     conn = get_connection()
+    #     cursor = conn.cursor()
+    #     cursor.execute("SELECT first_name FROM users WHERE role = 'team'")
+    #     team_names = [row[0] for row in cursor.fetchall()]
+    #     cursor.close()
+    #     conn.close()
+
+    #     env = self.get_environment_context()
+    #     chat_history = self.memory.load_memory_variables({})["chat_history"]
+
+    #     prompt = self.prompt_builder.general_conversation_prompt(
+    #         first_name=first_name,
+    #         liu_id=liu_id,
+    #         role=role,
+    #         team_names=team_names,
+    #         weather=env["weather"],
+    #         part_of_day=env["part_of_day"],
+    #         full_time=env["datetime"],
+    #         chat_history=chat_history,
+    #     )
+
+    #     llm = self.get_llm()
+    #     chain = LLMChain(llm=llm, prompt=prompt)
+    #     result = chain.invoke({"command": command_text})
+    #     return result["text"].strip().strip('"“”')
+
     def handle_general_query(self, command_text: str) -> str:
         user = self.authenticated_user
-        first_name = user["first_name"]
-        liu_id = user["liu_id"]
-        role = user.get("role", "guest")
+        if user is not None:
+            first_name = user.get("first_name")
+            liu_id = user.get("liu_id")
+            role = user.get("role", "guest")
+        else:
+            first_name = None
+            liu_id = None
+            role = "guest"
 
         conn = get_connection()
         cursor = conn.cursor()

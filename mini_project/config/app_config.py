@@ -53,6 +53,8 @@ MAX_RETRIES = 3
 VOICE_MATCH_THRESHOLD = 0.7  # Cosine similarity threshold for identification.
 
 TEMP_AUDIO_PATH = BASE_DIR / "assets" / "temp_audio"
+TEMP_IMAGE_PATH = BASE_DIR / "assets" / "temp_images"
+
 
 # Camera vision utilities
 CAMERA_DATA_PATH = BASE_DIR / "assets" / "camera_data"

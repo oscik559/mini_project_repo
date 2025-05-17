@@ -1,20 +1,22 @@
 # mini_project/modalities/session_manager.py
-"""Module: session_manager
-This module defines the `SessionManager` class, which is responsible for managing user authentication
-and session lifecycle in the mini_project application. It integrates face and voice authentication
-systems to authenticate users and manage their sessions.
+"""SessionManager handles user authentication and session management using face and voice modalities.
 Classes:
-    - SessionManager: Handles user authentication, session creation, cancellation, and retry logic.
-Dependencies:
-    - logging: For logging session and authentication events.
-    - uuid: For generating unique session IDs.
-    - config.app_config: Provides configuration constants such as database and file paths.
-    - mini_project.authentication._face_auth.FaceAuthSystem: For face authentication and registration.
-    - mini_project.authentication._voice_auth.VoiceAuth: For voice authentication and registration.
-Usage:
-    The `SessionManager` class is instantiated with optional face and voice authentication modules.
-    It provides methods to authenticate users, create sessions, cancel sessions, and retry sessions.
-
+    SessionManager: Manages user authentication (face and voice), session creation, cancellation, and retry.
+SessionManager Methods:
+    __init__(face_auth: FaceAuthSystem = None, voice_auth: VoiceAuth = None)
+        Initializes the SessionManager with optional face and voice authentication modules.
+    authenticate_user()
+        Attempts to authenticate a user via face recognition. If the face is not recognized, initiates manual registration.
+        After successful face authentication or registration, checks for an existing voice embedding and prompts for voice registration if absent.
+        Returns the authenticated user dictionary or None if authentication fails.
+    create_session()
+        Generates a new unique session ID, marks the session as running, and logs the session creation.
+        Returns the session ID.
+    cancel_session()
+        Cancels the current session if active and logs the action.
+    retry_session()
+        Cancels the current session (if any) and creates a new session.
+        Returns the new session ID.
 """
 
 
