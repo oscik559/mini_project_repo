@@ -125,8 +125,13 @@ async def register_user(
     voice: UploadFile = File(...),
 ):
     # Save uploaded files
-    face_path = f"temp_images/{liu_id}_face.png"
-    voice_path = f"temp_audio/{liu_id}_voice.webm"
+    temp_image_dir = TEMP_IMAGE_PATH
+    temp_image_dir.mkdir(parents=True, exist_ok=True)
+    temp_audio_dir = TEMP_AUDIO_PATH
+    temp_audio_dir.mkdir(parents=True, exist_ok=True)
+
+    face_path = temp_image_dir / f"{liu_id}_face.png"
+    voice_path = temp_audio_dir / f"{liu_id}_voice.webm"
     with open(face_path, "wb") as f:
         f.write(await face.read())
     with open(voice_path, "wb") as f:

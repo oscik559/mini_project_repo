@@ -459,6 +459,25 @@ Please provide the actual code selection to generate a relevant documentation co
 
         <!-- Add this modal to your HTML -->
         <!-- Add this modal to your HTML -->
+        <!-- <div id="register-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;" aria-label="User Registration Modal" role="dialog">
+            <form id="register-form" style="background:#fff; color:#222; padding:2em; border-radius:10px; min-width:300px;">
+                <h3>Register User</h3>
+                <input type="text" id="reg-firstname" placeholder="First Name" required style="width:100%;margin-bottom:0.5em;"><br>
+                <input type="text" id="reg-lastname" placeholder="Last Name" required style="width:100%;margin-bottom:0.5em;"><br>
+                <input type="text" id="reg-liuid" placeholder="LIU ID" required style="width:100%;margin-bottom:0.5em;"><br>
+                <input type="email" id="reg-email" placeholder="Email" required style="width:100%;margin-bottom:0.5em;"><br>
+
+                <input type="file" id="reg-face" accept="image/*" capture="user" required style="margin-bottom:0.5em;">
+                <button type="button" onclick="showRegisterWebcamModal()" class="rounded-btn" aria-label="Capture face with webcam">Use Webcam</button>
+                <input type="file" id="reg-voice" accept="audio/*" capture required style="margin-bottom:0.5em;">
+                <button type="button" onclick="showRegisterMicModal()" class="rounded-btn" aria-label="Record voice with microphone">Use Microphone</button>
+                <button type="submit" class="rounded-btn" aria-label="Submit registration">Register</button>
+                <button type="button" onclick="closeRegisterModal()" class="rounded-btn" aria-label="Cancel registration">Cancel</button>
+
+
+            </form>
+        </div> -->
+
         <div id="register-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;" aria-label="User Registration Modal" role="dialog">
             <form id="register-form" style="background:#fff; color:#222; padding:2em; border-radius:10px; min-width:300px;">
                 <h3>Register User</h3>
@@ -466,8 +485,15 @@ Please provide the actual code selection to generate a relevant documentation co
                 <input type="text" id="reg-lastname" placeholder="Last Name" required style="width:100%;margin-bottom:0.5em;"><br>
                 <input type="text" id="reg-liuid" placeholder="LIU ID" required style="width:100%;margin-bottom:0.5em;"><br>
                 <input type="email" id="reg-email" placeholder="Email" required style="width:100%;margin-bottom:0.5em;"><br>
-                <input type="file" id="reg-face" accept="image/*" capture="user" required style="margin-bottom:0.5em;"><br>
-                <input type="file" id="reg-voice" accept="audio/*" capture required style="margin-bottom:0.5em;"><br>
+
+                <div style="margin-bottom:0.5em;">
+                    <input type="file" id="reg-face" accept="image/*" capture="user" required>
+                    <button type="button" onclick="showRegisterWebcamModal()" class="rounded-btn" aria-label="Capture face with webcam">Use Webcam</button>
+                </div>
+                <div style="margin-bottom:0.5em;">
+                    <input type="file" id="reg-voice" accept="audio/*" capture required>
+                    <button type="button" onclick="showRegisterMicModal()" class="rounded-btn" aria-label="Record voice with microphone">Use Microphone</button>
+                </div>
                 <button type="submit" class="rounded-btn" aria-label="Submit registration">Register</button>
                 <button type="button" onclick="closeRegisterModal()" class="rounded-btn" aria-label="Cancel registration">Cancel</button>
             </form>
@@ -1029,7 +1055,7 @@ Please provide the actual code selection to generate a relevant documentation co
                         mediaRecorder.stop();
                         showResponse("❌ No speech detected (timeout).");
                     }
-                }, 3000); // 3 seconds of silence after calibration
+                }, 2000); // 3 seconds of silence after calibration
 
                 function checkVAD() {
                     analyser.getByteTimeDomainData(dataArray);
@@ -1221,20 +1247,145 @@ Please provide the actual code selection to generate a relevant documentation co
             }, "image/png");
         }
 
+        let registerWebcamStream = null;
 
+        function showRegisterWebcamModal() {
+            document.getElementById('register-webcam-modal').style.display = 'flex';
+            const video = document.getElementById('register-webcam-video');
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(stream => {
+                    registerWebcamStream = stream;
+                    video.srcObject = stream;
+                })
+                .catch(err => {
+                    showResponse("❌ Unable to access webcam.");
+                    closeRegisterWebcamModal();
+                });
+        }
+
+        function closeRegisterWebcamModal() {
+            document.getElementById('register-webcam-modal').style.display = 'none';
+            const video = document.getElementById('register-webcam-video');
+            if (registerWebcamStream) {
+                registerWebcamStream.getTracks().forEach(track => track.stop());
+                registerWebcamStream = null;
+            }
+            video.srcObject = null;
+        }
+
+        function captureRegisterPhoto() {
+            const video = document.getElementById('register-webcam-video');
+            const canvas = document.getElementById('register-webcam-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob(blob => {
+                // Set the captured blob as the file input for registration
+                const file = new File([blob], "register_face.png", { type: "image/png" });
+                document.getElementById('reg-face').files = createFileList(file);
+                closeRegisterWebcamModal();
+                showResponse("✅ Face captured from webcam. Complete the registration form.");
+            }, "image/png");
+        }
+
+        // Helper to create a FileList from a single File
+        function createFileList(file) {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            return dataTransfer.files;
+        }
+
+
+
+
+        // #===========================================================
+        // # Microphone Registration
+        let registerMediaRecorder;
+        let registerAudioChunks = [];
+
+        function showRegisterMicModal() {
+            document.getElementById('register-mic-modal').style.display = 'flex';
+            document.getElementById('mic-status').innerText = 'Click "Start" and speak clearly.';
+            document.getElementById('register-voice-preview').style.display = 'none';
+        }
+
+        function closeRegisterMicModal() {
+            document.getElementById('register-mic-modal').style.display = 'none';
+            if (registerMediaRecorder && registerMediaRecorder.state !== "inactive") {
+                registerMediaRecorder.stop();
+            }
+        }
+
+        async function startRegisterVoice() {
+            registerAudioChunks = [];
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            registerMediaRecorder = new MediaRecorder(stream);
+            registerMediaRecorder.ondataavailable = e => {
+                if (e.data.size > 0) registerAudioChunks.push(e.data);
+            };
+            registerMediaRecorder.onstop = () => {
+                const audioBlob = new Blob(registerAudioChunks, { type: 'audio/webm' });
+                const file = new File([audioBlob], "register_voice.webm", { type: "audio/webm" });
+                document.getElementById('reg-voice').files = createFileList(file);
+                // Show preview
+                const audioURL = URL.createObjectURL(audioBlob);
+                const preview = document.getElementById('register-voice-preview');
+                preview.src = audioURL;
+                preview.style.display = 'block';
+                document.getElementById('mic-status').innerText = 'Recording complete. You can close this window.';
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+            };
+            registerMediaRecorder.start();
+            document.getElementById('mic-status').innerText = 'Recording... Click "Stop" when done.';
+        }
+
+        function stopRegisterVoice() {
+            if (registerMediaRecorder && registerMediaRecorder.state !== "inactive") {
+                registerMediaRecorder.stop();
+            }
+        }
+
+        // Helper to create a FileList from a single File
+        function createFileList(file) {
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(file);
+            return dataTransfer.files;
+        }
+        // #===========================================================
 
     </script>
 
     <!-- Webcam Modal for Sign In -->
     <div id="signin-webcam-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:2000;" aria-label="Webcam Sign In Modal" role="dialog">
-    <div style="background:#494848; padding:1em; border-radius:10px; display:flex; flex-direction:column; align-items:center;">
-        <video id="signin-webcam-video" autoplay playsinline width="320" height="240" style="border-radius:8px; background:#222;" aria-label="Webcam video preview"></video>
-        <canvas id="signin-webcam-canvas" width="320" height="240" style="display:none;"></canvas>
-        <div style="margin-top:0.01em;">
-        <button onclick="captureSigninPhoto()" class="rounded-btn" aria-label="Capture photo for sign in">📸 Capture</button>
-        <button onclick="closeSigninWebcamModal()" class="rounded-btn" aria-label="Cancel sign in">❌ Cancel</button>
+        <div style="background:#494848; padding:1em; border-radius:10px; display:flex; flex-direction:column; align-items:center;">
+            <video id="signin-webcam-video" autoplay playsinline width="320" height="240" style="border-radius:8px; background:#222;" aria-label="Webcam video preview"></video>
+            <canvas id="signin-webcam-canvas" width="320" height="240" style="display:none;"></canvas>
+            <div style="margin-top:0.01em;">
+                <button onclick="captureSigninPhoto()" class="rounded-btn" aria-label="Capture photo for sign in">📸 Capture</button>
+                <button onclick="closeSigninWebcamModal()" class="rounded-btn" aria-label="Cancel sign in">❌ Cancel</button>
+            </div>
         </div>
     </div>
+    <!-- Webcam Modal for Register  -->
+    <div id="register-webcam-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:2000;" aria-label="Webcam Register Modal" role="dialog">
+      <div style="background:#494848; padding:2em; border-radius:10px; display:flex; flex-direction:column; align-items:center;">
+        <video id="register-webcam-video" autoplay playsinline width="320" height="240" style="border-radius:8px; background:#222;" aria-label="Webcam video preview"></video>
+        <canvas id="register-webcam-canvas" width="320" height="240" style="display:none;"></canvas>
+        <div style="margin-top:1em;">
+          <button onclick="captureRegisterPhoto()" class="rounded-btn" aria-label="Capture photo for registration">📸 Capture</button>
+          <button onclick="closeRegisterWebcamModal()" class="rounded-btn" aria-label="Cancel registration webcam">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <!-- Microphone Modal for Voice Recording -->
+    <div id="register-mic-modal" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.7); align-items:center; justify-content:center; z-index:2000;" aria-label="Microphone Register Modal" role="dialog">
+      <div style="background:#494848; padding:2em; border-radius:10px; display:flex; flex-direction:column; align-items:center;">
+        <div id="mic-status" style="color:white; margin-bottom:1em;">Click "Start" and speak clearly.</div>
+        <button onclick="startRegisterVoice()" class="rounded-btn" aria-label="Start recording">🎤 Start</button>
+        <button onclick="stopRegisterVoice()" class="rounded-btn" aria-label="Stop recording">⏹️ Stop</button>
+        <button onclick="closeRegisterMicModal()" class="rounded-btn" aria-label="Cancel voice recording">Cancel</button>
+        <audio id="register-voice-preview" controls style="margin-top:1em; display:none;"></audio>
+      </div>
     </div>
 </body>
 </html>
