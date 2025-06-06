@@ -1,7 +1,5 @@
 # Mini Project: Vision-Language-Robotics Integration
 
-A thesis project focused on integrating Vision, Language Models, and Robotic Control for Personalized Task Execution in Virtual Environments.
-
 ## Overview
 
 This project combines computer vision, natural language processing, and robotic control to create an intelligent system capable of understanding and executing tasks in virtual environments. The system leverages modern AI technologies to provide personalized task execution capabilities.
