@@ -119,6 +119,7 @@ trigger_logger = logging.getLogger("LLMTrigger")
 
 # === Configuration ==========
 OLLAMA_MODEL = "llama3.2:latest"
+# OLLAMA_MODEL ="phi4:latest"
 voice_speed = 180  # 165
 
 
@@ -725,7 +726,7 @@ def voice_to_scene_response(
 
         # Match positive intent
         if any(word in cleaned for word in CONFIRM_WORDS):
-            tts.speak("Okay, give me a second...")
+            tts.speak("Okay, hold on...")
 
             # Only now store it in the database
             vp.storage.store_instruction(vp.session_id, lang, request)

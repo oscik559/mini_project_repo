@@ -17,7 +17,11 @@ import ollama
 import pvporcupine
 import requests
 import sounddevice as sd
-from config.app_config import CHAT_MEMORY_FOLDER, setup_logging
+from mini_project.config.app_config import (
+    WAKEWORD_PATH,
+    CHAT_MEMORY_FOLDER,
+    setup_logging,
+)
 from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain.schema import messages_from_dict, messages_to_dict
@@ -32,7 +36,7 @@ from mini_project.modalities.voice_processor import SpeechSynthesizer
 
 sys.setrecursionlimit(1000)
 
-from config.constants import (
+from mini_project.config.constants import (
     CANCEL_WORDS,
     CONFIRM_WORDS,
     GENERAL_TRIGGERS,
@@ -62,10 +66,8 @@ prompt = PromptBuilder.scene_prompt_template()
 
 # === Setup Wake Word Detection ===
 PICOVOICE_ACCESS_KEY = "E0O2AD01eT6cJ83n1yYf5bekfdIOEGUky9q6APkwdx9enDaMLZQtLw=="
-# WAKEWORD = (
-#     r"C:\Users\oscik559\Projects\mini_project_repo\assets\robot_wakewords\hey_yummy.ppn"
-# )
-WAKEWORD = os.path.abspath("assets/robot_wakewords/hey_yummy.ppn")
+
+# WAKEWORD = os.path.abspath("assets/robot_wakewords/hey_yummy.ppn")
 # Use built-in or custom model path
 porcupine = pvporcupine.create(
     access_key=PICOVOICE_ACCESS_KEY,
@@ -73,7 +75,7 @@ porcupine = pvporcupine.create(
         "jarvis",
         "computer",
     ],
-    keyword_paths=[WAKEWORD],
+    keyword_paths=[WAKEWORD_PATH],
 )
 
 # === Logging Setup ===

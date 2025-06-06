@@ -491,11 +491,11 @@ def color_image_process(image, wait_key):
     width = int(image.shape[1] * scale_percent / 100)
     height = int(image.shape[0] * scale_percent / 100)
     dim = (width, height)  # Resize the image
-    resized_image = cv2.resize(
-        image, dim, interpolation=cv2.INTER_AREA
-    )  # Show the resized image
+    # resized_image = cv2.resize(
+    #     image, dim, interpolation=cv2.INTER_AREA
+    # )  # Show the resized image
 
-    cv2.imshow("tray and holder detection", resized_image)
+    cv2.imshow("tray and holder detection", image)
     cv2.waitKey(wait_key)
 
     ## Draw contours on the original image

@@ -307,6 +307,31 @@ class VoiceAuth:
             logger.exception("🔴 Registration failed.")
             logger.info(f"🔴 Registration failed: {e}")
 
+    def register_voice_for_user_from_file(self, first_name, last_name, liu_id, audio_path):
+        """
+        Register or update a user's voice embedding from an uploaded audio file.
+        Returns True if successful, False otherwise.
+        """
+        try:
+            # Validate LIU ID format
+            if not self._validate_liu_id(liu_id):
+                logger.error("Invalid LIU ID format.")
+                return False
+
+            # Capture the voice embedding from the provided audio file
+            embedding = self._capture_voice_embedding(str(audio_path))
+            if not embedding:
+                logger.error("Failed to capture voice embedding from file.")
+                return False
+
+            # Save the embedding in the database and as a file
+            self._save_voice_embedding(liu_id, embedding, first_name, last_name)
+            logger.info(f"✅ Voice embedding registered for {liu_id} from file.")
+            return True
+        except Exception as e:
+            logger.error(f"🔴 Voice registration from file failed: {e}")
+            return False
+
     def _normalize_text(self, text: str) -> str:
         """Lowercase, remove punctuation, and normalize whitespace."""
         # return "".join(

@@ -262,10 +262,7 @@ class PromptBuilder:
         # - pos_x, pos_y, pos_z: the 3D position of the object in the scene relative to table (0,0). You can use the object position to imagine the relative distances of the objects from each other
         # - rot_x, rot_y, rot_z: the orientation of the object in the scene
 
-        ---
-        if the object is a slide, it will have a usd_name of slide.usd, and the holder object will have a usd_name of holder.usd
-        any objects with object_name that does not start with "slide..." are not slides
-        ---
+
 
         Avoid technical terms like rot_x or pos_y. Instead, describe in natural language (e.g., "position x", "rotation y").
         Assume the pos_x, pos_y, pos_z are coordinates of the objects on the table with respect to a 0,0,0 3D coordinate which is the reference (the far right edge of the table top rectangle). the values are tenth of a mm unit.
@@ -386,25 +383,51 @@ class PromptBuilder:
             Each row in the output corresponds to one line in this table.
         """
 
+    # @staticmethod
+    # def sort_order_prompt(command_text: str) -> str:
+    #     return f"""
+    #         Given the following user instruction:
+    #         \"{command_text}\"
+
+    #         Extract the desired sort order as a JSON array of objects.
+    #         Each item should include:
+    #         - object_name (if mentioned)
+    #         - object_color (if used for sorting)
+
+    #         Respond only with a clean JSON array.
+    #     """
+
     @staticmethod
     def sort_order_prompt(command_text: str) -> str:
         return f"""
-            Given the following user instruction:
+            You are given a user instruction:
             \"{command_text}\"
 
-            Extract the desired sort order as a JSON array of objects.
-            Each item should include:
-            - object_name (if mentioned)
-            - object_color (if used for sorting)
+            Your job is to extract the intended sort order as a JSON array.
 
-            Respond only with a clean JSON array.
+            - If the instruction implies multiple objects (e.g., "all the green slides"), return multiple entries with the same color and no specific object name unless provided.
+            - Each object should be represented as an object with:
+            - "object_name" (if mentioned)
+            - "object_color" (must be included if available)
+
+            Example:
+            Instruction: "Sort the red cubes and all the green slides."
+            Response:
+            [
+                {{"object_name": "cube", "object_color": "red"}},
+                {{"object_name": "slide", "object_color": "green"}},
+                {{"object_name": "slide", "object_color": "green"}}
+            ]
+
+            Respond ONLY with a valid JSON array.
         """
+
 
     @staticmethod
     def sort_order_system_msg() -> Dict:
         return {
             "role": "system",
-            "content": "You are a planner that helps extract object sorting order from commands.",
+            "content": "You are a planner that helps extract object sorting order from commands. ",
         }
 
     @staticmethod

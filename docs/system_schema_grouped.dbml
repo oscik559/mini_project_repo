@@ -1,0 +1,235 @@
+// DBML schema grouped by functional modules
+// Import into dbdiagram.io and organize using layout tools
+
+// === USER & AUTHENTICATION MODULE ===
+Table users {
+  user_id serial [primary key]
+  first_name text [not null]
+  last_name text [not null]
+  liu_id text [unique]
+  email text [unique]
+  preferences text
+  profile_image_path text
+  interaction_memory text
+  face_encoding bytea
+  voice_embedding bytea
+  role text
+  created_at timestamp
+  last_updated timestamp
+}
+
+Table access_logs {
+  log_id serial [primary key]
+  user_id integer [not null, ref: > users.user_id]
+  action_type text
+  target_table text
+  timestamp timestamp
+}
+
+Table interaction_memory {
+  interaction_id serial [primary key]
+  user_id integer [ref: > users.user_id]
+  instruction_id integer [ref: > instructions.id]
+  interaction_type text
+  data text
+  start_time timestamp
+  end_time timestamp
+  timestamp timestamp
+}
+
+// === INPUT & LANGUAGE UNDERSTANDING ===
+Table instructions {
+  id serial [primary key]
+  timestamp timestamp
+  user_id integer [ref: > users.user_id]
+  modality text
+  language text
+  instruction_type text
+  processed boolean
+  content text
+  sync_id integer [unique]
+  confidence real
+}
+
+// === OBJECT PERCEPTION (VISION) ===
+Table camera_vision {
+  object_id serial [primary key]
+  object_name text
+  object_color text
+  color_code float8[]
+  pos_x double
+  pos_y double
+  pos_z double
+  rot_x double
+  rot_y double
+  rot_z double
+  usd_name text
+  last_detected timestamp
+}
+
+Table usd_data {
+  sequence_id integer [primary key]
+  usd_name text
+  type_of_usd text
+  repository text
+  block_height float
+  block_pick_height float
+  scale_x float
+  scale_y float
+  scale_z float
+  prim_path text
+  initial_pos_x float
+  initial_pos_y float
+  initial_pos_z float
+  register_obstacle boolean
+}
+
+Table gesture_library {
+  gesture_id serial [primary key]
+  gesture_type text
+  gesture_text text
+  natural_description text
+  config text
+}
+
+// === TASK PLANNING & SEQUENCING ===
+Table sequence_library {
+  sequence_id serial [primary key]
+  sequence_name text
+  skill_name text
+  node_name text
+  description text
+  conditions text
+  post_conditions text
+  is_runnable_count integer
+  is_runnable_condition text
+  is_runnable_exit boolean
+}
+
+Table states {
+  task_id serial [primary key]
+  task_name text
+  description text
+  conditions text
+  post_conditions text
+  sequence_id integer [ref: > sequence_library.sequence_id]
+}
+
+Table skills {
+  skill_id serial [primary key]
+  skill_name text
+  description text
+  parameters text
+  required_capabilities text
+  average_duration real
+}
+
+Table operation_library {
+  id serial [primary key]
+  operation_name text [unique]
+  task_order text
+  description text
+  trigger_keywords text[]
+  script_path text
+  is_triggerable boolean
+  trigger boolean
+  state text
+  last_triggered timestamp
+}
+
+Table task_templates {
+  task_id serial [primary key]
+  task_name text [unique]
+  description text
+  default_sequence text[]
+}
+
+Table sort_order {
+  order_id serial [primary key]
+  object_name text
+  object_color text
+}
+
+// === EXECUTION PARAMETERS ===
+Table pick_op_parameters {
+  sequence_id serial [primary key]
+  operation_order integer
+  object_id text
+  slide_state_status boolean
+  slide_direction text
+  distance_travel float
+  operation_status boolean
+}
+
+Table drop_op_parameters {
+  sequence_id serial [primary key]
+  operation_order integer
+  object_id text
+  drop_height float
+  drop_pos_x float
+  drop_pos_y float
+  drop_pos_z float
+  operation_status boolean
+}
+
+Table travel_op_parameters {
+  sequence_id serial [primary key]
+  operation_order integer
+  object_id text
+  travel_height float
+  gripper_rotation text
+  operation_status boolean
+}
+
+Table screw_op_parameters {
+  sequence_id serial [primary key]
+  operation_order integer
+  object_id text
+  rotation_dir boolean
+  number_of_rotations integer
+  current_rotation integer
+  operation_status boolean
+}
+
+Table slide_state_parameters {
+  sequence_id serial [primary key]
+  operation_order integer
+  object_id text
+  lift_distance float
+  pos_x float
+  pos_y float
+  pos_z float
+  operation_status boolean
+}
+
+Table rotate_state_parameters {
+  sequence_id serial [primary key]
+  operation_order integer
+  object_id text
+  rotation_angle float
+  operation_status boolean
+}
+
+Table lift_state_parameters {
+  sequence_id serial [primary key]
+  operation_order integer
+  object_id text
+  lift_height float
+  operation_status boolean
+}
+
+// === SIMULATION TRACKING ===
+Table simulation_results {
+  simulation_id serial [primary key]
+  instruction_id integer [ref: > instructions.id]
+  success boolean
+  metrics text
+  error_log text
+  timestamp timestamp
+}
+
+Table isaac_sim_gui {
+  sequence_id serial [primary key]
+  gui_feature text
+  operation_status boolean
+}

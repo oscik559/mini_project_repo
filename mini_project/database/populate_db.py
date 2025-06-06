@@ -334,7 +334,7 @@ class DatabasePopulator:
                 "shape_stacking",
                 "pick, travel, drop",
                 "Stack blocks of shapes based on their type and color",
-                ["stack", "stacking", "shapes", "shape", "shape stacking"],
+                ["stack", "stacking", "shapes", "shape", "blocks", "shape stacking"],
                 "detect_shapes_pgSQL.py",
                 True,
                 False,

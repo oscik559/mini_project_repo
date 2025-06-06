@@ -17,7 +17,7 @@ import psycopg2
 import pyttsx3
 import sounddevice as sd
 import webrtcvad
-from config.app_config import (
+from mini_project.config.app_config import (
     MAX_TRANSCRIPTION_RETRIES,
     MIN_DURATION_SEC,
     NOISE_CACHE_PATH,
@@ -26,7 +26,7 @@ from config.app_config import (
 )
 
 # NOISE_CACHE_PATH = Path(tempfile.gettempdir()) / "noise_floor_cache.json"
-from config.constants import WHISPER_LANGUAGE_NAMES
+from mini_project.config.constants import WHISPER_LANGUAGE_NAMES
 from faster_whisper import WhisperModel
 from gtts import gTTS
 from langgraph.graph import StateGraph

@@ -588,6 +588,84 @@ class FaceAuthSystem:
         return None
 
 
+
+    def register_user_from_image(self, image_path, first_name, last_name, liu_id, email):
+        """
+        Registers a user by extracting face encoding from the image and saving user info.
+        Returns True if successful, False otherwise.
+        """
+        # Load and encode face
+        image = cv2.imread(str(image_path))
+        if image is None:
+            logger.error("Image not found or unreadable.")
+            return False
+        rgb_image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        encodings = face_recognition.face_encodings(rgb_image)
+        if not encodings:
+            logger.error("No face detected in the image.")
+            return False
+        face_encoding = encodings[0]
+
+        # Validate user input
+        if not self._validate_user_input(liu_id, email):
+            logger.error("Invalid LIU ID or email.")
+            return False
+
+        try:
+            with self.conn:
+                cursor = self.conn.cursor()
+                # Check if user exists
+                cursor.execute(
+                    "SELECT user_id, face_encoding FROM users WHERE liu_id = %s OR email = %s",
+                    (liu_id, email),
+                )
+                existing = cursor.fetchone()
+
+                if existing:
+                    user_id, existing_encoding_bytea = existing
+                    existing_encodings = (
+                        pickle.loads(existing_encoding_bytea)
+                        if existing_encoding_bytea
+                        else []
+                    )
+                    existing_encodings.append(face_encoding)
+                    # Enforce maximum stored encodings
+                    existing_encodings = existing_encodings[-MAX_ENCODINGS_PER_USER:]
+                    cursor.execute(
+                        "UPDATE users SET face_encoding = %s WHERE user_id = %s",
+                        (psycopg2.Binary(pickle.dumps(existing_encodings)), user_id),
+                    )
+                    logger.info("✅ Face encoding updated for %s %s", first_name, last_name)
+                else:
+                    profile_image_path = str(FACE_CAPTURE_PATH / f"{liu_id}.jpg")
+                    preferences = "{}"
+                    interaction_memory = "[]"
+                    face_blob = psycopg2.Binary(pickle.dumps([face_encoding]))
+                    cursor.execute(
+                        """INSERT INTO users
+                            (first_name, last_name, liu_id, email, face_encoding,
+                            preferences, profile_image_path, interaction_memory)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                        (
+                            first_name,
+                            last_name,
+                            liu_id,
+                            email,
+                            face_blob,
+                            preferences,
+                            profile_image_path,
+                            interaction_memory,
+                        ),
+                    )
+                    cv2.imwrite(profile_image_path, image)
+                    logger.info("✅ User %s %s registered successfully with LIU ID: %s", first_name, last_name, liu_id)
+            self._refresh_index()
+            return True
+        except Exception as e:
+            self.conn.rollback()
+            logger.error("🔴 Registration failed: %s", e)
+            return False
+
     def identify_user_from_image(self, image_path: str):
         """
         Identify a user from a face image file.

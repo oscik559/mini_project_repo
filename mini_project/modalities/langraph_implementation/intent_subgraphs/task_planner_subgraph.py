@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple, TypedDict
 
 import ollama
 import psycopg2
-from config.app_config import setup_logging
+from mini_project.config.app_config import setup_logging
 from langgraph.graph import END, StateGraph
 from psycopg2 import Error as Psycopg2Error
 from psycopg2 import sql

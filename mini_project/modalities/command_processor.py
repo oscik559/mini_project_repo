@@ -588,6 +588,7 @@ class CommandProcessor:
                 results.append((object_name, object_color))
 
             logger.info(f"✅ Extracted sort order: {results}")
+            print(f"✅ Extracted sort order -----------------------------: {results}")
             return results
 
         except Exception as e:
@@ -623,12 +624,25 @@ class CommandProcessor:
                 if not name_list:
                     logger.warning(f"⚠️ No match in camera_vision for color: {color}")
                     continue
-                obj_name = name_list.pop(0)  # Use and remove to avoid duplicates
-                self.cursor.execute(
-                    "INSERT INTO sort_order (object_name, object_color) VALUES (%s, %s)",
-                    (obj_name, color),
-                )
-                inserted.append((obj_name, color))
+                # obj_name = name_list.pop(0)  # Use and remove to avoid duplicates
+
+                # self.cursor.execute(
+                #     "INSERT INTO sort_order (object_name, object_color) VALUES (%s, %s)",
+                #     (obj_name, color),
+                # )
+                # inserted.append((obj_name, color))
+
+
+                # ----------------------
+                for obj_name in name_list:
+                    self.cursor.execute(
+                        "INSERT INTO sort_order (object_name, object_color) VALUES (%s, %s)",
+                        (obj_name, color),
+                    )
+                    inserted.append((obj_name, color))
+                # ----------------------
+
+
 
             logger.info(f"✅ sort_order table populated: {inserted}")
 

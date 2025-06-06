@@ -1,0 +1,329 @@
+\begin{algorithm}[H]
+\KwResult{Personalized Task Execution in Simulation or Physical Robot}
+
+\textbf{Initialization:} \\
+Load Web GUI, RealSense Camera, Microphone, LLM, PostgreSQL, LangGraph Subgraphs\; \\
+Initialize ABB YuMi Digital Twin in Isaac Sim\;
+
+\While{System is running}{
+  \textbf{Start User Session:} \\
+  Launch GUI, activate webcam and microphone, and initialize SessionManager\;
+
+  \textbf{Authenticate User:} \\
+  Capture face image via webcam and match using face recognition with \texttt{users} table\; \\
+  Capture voice via microphone and match with stored voice encodings\; \\
+  Log successful authentication to \texttt{access\_logs}\;
+
+  \textbf{Capture User Command:} \\
+  Record and transcribe voice using Whisper model\; \\
+  Optionally capture gesture input and store in \texttt{gesture\_instructions}\; \\
+  Store all inputs to \texttt{unified\_instructions} table\;
+
+  \textbf{Classify Intent:} \\
+  Use LLM-based classifier to determine intent: general query, scene query, action task, or triggered task\;
+
+  \textbf{Process Intent via Subgraphs:} \\
+  \uIf{General Query}{
+    Use LLM to respond using \texttt{interaction\_memory} and user profile\;
+  }
+  \uElseIf{Scene Query}{
+    Fetch data from \texttt{camera\_vision}, format as prompt, and generate scene summary\;
+  }
+  \uElseIf{Action Task}{
+    Generate operation plan using \texttt{operation\_sequence} and \texttt{op\_parameters}\;
+    Retrieve necessary data from \texttt{camera\_vision} and \texttt{usd\_data}\;
+  }
+  \uElseIf{Triggered Task}{
+    Set \texttt{trigger = TRUE} for matched task in \texttt{operation\_library}\;
+  }
+
+  \textbf{Execute Task Plan:} \\
+  Send planned steps to Isaac Sim\; \\
+  ABB YuMi replicates task in physical space\; \\
+  Log execution results to \texttt{simulation\_results} and \texttt{interaction\_memory}\;
+
+  \textbf{Loop and Wait:} \\
+  Return response to GUI or TTS output\; \\
+  Wait for next command\;
+}
+\caption{Appendix Figure B.1: End-to-End Vision-Language-Robot Execution Flow}
+\end{algorithm}
+
+
+
+
+
+
+\begin{algorithm}[H]
+\KwResult{Detect and log colored geometric shapes with spatial reference}
+\textbf{Initialize Camera and Depth Pipeline} using RealSense API\;
+
+\While{System is running}{
+  Capture color and depth frames from camera\;
+  Identify table ROI and extract image region\;
+  Extract screw ROI and detect orange and blue screws\;
+
+  \eIf{both screws detected}{
+    Compute scaling factor using screw-to-screw distance\;
+    Set orange screw as origin\;
+  }{
+    \uIf{last-known screws available and valid}{
+      Reuse previous screw positions within timeout window\;
+    }
+    \Else{
+      Skip frame due to missing reference\;
+    }
+  }
+
+  Apply mean-shift segmentation on ROI\;
+  Generate binary masks using HSV color ranges\;
+  Detect contours and filter by area thresholds\;
+
+  \ForEach{contour}{
+    Classify geometric shape (circle, triangle, etc.)\;
+    Determine shape color from HSV average\;
+    Compute center point and orientation\;
+    Calculate real-world position relative to screw origin\;
+
+    \If{matching previous object}{
+      Update existing object entry and history\;
+    }
+    \Else{
+      Create new object entry with unique name\;
+    }
+
+    Store shape metadata in \texttt{camera\_vision} table:
+    \texttt{object\_name, object\_color, color\_code, pos\_x, pos\_y, pos\_z, rot\_z}\;
+  }
+
+  Overlay detected shapes and annotations on output image\;
+  Display visual result with shape names and depth info\;
+  \If{user presses 'q'}{ exit loop\; }
+}
+\caption{Appendix Figure B.3: Colored Shape Detection with Screw-Based Referencing}
+\end{algorithm}
+
+
+\begin{algorithm}[H]
+\KwResult{Authenticate user via Face Recognition (with fallback to registration)}
+
+\textbf{Initialize FaceAuthSystem and FAISS Index}\;
+Load known encodings and user records from database\;
+
+\For{each frame during identification phase}{
+  Detect faces and compute encodings\;
+  \ForEach{detected face}{
+    Compare with stored embeddings using FAISS\;
+    \uIf{similarity $\geq$ threshold}{
+      Retrieve user info and welcome user\;
+    }\Else{
+      Flag face as unknown\;
+    }
+  }
+}
+
+\uIf{unknown face detected}{
+  Prompt user for registration\;
+  Capture face and user details\;
+  Save encoding and profile image to database\;
+  Refresh FAISS index\;
+}
+\caption{Appendix Figure B.4: Face Authentication and User Registration Flow}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\KwResult{Authenticate user by comparing voice sample to stored embedding}
+
+Prompt user to record voice sample using microphone\;
+Transcribe speech to validate known phrase\;
+If transcription matches:
+  Preprocess audio and compute embedding using Resemblyzer\;
+
+Retrieve stored voice embedding from database or file\;
+Compare new vs stored embedding using cosine similarity\;
+
+\uIf{similarity $\geq$ threshold}{
+  Grant voice authentication\;
+}\Else{
+  Deny access and prompt retry\;
+}
+\caption{Appendix Figure B.5: Voice Authentication with Embedding Matching}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\KwResult{Classify and process user command with LLM + LangGraph Subgraphs}
+
+Record user voice or gesture input and transcribe to text\;
+Store unified instruction in database\;
+Use LLM classifier to infer intent category\;
+
+\uIf{General Query}{
+  Query interaction memory + user profile\;
+  Generate and return assistant response\;
+}
+\uElseIf{Scene Query}{
+  Fetch camera\_vision context\;
+  Summarize visible environment via LLM\;
+}
+\uElseIf{Action Task}{
+  Match command to task from operation\_library\;
+  Generate execution plan via planner node\;
+  Retrieve real-world coordinates for objects involved\;
+}
+\uElseIf{Triggered Task}{
+  Set trigger flag in database to activate external script\;
+}
+
+Return response to user via GUI or TTS\;
+\caption{Appendix Figure B.6: LLM-Based Task Classification and Execution Flow}
+\end{algorithm}
+
+
+
+
+
+
+
+
+
+\begin{algorithm}[H]
+\KwResult{Authenticate user via Face Recognition (with fallback to registration)}
+
+\textbf{Initialize FaceAuthSystem and FAISS Index}\;
+Load known encodings and user records from database\;
+
+\For{each frame during identification phase}{
+  Detect faces and compute encodings\;
+  \ForEach{detected face}{
+    Compare with stored embeddings using FAISS\;
+    \uIf{similarity $\geq$ threshold}{
+      Retrieve user info and welcome user\;
+    }\Else{
+      Flag face as unknown\;
+    }
+  }
+}
+
+\uIf{unknown face detected}{
+  Prompt user for registration\;
+  Capture face and user details\;
+  Save encoding and profile image to database\;
+  Refresh FAISS index\;
+}
+\caption{Appendix Figure B.4: Face Authentication and User Registration Flow}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\KwResult{Authenticate user by comparing voice sample to stored embedding}
+
+Prompt user to record voice sample using microphone\;
+Transcribe speech to validate known phrase\;
+If transcription matches:
+  Preprocess audio and compute embedding using Resemblyzer\;
+
+Retrieve stored voice embedding from database or file\;
+Compare new vs stored embedding using cosine similarity\;
+
+\uIf{similarity $\geq$ threshold}{
+  Grant voice authentication\;
+}\Else{
+  Deny access and prompt retry\;
+}
+\caption{Appendix Figure B.5: Voice Authentication with Embedding Matching}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\KwResult{Classify and process user command with LLM + LangGraph Subgraphs}
+
+Record user voice or gesture input and transcribe to text\;
+Store unified instruction in database\;
+Use LLM classifier to infer intent category\;
+
+\uIf{General Query}{
+  Query interaction memory + user profile\;
+  Generate and return assistant response\;
+}
+\uElseIf{Scene Query}{
+  Fetch camera\_vision context\;
+  Summarize visible environment via LLM\;
+}
+\uElseIf{Action Task}{
+  Match command to task from operation\_library\;
+  Generate execution plan via planner node\;
+  Retrieve real-world coordinates for objects involved\;
+}
+\uElseIf{Triggered Task}{
+  Set trigger flag in database to activate external script\;
+}
+
+Return response to user via GUI or TTS\;
+\caption{Appendix Figure B.6: LLM-Based Task Classification and Execution Flow}
+\end{algorithm}
+
+
+
+
+
+\begin{algorithm}[H]
+\KwResult{Handle user interaction via FastAPI Web Interface}
+
+Start FastAPI server with routes and template rendering\;
+Render GUI using HTML/CSS template with chat display, input box, buttons\;
+
+\ForEach{user input event}{
+  Route input to backend endpoint (e.g., /process or /status)\;
+  Store message in conversation history\;
+  Forward input to SessionManager or LLM handler\;
+  Return assistant reply to front-end\;
+
+  \If{response includes task trigger}{
+    Update relevant database flags or call downstream module\;
+  }
+
+  Render response on chat interface with updated context\;
+}
+\caption{Appendix Figure B.7: Web-Based GUI Interaction Flow via FastAPI}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\KwResult{Manage session, authentication, and input routing}
+
+\textbf{Start Session:} \\
+Check user authentication (face or voice)\;
+Assign session ID and load interaction memory\;
+
+\textbf{During Session:} \\
+Accept user input (voice or gesture)\;
+Store in unified\_instructions and log access\;
+
+Determine active user context and preferences\;
+Pass input to LLM-based orchestrator for further classification\;
+
+\textbf{End Session:} \\
+Optionally clear memory or update session log in database\;
+
+\caption{Appendix Figure B.8: Session Management and Routing Flow}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\KwResult{Route user command to correct LangGraph Subgraph}
+
+Start orchestration from root node\;
+Pass instruction to LLM classifier node to determine type\;
+
+\uIf{GeneralQuery}{
+  Route to general\_node with chat history\;
+}
+\uElseIf{SceneQuery}{
+  Route to scene\_node and inject vision data into prompt\;
+}
+\uElseIf{ActionTask}{
+  Route to planner\_node with command + context from database\;
+}
+\uElseIf{Unknown}{
+  Route to fallback\_node or error handler\;
+}
+
+Return output state with `reply` field and any `plan` updates\;
+\caption{Appendix Figure B.9: LangGraph Intent Routing and Subgraph Execution}
+\end{algorithm}

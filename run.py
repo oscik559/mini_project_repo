@@ -22,7 +22,7 @@ import time
 import requests
 import sys
 import os
- 
+
 ngrok_path = os.path.join(os.path.dirname(__file__), "ngrok.exe")
 
 
@@ -48,6 +48,7 @@ def start_ngrok(port=8000, timeout=10):
     if not public_url:
         print("🟡 Could not get ngrok URL after waiting.")
     return ngrok
+
 
 
 if __name__ == "__main__":

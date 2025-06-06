@@ -1,0 +1,73 @@
+mini_project_repo/
+├── .env
+├── .gitignore
+├── requirements.txt
+├── README.md
+├── run.py
+├── keep_awake.py
+├── docs/
+│   ├── approach.md
+│   ├── description.txt
+│   ├── scripts.txt
+│   └── structure.txt
+├── mini_project.egg-info/
+│   ├── dependency_links.txt
+│   ├── PKG-INFO
+│   ├── requires.txt
+│   ├── SOURCES.txt
+│   └── top_level.txt
+├── authentication/
+│   ├── _face_auth.py
+│   └── _voice_auth.py
+├── camera/
+│   ├── tray_and_slides_detection.py
+│   └── basic_shapes_detection.py
+├── database/
+│   ├── connection.py
+│   ├── db_handler.py
+│   ├── schema_sql.py
+│   └── populate_db.py
+├── modalities/
+│   ├── command_processor.py
+│   ├── gesture_processor.py
+│   ├── llm_main_chain.py
+│   ├── orchestrator.py
+│   ├── prompt_utils.py
+│   ├── session_manager.py
+│   ├── synchronizer.py
+│   ├── task_manager.py
+│   ├── voice_assistant.py
+│   └── voice_processor.py
+├── simulation/
+│   ├── omniverse_connector.py
+│   └── simulation_results/
+├── web_interface/
+│   ├── main.py
+│   ├── routes.py
+│   ├── static/
+│   └── template/
+│       └── index.html
+├── config/
+│   ├── app_config.py
+│   ├── constants.py
+│   └── logging_config.yaml
+├── tests/
+│   ├── test_command_processor.py
+│   ├── test_db_pgSQL.py
+│   ├── test_db_pgSQL_connection.py
+│   └── test_synchronizer.py
+├── assets/
+│   ├── camera_data/
+│   ├── chat_memory/
+│   ├── config_cache/
+│   ├── db_backups/
+│   ├── db_data/
+│   ├── db_user_backups/
+│   ├── face_capture/
+│   ├── face_encodings/
+│   ├── robot_wakewords/
+│   ├── sound_effects/
+│   ├── temp_audio/
+│   ├── temp_images/
+│   ├── voice_capture/
+│   └── voice_embeddings/

@@ -428,8 +428,8 @@ Please provide the actual code selection to generate a relevant documentation co
                     <option value="llama3.2:latest">🦙Llama 3.2</option>
                     <option value="llama3.2:1b">🦙Llama 3.1</option>
 
-                    <option value="deepseek-r1:32b">🔎Deepseek 2</option>
-                    <option value="deepseek-r1:1.5b">🔬Deepseek 1</option>
+                    <!-- <option value="deepseek-r1:32b">🔎Deepseek 2</option> -->
+                    <!-- <option value="deepseek-r1:1.5b">🔬Deepseek 1</option> -->
 
                     <option value="qwen2.5:0.5b">🐧Qwen 2.5 </option>
                     <option value="qwen:0.5b">🧩Qwen 0.5</option>
@@ -501,6 +501,7 @@ Please provide the actual code selection to generate a relevant documentation co
     </div>
 
     <script>
+
         let currentLLMController = null;
         let currentVoiceLLMController = null;
 
@@ -713,7 +714,7 @@ Please provide the actual code selection to generate a relevant documentation co
         }
 
         async function setLLMModel(model) {
-            const allowedModels = ["mistral:latest","phi4:latest","gemma3:4b","llama3.3:latest", "llama3.2:latest",  "llama3.2:1b","deepseek-r1:32b","deepseek-r1:1.5b", "qwen2.5:0.5b",  "qwen:0.5b"];
+            const allowedModels = ["mistral:latest","phi4:latest","gemma3:4b","llama3.3:latest", "llama3.2:latest",  "llama3.2:1b", "qwen2.5:0.5b",  "qwen:0.5b"];
 
             if (!allowedModels.includes(model)) {
                 showResponse("❌ Invalid model selected.");
@@ -1087,7 +1088,7 @@ Please provide the actual code selection to generate a relevant documentation co
                                 if (mediaRecorder.state !== "inactive") {
                                     mediaRecorder.stop();
                                 }
-                            }, 3000); // 3 seconds of silence after speech
+                            }, 2000); // 3 seconds of silence after speech
                         }
                     }
                     if (mediaRecorder.state === "recording") {
