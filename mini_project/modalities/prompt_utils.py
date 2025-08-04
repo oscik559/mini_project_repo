@@ -36,11 +36,17 @@ Usage:
 """
 
 
-from datetime import datetime
-from typing import Dict, List
+# ========== Standard Library Imports ==========
+from datetime import datetime  # For time-based prompt context and greeting generation
+from typing import Dict, List  # Type hints for function parameters and return values
 
-from langchain_core.prompts import PromptTemplate
+# ========== Third-Party Library Imports ==========
+from langchain_core.prompts import (
+    PromptTemplate,  # LangChain prompt template system for LLM interactions
+)
 
+# ========== Lab Context Constants ==========
+# Mission statement describing the research project's goals and scope
 LAB_MISSION = (
     "We're building an adaptive robotic assistant that combines computer vision, large language models (LLMs), "
     "and real-time robotic control through a digital twin system in Omniverse IsaacSim. "
@@ -50,6 +56,7 @@ LAB_MISSION = (
     "for intelligent human-robot collaboration — one that adapts to new applications over time."
 )
 
+# Team member roles and responsibilities for contextual conversation
 TEAM_ROLES = {
     "Oscar": "Masters Thesis student, vision-to-language-to-robotic control integration for task planning and LLM based robot interaction",
     "Rahul": "Research Assistant, handling the Omniverse Isaac Sim Simulation side of things",
@@ -58,13 +65,38 @@ TEAM_ROLES = {
     "Sanjay": "Ph.D student. Handling the Camera vision Object detection side of things using LangGraph and OpenCV",
 }
 
+# Physical location of the research laboratory
 LAB_LOCATION = "Product Realisation Robotics Lab, Linköping Universitet, Sweden"
 
 
 class PromptBuilder:
+    """
+    Static utility class for generating LLM prompt templates used throughout the voice assistant system.
+
+    This class provides specialized prompt templates for different aspects of the robotic assistant:
+    - Command classification and intent recognition
+    - Scene description and object detection queries
+    - Task planning and operation sequencing
+    - Natural language conversation and social interaction
+    - Greeting generation and time-aware responses
+    """
+
+    # ========== Command Classification Prompts ==========
 
     @staticmethod
     def classify_command_prompt() -> PromptTemplate:
+        """
+        Generate a prompt template for classifying user voice commands into intent categories.
+
+        This template helps the LLM determine whether a user command is requesting:
+        - 'scene': Information about what the camera/robot can see
+        - 'task': Physical robot actions and task execution
+        - 'trigger': Camera vision routine activation
+        - 'general': Conversational or informational queries
+
+        Returns:
+            PromptTemplate: LangChain template for intent classification
+        """
         return PromptTemplate.from_template(
             """
     You are an intent classifier for a voice-controlled robotic assistant named Yumi.
@@ -99,6 +131,16 @@ class PromptBuilder:
 
     @staticmethod
     def match_operation_prompt() -> PromptTemplate:
+        """
+        Generate a prompt template for selecting the best robot operation from available options.
+
+        This template helps the LLM choose the most appropriate robotic operation
+        from a list of available sequences based on user voice commands. Used for
+        task planning and operation selection in the robotic control pipeline.
+
+        Returns:
+            PromptTemplate: LangChain template for operation matching
+        """
         return PromptTemplate.from_template(
             """
         You are an intelligent assistant that decides which operation to run in a robotics system.
@@ -115,7 +157,8 @@ class PromptBuilder:
         """
         )
 
-    # PromptBuilder: General / Social Prompts
+    # ========== Conversational and Social Interaction Prompts ==========
+
     @staticmethod
     def general_conversation_prompt(
         first_name,
@@ -127,6 +170,32 @@ class PromptBuilder:
         full_time,
         chat_history,
     ):
+        """
+        Generate a comprehensive conversational prompt template for natural social interaction.
+
+        This template creates context-aware conversational responses that adapt to:
+        - User identity and role (visitor, team member, guest, admin)
+        - Current time and weather conditions
+        - Lab context and team member information
+        - Conversation history for continuity
+
+        The generated prompt instructs the LLM to respond as 'Yumi' with appropriate
+        personality traits, tone adaptation, and contextual awareness.
+
+        Args:
+            first_name (str): User's first name for personalization
+            liu_id (str): University ID for user identification
+            role (str): User's role (visitor, team, guest, admin) for tone adaptation
+            team_names (list): List of current team members for context
+            weather (str): Current weather conditions in Linköping
+            part_of_day (str): Time period (morning, afternoon, evening)
+            full_time (str): Complete timestamp for context
+            chat_history (str): Previous conversation for continuity
+
+        Returns:
+            PromptTemplate: LangChain template for natural conversation generation
+        """
+        # Format team information for context inclusion
         team_line = ", ".join(team_names)
         team_profiles = " | ".join(
             f"{name}: {TEAM_ROLES[name]}" for name in team_names if name in TEAM_ROLES
@@ -249,8 +318,21 @@ class PromptBuilder:
     # """
     #     )
 
+    # ========== Scene Description and Camera Vision Prompts ==========
+
     @staticmethod
     def scene_prompt_template() -> PromptTemplate:
+        """
+        Generate a prompt template for describing scenes based on camera-detected objects.
+
+        This template processes object detection data from the camera vision system
+        and generates natural language descriptions of the scene. It handles 3D
+        positioning, object colors, and spatial relationships while avoiding
+        technical jargon in responses.
+
+        Returns:
+            PromptTemplate: LangChain template for scene description based on camera data
+        """
         return PromptTemplate.from_template(
             """
         You are an intelligent robotic assistant, with the camera as your eye. Based on the objects in the scene, listed in a camera_vision database table, respond concisely and clearly to the user question. One line answers are acceptable.
@@ -280,6 +362,16 @@ class PromptBuilder:
 
     @staticmethod
     def scene_prompt_template_2() -> PromptTemplate:
+        """
+        Generate an enhanced scene description template with user context and personality.
+
+        This is an alternative scene description template that includes user identification
+        and maintains Yumi's personality while describing camera-detected objects.
+        Provides more personalized and context-aware scene descriptions.
+
+        Returns:
+            PromptTemplate: Enhanced LangChain template for personalized scene description
+        """
         return PromptTemplate(
             input_variables=[
                 "chat_history",
@@ -319,6 +411,8 @@ class PromptBuilder:
             """,
         )
 
+    # ========== Task Planning and Robot Operation Prompts ==========
+
     @staticmethod
     def operation_sequence_prompt(
         available_sequences: str,
@@ -326,6 +420,23 @@ class PromptBuilder:
         object_context: str,
         sort_order: str,
     ) -> str:
+        """
+        Generate a comprehensive prompt for planning robot operation sequences.
+
+        This prompt helps the LLM break down natural language commands into
+        executable robot operations using available sequences from the robot's
+        operation library. It handles task templates, object context, and
+        sorting orders to create detailed execution plans.
+
+        Args:
+            available_sequences (str): Valid robot operation sequences from database
+            task_templates (str): Default task templates for common operations
+            object_context (str): Current objects detected by camera system
+            sort_order (str): Desired ordering of objects for task execution
+
+        Returns:
+            str: Formatted prompt template for task planning
+        """
         return """
             You are a robotic task planner. Your job is to break down natural language commands into valid low-level robot operations.
 
@@ -383,22 +494,24 @@ class PromptBuilder:
             Each row in the output corresponds to one line in this table.
         """
 
-    # @staticmethod
-    # def sort_order_prompt(command_text: str) -> str:
-    #     return f"""
-    #         Given the following user instruction:
-    #         \"{command_text}\"
-
-    #         Extract the desired sort order as a JSON array of objects.
-    #         Each item should include:
-    #         - object_name (if mentioned)
-    #         - object_color (if used for sorting)
-
-    #         Respond only with a clean JSON array.
-    #     """
+    # ========== Object Ordering and Sorting Prompts ==========
 
     @staticmethod
     def sort_order_prompt(command_text: str) -> str:
+        """
+        Generate a prompt for extracting object sorting order from user commands.
+
+        This prompt helps the LLM parse natural language instructions to identify
+        which objects should be manipulated and in what order. It handles multiple
+        objects with colors and names, generating structured JSON output for
+        task planning.
+
+        Args:
+            command_text (str): User's natural language command
+
+        Returns:
+            str: Formatted prompt for object ordering extraction
+        """
         return f"""
             You are given a user instruction:
             \"{command_text}\"
@@ -425,18 +538,45 @@ class PromptBuilder:
 
     @staticmethod
     def sort_order_system_msg() -> Dict:
+        """
+        Generate system message for LLM object sorting order extraction.
+
+        Returns:
+            Dict: System message configuration for object ordering tasks
+        """
         return {
             "role": "system",
             "content": "You are a planner that helps extract object sorting order from commands. ",
         }
 
+    # ========== Utility Methods for LLM Response Processing ==========
+
     @staticmethod
     def validate_llm_json(raw: str) -> bool:
-        """Check if LLM response looks like a valid JSON array."""
+        """
+        Validate if LLM response is a properly formatted JSON array.
+
+        This utility method checks if the LLM's response matches the expected
+        JSON array format for task planning and object ordering responses.
+
+        Args:
+            raw (str): Raw response string from LLM
+
+        Returns:
+            bool: True if response looks like valid JSON array, False otherwise
+        """
         return raw.strip().startswith("[") and raw.strip().endswith("]")
+
+    # ========== Greeting and Welcome Message Prompts ==========
 
     @staticmethod
     def greeting_system_msg() -> Dict:
+        """
+        Generate system message for creative greeting generation.
+
+        Returns:
+            Dict: System message configuration for greeting generation tasks
+        """
         return {
             "role": "system",
             "content": "You generate short spoken greetings for a robotic assistant.",
@@ -444,6 +584,22 @@ class PromptBuilder:
 
     @staticmethod
     def greeting_prompt(time_of_day: str, weekday: str, month: str, seed: str) -> str:
+        """
+        Generate a context-aware greeting prompt for Yumi's welcome messages.
+
+        This prompt creates time and context-aware greetings that match Yumi's
+        personality while incorporating current time information and creative
+        inspiration seeds for variety.
+
+        Args:
+            time_of_day (str): Current time period (morning, afternoon, evening)
+            weekday (str): Current day of the week
+            month (str): Current month
+            seed (str): Creative inspiration seed for greeting variation
+
+        Returns:
+            str: Formatted greeting generation prompt
+        """
         return f"""
         You're Yumi, a clever and friendly assistant robot in a research lab at the Product Realization division of Linköping University.
 
